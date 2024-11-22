@@ -1,1 +1,3 @@
-# SkyCooker HomeAssistant Integration
+# Интеграция мультиварки SkyCooker в HomeAssistant
+
+Это тестовая версия репозитория для отладки
