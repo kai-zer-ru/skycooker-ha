@@ -1,18 +1,35 @@
 """Support for SkyCooker."""
 import logging
-from datetime import timedelta
 
-import homeassistant.helpers.event as ev
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (ATTR_SW_VERSION, CONF_DEVICE,
-                                 CONF_FRIENDLY_NAME, CONF_MAC, CONF_PASSWORD,
-                                 CONF_SCAN_INTERVAL, Platform)
+from homeassistant.const import (ATTR_SW_VERSION,
+                                 CONF_FRIENDLY_NAME, CONF_MAC,
+                                 Platform)
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import *
-from .cooker_connection import CookerConnection
+
+DOMAIN = "skycoker"
+FRIENDLY_NAME = "SkyCooker"
+MANUFACTORER = "Redmond"
+SUGGESTED_AREA = "kitchen"
+
+CONF_PERSISTENT_CONNECTION = "persistent_connection"
+
+DEFAULT_SCAN_INTERVAL = 5
+DEFAULT_PERSISTENT_CONNECTION = True
+
+DATA_CONNECTION = "connection"
+DATA_CANCEL = "cancel"
+DATA_WORKING = "working"
+DATA_DEVICE_INFO = "device_info"
+
+DISPATCHER_UPDATE = "update"
+
+ROOM_TEMP = 25
+BOIL_TEMP = 100
+
+BLE_SCAN_TIME = 3
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,33 +49,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     if DOMAIN not in hass.data: hass.data[DOMAIN] = {}
     if entry.entry_id not in hass.data: hass.data[DOMAIN][entry.entry_id] = {}
 
-    cooker = CookerConnection(
-        mac=entry.data[CONF_MAC],
-        key=entry.data[CONF_PASSWORD],
-        persistent=entry.data[CONF_PERSISTENT_CONNECTION],
-        adapter=entry.data.get(CONF_DEVICE, None),
-        hass=hass,
-        model=entry.data.get(CONF_FRIENDLY_NAME, None)
-    )
-    hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = cooker
-
-    async def poll(now, **kwargs) -> None:
-        await cooker.update()
-        await hass.async_add_executor_job(dispatcher_send, hass, DISPATCHER_UPDATE)
-        if hass.data[DOMAIN][DATA_WORKING]:
-            schedule_poll(timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]))
-        else:
-            _LOGGER.info("Not working anymore, stop")
-
-    def schedule_poll(td):
-        hass.data[DOMAIN][DATA_CANCEL] = ev.async_call_later(hass, td, poll)
 
     hass.data[DOMAIN][DATA_WORKING] = True
     hass.data[DOMAIN][DATA_DEVICE_INFO] = lambda: device_info(entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    schedule_poll(timedelta(seconds=3))
 
     return True
 
@@ -85,13 +80,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
             hass.config_entries.async_forward_entry_unload(entry, component)
         )
     hass.data[DOMAIN][DATA_CANCEL]()
-    await hass.async_add_executor_job(hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].stop)
     hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = None
     _LOGGER.debug("Entry unloaded")
     return True
 
 async def entry_update_listener(hass, entry):
     """Handle options update."""
-    cooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
-    cooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
     _LOGGER.debug("Options updated")
