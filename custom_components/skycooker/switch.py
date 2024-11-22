@@ -1,4 +1,4 @@
-"""SkyKettle."""
+"""SkyCooker."""
 import logging
 
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
@@ -20,7 +20,7 @@ SWITCH_LIGHT_BOIL = "light_boil"
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up the SkyKettle entry."""
+    """Set up the SkyCooker entry."""
     model_code = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].model_code
     async_add_entities([
         SkySwitch(hass, entry, SWITCH_MAIN)
@@ -34,7 +34,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class SkySwitch(SwitchEntity):
-    """Representation of a SkyKettle switch device."""
+    """Representation of a SkyCooker switch device."""
 
     def __init__(self, hass, entry, switch_type):
         """Initialize the switch device."""
@@ -50,7 +50,7 @@ class SkySwitch(SwitchEntity):
         self.schedule_update_ha_state()
 
     @property
-    def kettle(self):
+    def cooker(self):
         return self.hass.data[DOMAIN][self.entry.entry_id][DATA_CONNECTION]
 
     @property
@@ -99,13 +99,13 @@ class SkySwitch(SwitchEntity):
     @property
     def available(self):        
         if self.switch_type == SWITCH_MAIN:
-            return self.kettle.available
+            return self.cooker.available
         if self.switch_type == SWITCH_SOUND:
-            return self.kettle.available and self.kettle.sound_enabled != None
+            return self.cooker.available and self.cooker.sound_enabled != None
         if self.switch_type == SWITCH_LIGHT_SYNC:
-            return self.kettle.available and self.kettle.light_switch_sync != None
+            return self.cooker.available and self.cooker.light_switch_sync != None
         if self.switch_type == SWITCH_LIGHT_BOIL:
-            return self.kettle.available and self.kettle.light_switch_boil != None
+            return self.cooker.available and self.cooker.light_switch_boil != None
 
     @property
     def entity_category(self):
@@ -122,34 +122,34 @@ class SkySwitch(SwitchEntity):
     def is_on(self):
         """If the switch is currently on or off."""
         if self.switch_type == SWITCH_MAIN:
-            return self.kettle.target_mode != None
+            return self.cooker.target_mode != None
         if self.switch_type == SWITCH_SOUND:
-            return self.kettle.sound_enabled
+            return self.cooker.sound_enabled
         if self.switch_type == SWITCH_LIGHT_SYNC:
-            return self.kettle.light_switch_sync
+            return self.cooker.light_switch_sync
         if self.switch_type == SWITCH_LIGHT_BOIL:
-            return self.kettle.light_switch_boil
+            return self.cooker.light_switch_boil
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
         if self.switch_type == SWITCH_MAIN:
-            await self.kettle.set_target_mode(SkyCooker.MODE_NAMES[SkyCooker.MODE_BOIL])
+            await self.cooker.set_target_mode(SkyCooker.MODE_NAMES[SkyCooker.MODE_BOIL])
         if self.switch_type == SWITCH_SOUND:
-            await self.kettle.set_sound(True)
+            await self.cooker.set_sound(True)
         if self.switch_type == SWITCH_LIGHT_SYNC:
-            await self.kettle.set_light_switch(SkyCooker.LIGHT_SYNC, True)
+            await self.cooker.set_light_switch(SkyCooker.LIGHT_SYNC, True)
         if self.switch_type == SWITCH_LIGHT_BOIL:
-            await self.kettle.set_light_switch(SkyCooker.LIGHT_BOIL, True)
+            await self.cooker.set_light_switch(SkyCooker.LIGHT_BOIL, True)
         self.hass.async_add_executor_job(dispatcher_send, self.hass, DISPATCHER_UPDATE)
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
         if self.switch_type == SWITCH_MAIN:
-            await self.kettle.set_target_mode(None)
+            await self.cooker.set_target_mode(None)
         if self.switch_type == SWITCH_SOUND:
-            await self.kettle.set_sound(False)
+            await self.cooker.set_sound(False)
         if self.switch_type == SWITCH_LIGHT_SYNC:
-            await self.kettle.set_light_switch(SkyCooker.LIGHT_SYNC, False)
+            await self.cooker.set_light_switch(SkyCooker.LIGHT_SYNC, False)
         if self.switch_type == SWITCH_LIGHT_BOIL:
-            await self.kettle.set_light_switch(SkyCooker.LIGHT_BOIL, False)
+            await self.cooker.set_light_switch(SkyCooker.LIGHT_BOIL, False)
         self.hass.async_add_executor_job(dispatcher_send, self.hass, DISPATCHER_UPDATE)

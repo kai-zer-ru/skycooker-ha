@@ -93,13 +93,13 @@ class CookerConnection(SkyCooker):
         if self._client and self._client.is_connected: return
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
         self._client = BleakClient(self._device)
-        _LOGGER.debug("Connecting to the Kettle...")
+        _LOGGER.debug("Connecting to the Cooker...")
         await asyncio.wait_for(
             # Bluez connection timeout is not working actually
             self._client.connect(timeout=CookerConnection.CONNECTION_TIMEOUT),
             timeout=CookerConnection.CONNECTION_TIMEOUT
         )
-        _LOGGER.debug("Connected to the Kettle")
+        _LOGGER.debug("Connected to the Cooker")
         await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
         _LOGGER.debug("Subscribed to RX")
 
@@ -137,14 +137,14 @@ class CookerConnection(SkyCooker):
         if not self._auth_ok:
             self._last_auth_ok = self._auth_ok = await self.auth()
             if not self._auth_ok:
-                _LOGGER.error(f"Auth failed. You need to enable pairing mode on the kettle.")
+                _LOGGER.error(f"Auth failed. You need to enable pairing mode on the Cooker.")
                 raise AuthError("Auth failed")
             _LOGGER.debug("Auth ok")
             self._sw_version = await self.get_version()
             await self.sync_time()
 
     async def _disconnect_if_need(self):
-        if not self.persistent and self.target_mode != SkyKettle.MODE_GAME:
+        if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
             await self.disconnect()
 
     async def update(self, tries=MAX_TRIES, force_stats=False, extra_action=None, commit=False):
@@ -185,33 +185,33 @@ class CookerConnection(SkyCooker):
                     # How to set mode?
                     if target_mode == None and self._status.is_on:
                         _LOGGER.info(f"State: {self._status} -> {self._target_state}")
-                        _LOGGER.info("Need to turn off the kettle...")
+                        _LOGGER.info("Need to turn off the Cooker...")
                         await self.turn_off()
-                        _LOGGER.info("The kettle was turned off")
+                        _LOGGER.info("The Cooker was turned off")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     elif target_mode != None and not self._status.is_on:
                         _LOGGER.info(f"State: {self._status} -> {self._target_state}")
-                        _LOGGER.info("Need to set mode and turn on the kettle...")
+                        _LOGGER.info("Need to set mode and turn on the Cooker...")
                         await self.set_main_mode(target_mode, target_temp, boil_time)
                         _LOGGER.info("New mode was set")
                         await self.turn_on()
-                        _LOGGER.info("The kettle was turned on")
+                        _LOGGER.info("The Cooker was turned on")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     elif target_mode != None  and (
                             target_mode != self._status.mode or
-                            (target_mode in [SkyKettle.MODE_HEAT, SkyKettle.MODE_BOIL_HEAT] and
+                            (target_mode in [SkyCooker.MODE_HEAT, SkyCooker.MODE_BOIL_HEAT] and
                             target_temp != self._status.target_temp)):
                         _LOGGER.info(f"State: {self._status} -> {self._target_state}")
-                        _LOGGER.info("Need to switch mode of the kettle and restart it")
+                        _LOGGER.info("Need to switch mode of the Cooker and restart it")
                         await self.turn_off()
-                        _LOGGER.info("The kettle was turned off")
+                        _LOGGER.info("The Cooker was turned off")
                         await asyncio.sleep(0.2)
                         await self.set_main_mode(target_mode, target_temp, boil_time)
                         _LOGGER.info("New mode was set")
                         await self.turn_on()
-                        _LOGGER.info("The kettle was turned on")
+                        _LOGGER.info("The Cooker was turned on")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     else:
@@ -222,11 +222,11 @@ class CookerConnection(SkyCooker):
                 if self._last_get_stats + CookerConnection.STATS_INTERVAL < monotonic() or force_stats:
                     self._last_get_stats = monotonic()
                     self._stats = await self.get_stats()
-                    self._light_switch_boil = await self.get_light_switch(SkyKettle.LIGHT_BOIL)
-                    self._light_switch_sync = await self.get_light_switch(SkyKettle.LIGHT_SYNC)
+                    self._light_switch_boil = await self.get_light_switch(SkyCooker.LIGHT_BOIL)
+                    self._light_switch_sync = await self.get_light_switch(SkyCooker.LIGHT_SYNC)
                     self._lamp_auto_off_hours = await self.get_lamp_auto_off_hours()
                     self._fresh_water = await self.get_fresh_water()
-                    for lt in [SkyKettle.LIGHT_BOIL, SkyKettle.LIGHT_LAMP]:
+                    for lt in [SkyCooker.LIGHT_BOIL, SkyCooker.LIGHT_LAMP]:
                         self._colors[lt] = await self.get_colors(lt)
 
                 await self._disconnect_if_need()
@@ -255,17 +255,17 @@ class CookerConnection(SkyCooker):
 
     @staticmethod
     def limit_temp(temp):
-        if temp != None and temp > SkyKettle.MAX_TEMP:
-            return SkyKettle.MAX_TEMP
-        elif temp != None and temp < SkyKettle.MIN_TEMP:
-            return SkyKettle.MIN_TEMP
+        if temp != None and temp > SkyCooker.MAX_TEMP:
+            return SkyCooker.MAX_TEMP
+        elif temp != None and temp < SkyCooker.MIN_TEMP:
+            return SkyCooker.MIN_TEMP
         else:
             return temp
 
     @staticmethod
     def get_mode_name(mode_id):
         if mode_id == None: return "off"
-        return SkyKettle.MODE_NAMES[mode_id]
+        return SkyCooker.MODE_NAMES[mode_id]
 
     @property
     def success_rate(self):
@@ -306,17 +306,17 @@ class CookerConnection(SkyCooker):
     def target_temp(self):
         if self._target_state:
             target_mode, target_temp = self._target_state
-            if target_mode in [SkyKettle.MODE_BOIL_HEAT, SkyKettle.MODE_HEAT]:
+            if target_mode in [SkyCooker.MODE_BOIL_HEAT, SkyCooker.MODE_HEAT]:
                 return target_temp
-            if target_mode == SkyKettle.MODE_BOIL:
+            if target_mode == SkyCooker.MODE_BOIL:
                 return BOIL_TEMP
             if target_mode == None:
                 return ROOM_TEMP
         if self._status:
             if self._status.is_on:
-                if self._status.mode in [SkyKettle.MODE_BOIL_HEAT, SkyKettle.MODE_HEAT]:
+                if self._status.mode in [SkyCooker.MODE_BOIL_HEAT, SkyCooker.MODE_HEAT]:
                     return self._status.target_temp
-                if self._status.mode == SkyKettle.MODE_BOIL:
+                if self._status.mode == SkyCooker.MODE_BOIL:
                     return BOIL_TEMP
             else: # Off
                 return ROOM_TEMP
@@ -341,21 +341,21 @@ class CookerConnection(SkyCooker):
         if target_temp == self.target_temp: return # already set
         _LOGGER.info(f"Setting target temperature to {target_temp}")
         target_mode = self.target_mode
-        vs = [k for k, v in SkyKettle.MODE_NAMES.items() if v == operation_mode]
+        vs = [k for k, v in SkyCooker.MODE_NAMES.items() if v == operation_mode]
         if len(vs) > 0: target_mode = vs[0]
         # Some checks for mode
-        if target_temp < SkyKettle.MIN_TEMP:
+        if target_temp < SkyCooker.MIN_TEMP:
             # Just turn off
             target_mode = None
-        elif target_temp > SkyKettle.MAX_TEMP:
+        elif target_temp > SkyCooker.MAX_TEMP:
             # If set to ~100 - just boiling
-            target_mode = SkyKettle.MODE_BOIL # or BOIL_HEAT?
+            target_mode = SkyCooker.MODE_BOIL # or BOIL_HEAT?
         elif target_mode == None:
             # Kittle is off now, need to turn on some mode
-            target_mode = SkyKettle.MODE_HEAT # or BOIL_HEAT?
-        elif target_mode == SkyKettle.MODE_BOIL:
+            target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
+        elif target_mode == SkyCooker.MODE_BOIL:
             # Replace boiling with...
-            target_mode = SkyKettle.MODE_HEAT # or BOIL_HEAT?
+            target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
         if target_mode != self.current_mode:
             _LOGGER.info(f"Mode autoswitched to {target_mode} ({self.get_mode_name(target_mode)})")
         await self._set_target_state(target_mode, target_temp)
@@ -366,17 +366,17 @@ class CookerConnection(SkyCooker):
         _LOGGER.info(f"Setting target mode to {operation_mode}")
         target_mode = None
         # Get target mode ID
-        vs = [k for k, v in SkyKettle.MODE_NAMES.items() if v == operation_mode]
+        vs = [k for k, v in SkyCooker.MODE_NAMES.items() if v == operation_mode]
         if len(vs) > 0: target_mode = vs[0]
         # Set heating temperature if not set
         target_temp = self.target_temp
         # Some checks for temperature
-        if target_mode in [SkyKettle.MODE_BOIL]:
+        if target_mode in [SkyCooker.MODE_BOIL]:
             target_temp = 0
-        elif target_mode in [SkyKettle.MODE_LAMP, SkyKettle.MODE_GAME]:
+        elif target_mode in [SkyCooker.MODE_LAMP, SkyCooker.MODE_GAME]:
             target_temp = 85
         elif target_temp == None:
-            target_temp = SkyKettle.MAX_TEMP
+            target_temp = SkyCooker.MAX_TEMP
         else:
             target_temp = self.limit_temp(target_temp)
         if target_temp != self.target_temp:
@@ -424,11 +424,11 @@ class CookerConnection(SkyCooker):
 
     @property
     def colors_boil(self):
-        return self._colors.get(SkyKettle.LIGHT_BOIL, None)
+        return self._colors.get(SkyCooker.LIGHT_BOIL, None)
 
     @property
     def colors_lamp(self):
-        return self._colors.get(SkyKettle.LIGHT_LAMP, None)
+        return self._colors.get(SkyCooker.LIGHT_LAMP, None)
 
     @property
     def parental_control(self):

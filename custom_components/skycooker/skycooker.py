@@ -104,7 +104,7 @@ class SkyCooker():
         self.model = model
         self.model_code = self.get_model_code(model)
         if not self.model_code:
-            raise SkyKettleError("Unknown Cooker model")
+            raise SkyCookerError("Unknown Cooker model")
 
     @staticmethod
     def get_model_code(model):
@@ -134,7 +134,7 @@ class SkyCooker():
     async def turn_on(self):
         if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4]: # All except RK-M171S, RK-M172S, RK-M173S
             r = await self.command(SkyCooker.COMMAND_TURN_ON)
-            if r[0] != 1: raise SkyKettleError("can't turn on")
+            if r[0] != 1: raise SkyCookerError("can't turn on")
             _LOGGER.debug(f"Turned on")
         else:
             _LOGGER.debug(f"turn_on is not supported by this model")
@@ -142,7 +142,7 @@ class SkyCooker():
     async def turn_off(self):
         if self.model_code in [SkyCooker.MODELS_1, SkyCooker.MODELS_2, SkyCooker.MODELS_3, SkyCooker.MODELS_4]: # All known models
             r = await self.command(SkyCooker.COMMAND_TURN_OFF)
-            if r[0] != 1: raise SkyKettleError("can't turn off")
+            if r[0] != 1: raise SkyCookerError("can't turn off")
             _LOGGER.debug(f"Turned off")
         else:
             _LOGGER.debug(f"turn_off is not supported by this model")
@@ -176,7 +176,7 @@ class SkyCooker():
             _LOGGER.debug(f"set_main_mode is not supported by this model")
             return
         r = await self.command(SkyCooker.COMMAND_SET_MAIN_MODE, data)
-        if r[0] != 1: raise SkyKettleError("can't set mode")
+        if r[0] != 1: raise SkyCookerError("can't set mode")
         _LOGGER.debug(f"Mode set: mode={mode} ({SkyCooker.MODE_NAMES[mode]}), target_temp={target_temp}, boil_time={boil_time}")
 
     async def get_status(self):
@@ -236,7 +236,7 @@ class SkyCooker():
             now = int(time.time())
             data = pack("<ii", now, offset)
             r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
-            if r[0] != 0: raise SkyKettleError("can't sync time")
+            if r[0] != 0: raise SkyCookerError("can't sync time")
             _LOGGER.debug(f"Writed time={now} ({datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
         else:
             _LOGGER.debug(f"sync_time is not supported by this model")
@@ -254,7 +254,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             data = pack("<H", int(hours))
             r = await self.command(SkyCooker.COMMAND_SET_AUTO_OFF_HOURS, data)
-            if r[0] != 0: raise SkyKettleError("can't set lamp auto off hours")
+            if r[0] != 0: raise SkyCookerError("can't set lamp auto off hours")
             _LOGGER.debug(f"Updated lamp auto off hours={hours}")
         else:
             _LOGGER.debug(f"set_lamp_auto_off_hours is not supported by this model")
@@ -281,7 +281,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             data = pack("BBBBBBBBBBBBBBBB", *colors_set)
             r = await self.command(SkyCooker.COMMAND_SET_COLORS, data)
-            if r[0] != 0: raise SkyKettleError("can't set colors")
+            if r[0] != 0: raise SkyCookerError("can't set colors")
             _LOGGER.debug(f"Updated colors set: {colors_set}")
         else:
             _LOGGER.debug(f"set_colors is not supported by this model")
@@ -289,7 +289,7 @@ class SkyCooker():
     async def commit(self):
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_COMMIT_SETTINGS)
-            if r[0] != 1: raise SkyKettleError("can't commit settings")
+            if r[0] != 1: raise SkyCookerError("can't commit settings")
             _LOGGER.debug(f"Settings commited")
         else:
             _LOGGER.debug(f"commit is not supported by this model")
@@ -298,7 +298,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             data = pack("<H", int(secs))
             r = await self.command(SkyCooker.COMMAND_SET_COLOR_INTERVAL, data)
-            if r[0] != 0: raise SkyKettleError("can't set lamp color change interval")
+            if r[0] != 0: raise SkyCookerError("can't set lamp color change interval")
             _LOGGER.debug(f"Updated lamp color interval secs={secs}")
         else:
             _LOGGER.debug(f"set_lamp_color_interval is not supported by this model")
@@ -307,7 +307,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             data = pack("<BBBBH", r, g, b, brightness, interval)
             r = await self.command(SkyCooker.COMMAND_IMPULSE_COLOR, data)
-            if r[0] != 1: raise SkyKettleError("can't fire color impulse")
+            if r[0] != 1: raise SkyCookerError("can't fire color impulse")
             _LOGGER.debug(f"Impulse! r={r}, g={g}, b={b}, brightness={brightness}, interval={interval}")
         else:
             _LOGGER.debug(f"impulse_color is not supported by this model")
@@ -316,7 +316,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             data = pack("BB?", light_type, light_type, on)
             r = await self.command(SkyCooker.COMMAND_SET_LIGHT_SWITCH, data)
-            if r[0] != 0: raise SkyKettleError("can't switch light")
+            if r[0] != 0: raise SkyCookerError("can't switch light")
             _LOGGER.debug(f"Light with type={light_type} ({SkyCooker.LIGHT_NAMES[light_type]}) switched {'on' if on else 'off'}")
         else:
             _LOGGER.debug(f"set_light_switch is not supported by this model")
@@ -335,7 +335,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             data = pack("?", on)
             r = await self.command(SkyCooker.COMMAND_SET_SOUND, data)
-            if r[0] != 1: raise SkyKettleError("can't switch sound")
+            if r[0] != 1: raise SkyCookerError("can't switch sound")
             _LOGGER.debug(f"Sound switched {'on' if on else 'off'}")
         else:
             _LOGGER.debug(f"set_sound is not supported by this model")
@@ -371,5 +371,5 @@ class SkyCooker():
             _LOGGER.debug(f"get_stats is not supported by this model")
 
 
-class SkyKettleError(Exception):
+class SkyCookerError(Exception):
     pass

@@ -1,4 +1,4 @@
-"""SkyKettle."""
+"""SkyCooker."""
 import logging
 
 from homeassistant.components.water_heater import (WaterHeaterEntity,
@@ -17,12 +17,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, entry, async_add_entities, discovery_info=None):
-    """Set up the SkyKettle entry."""
+    """Set up the SkyCooker entry."""
     async_add_entities([SkyWaterHeater(hass, entry)])
 
 
 class SkyWaterHeater(WaterHeaterEntity):
-    """Representation of a SkyKettle water_heater device."""
+    """Representation of a SkyCooker water_heater device."""
 
     def __init__(self, hass, entry):
         """Initialize the water_heater device."""
@@ -37,7 +37,7 @@ class SkyWaterHeater(WaterHeaterEntity):
         self.schedule_update_ha_state()
 
     @property
-    def kettle(self):
+    def cooker(self):
         return self.hass.data[DOMAIN][self.entry.entry_id][DATA_CONNECTION]
 
     @property
@@ -71,7 +71,7 @@ class SkyWaterHeater(WaterHeaterEntity):
 
     @property
     def available(self):
-        return self.kettle.available
+        return self.cooker.available
 
     @property
     def entity_category(self):
@@ -99,7 +99,7 @@ class SkyWaterHeater(WaterHeaterEntity):
 
     @property
     def operation_list(self):
-        if self.kettle.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.cooker.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             return [
                 STATE_OFF,
                 SkyCooker.MODE_NAMES[SkyCooker.MODE_HEAT],
@@ -118,7 +118,7 @@ class SkyWaterHeater(WaterHeaterEntity):
 
     @property
     def extra_state_attributes(self):
-        sw_version = self.kettle.sw_version
+        sw_version = self.cooker.sw_version
         if sw_version:
             major, minor = sw_version
             sw_version = f"{major}.{minor}"
@@ -128,62 +128,62 @@ class SkyWaterHeater(WaterHeaterEntity):
             )
         data = {
             "target_temp_step": 5,
-            "connected": self.kettle.connected,
-            "auth_ok": self.kettle.auth_ok,
+            "connected": self.cooker.connected,
+            "auth_ok": self.cooker.auth_ok,
             "sw_version": sw_version,
-            "success_rate": self.kettle.success_rate,
-            "persistent_connection": self.kettle.persistent,
+            "success_rate": self.cooker.success_rate,
+            "persistent_connection": self.cooker.persistent,
             "poll_interval": self.entry.data.get(CONF_SCAN_INTERVAL, 0),
-            "ontime_seconds": self.kettle.ontime.total_seconds() if self.kettle.ontime else None,
-            "ontime_string": str(self.kettle.ontime),
-            "energy_wh": self.kettle.energy_wh,
-            "heater_on_count": self.kettle.heater_on_count,
-            "user_on_count": self.kettle.user_on_count,
-            "sound_enabled": self.kettle.sound_enabled,
-            "color_interval": self.kettle.color_interval,
-            "boil_time": self.kettle.boil_time,
-            "water_freshness_hours": self.kettle.water_freshness_hours,
-            "lamp_auto_off_hours": self.kettle.lamp_auto_off_hours,
-            "boil_light": self.kettle.light_switch_boil,
-            "sync_light": self.kettle.light_switch_sync,
-            "parental_control": self.kettle.parental_control,
-            "error_code": self.kettle.error_code,
+            "ontime_seconds": self.cooker.ontime.total_seconds() if self.cooker.ontime else None,
+            "ontime_string": str(self.cooker.ontime),
+            "energy_wh": self.cooker.energy_wh,
+            "heater_on_count": self.cooker.heater_on_count,
+            "user_on_count": self.cooker.user_on_count,
+            "sound_enabled": self.cooker.sound_enabled,
+            "color_interval": self.cooker.color_interval,
+            "boil_time": self.cooker.boil_time,
+            "water_freshness_hours": self.cooker.water_freshness_hours,
+            "lamp_auto_off_hours": self.cooker.lamp_auto_off_hours,
+            "boil_light": self.cooker.light_switch_boil,
+            "sync_light": self.cooker.light_switch_sync,
+            "parental_control": self.cooker.parental_control,
+            "error_code": self.cooker.error_code,
         }
         return data
 
     @property
     def is_on(self):
         """If the switch is currently on or off."""
-        return self.kettle.target_mode != None
+        return self.cooker.target_mode != None
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
-        await self.kettle.set_target_mode(SkyCooker.MODE_NAMES[SkyCooker.MODE_BOIL])
+        await self.cooker.set_target_mode(SkyCooker.MODE_NAMES[SkyCooker.MODE_BOIL])
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
-        await self.kettle.set_target_mode(None)
+        await self.cooker.set_target_mode(None)
 
     @property
     def current_temperature(self):
-        return self.kettle.current_temp
+        return self.cooker.current_temp
 
     @property
     def target_temperature(self):
-        return self.kettle.target_temp
+        return self.cooker.target_temp
 
     @property
     def current_operation(self):
-        return self.kettle.target_mode_str
+        return self.cooker.target_mode_str
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperatures."""
         target_temperature = kwargs.get(ATTR_TEMPERATURE)
         operation_mode = kwargs.get(ATTR_OPERATION_MODE)
-        await self.kettle.set_target_temp(target_temperature, operation_mode)
+        await self.cooker.set_target_temp(target_temperature, operation_mode)
         self.hass.async_add_executor_job(dispatcher_send, self.hass, DISPATCHER_UPDATE)
 
     async def async_set_operation_mode(self, operation_mode):
         """Set new operation mode."""
-        await self.kettle.set_target_mode(operation_mode)
+        await self.cooker.set_target_mode(operation_mode)
         self.hass.async_add_executor_job(dispatcher_send, self.hass, DISPATCHER_UPDATE)
