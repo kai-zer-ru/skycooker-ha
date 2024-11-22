@@ -1,0 +1,6 @@
+{
+  "name": "SkyCooker",
+  "homeassistant": "2024.9.1",
+  "render_readme": true,
+  "country": ["RU"]
+}
