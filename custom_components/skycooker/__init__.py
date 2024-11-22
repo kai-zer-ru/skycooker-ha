@@ -22,13 +22,7 @@ PLATFORMS = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up SkyCooker integration from a config entry."""
-
-    _LOGGER.error("async_setup_entry")
-    _LOGGER.error("async_setup_entry")
-    _LOGGER.error("async_setup_entry")
-    _LOGGER.error("async_setup_entry")
-    _LOGGER.error("async_setup_entry")
-    _LOGGER.error("async_setup_entry")
+    _LOGGER.info("async_setup_entry")
     entry.async_on_unload(entry.add_update_listener(entry_update_listener))
 
     if DOMAIN not in hass.data:
@@ -57,11 +51,11 @@ def device_info(entry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
-    _LOGGER.debug("Unloading")
-    _LOGGER.debug("Entry unloaded")
+    _LOGGER.info("Unloading")
+    _LOGGER.info("Entry unloaded")
     return True
 
 
 async def entry_update_listener(hass, entry):
     """Handle options update."""
-    _LOGGER.debug("Options updated")
+    _LOGGER.info("Options updated")
