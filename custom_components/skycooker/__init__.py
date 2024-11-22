@@ -3,22 +3,13 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_SW_VERSION, CONF_FRIENDLY_NAME, CONF_MAC, Platform
+from homeassistant.const import ATTR_SW_VERSION, CONF_FRIENDLY_NAME, CONF_MAC
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import *
 
 _LOGGER = logging.getLogger(__name__)
-
-PLATFORMS = [
-    Platform.WATER_HEATER,
-    Platform.SWITCH,
-    Platform.LIGHT,
-    Platform.SENSOR,
-    Platform.NUMBER,
-]
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up SkyCooker integration from a config entry."""
@@ -33,7 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][DATA_WORKING] = True
     hass.data[DOMAIN][DATA_DEVICE_INFO] = lambda: device_info(entry)
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, [])
 
     return True
 
