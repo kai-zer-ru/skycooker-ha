@@ -26,13 +26,13 @@ PLATFORMS = [
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up Sky Kettle integration from a config entry."""
+    """Set up SkyCooker integration from a config entry."""
     entry.async_on_unload(entry.add_update_listener(entry_update_listener))
 
     if DOMAIN not in hass.data: hass.data[DOMAIN] = {}
     if entry.entry_id not in hass.data: hass.data[DOMAIN][entry.entry_id] = {}
 
-    kettle = CookerConnection(
+    cooker = CookerConnection(
         mac=entry.data[CONF_MAC],
         key=entry.data[CONF_PASSWORD],
         persistent=entry.data[CONF_PERSISTENT_CONNECTION],
@@ -40,10 +40,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass=hass,
         model=entry.data.get(CONF_FRIENDLY_NAME, None)
     )
-    hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = kettle
+    hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = cooker
 
     async def poll(now, **kwargs) -> None:
-        await kettle.update()
+        await cooker.update()
         await hass.async_add_executor_job(dispatcher_send, hass, DISPATCHER_UPDATE)
         if hass.data[DOMAIN][DATA_WORKING]:
             schedule_poll(timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]))
@@ -92,6 +92,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def entry_update_listener(hass, entry):
     """Handle options update."""
-    kettle = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
-    kettle.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
+    cooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
+    cooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
     _LOGGER.debug("Options updated")

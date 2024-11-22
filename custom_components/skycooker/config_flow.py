@@ -30,7 +30,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return SkyCookerConfigFlow(entry=entry)
 
     def __init__(self, entry = None):
-        """Initialize a new SkyKettleConfigFlow."""
+        """Initialize a new SkyCookerConfigFlow."""
         self.entry = entry
         self.config = {} if not entry else dict(entry.data.items())
 
@@ -62,7 +62,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Model is not supported
                 return self.async_abort(reason='unknown_model')
             if not await self.init_mac(mac):
-                # This kettle already configured
+                # This cooker already configured
                 return self.async_abort(reason='already_configured')
             if name: self.config[CONF_FRIENDLY_NAME] = name
             # Continue to connect step
@@ -78,7 +78,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason='no_bluetooth')
             devices_filtered = [device for device in scanner.discovered_devices if device.name and (device.name.startswith("RK-") or device.name.startswith("RFS-"))]
             if len(devices_filtered) == 0:
-                return self.async_abort(reason='kettle_not_found')
+                return self.async_abort(reason='cooker_not_found')
             mac_list = [f"{r.address} ({r.name})" for r in devices_filtered]
             schema = vol.Schema(
             {
