@@ -2,6 +2,7 @@
   "domain": "skycooker",
   "name": "SkyCooker",
   "codeowners": ["@kai-zer-ru"],
+  "config_flow": true,
   "dependencies": ["bluetooth_adapters"],
   "documentation": "https://github.com/kai-zer-ru/skycooker-ha/blob/master/README.md",
   "iot_class": "local_polling",
