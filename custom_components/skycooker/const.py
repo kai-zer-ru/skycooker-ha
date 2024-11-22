@@ -1,6 +1,6 @@
 """Constants for SkyCooker component."""
 
-DOMAIN = "skycoker"
+DOMAIN = "skycooker"
 FRIENDLY_NAME = "SkyCooker"
 MANUFACTORER = "Redmond"
 SUGGESTED_AREA = "kitchen"
