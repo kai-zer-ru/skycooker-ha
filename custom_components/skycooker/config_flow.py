@@ -31,6 +31,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self, entry = None):
         """Initialize a new SkyCookerConfigFlow."""
+        _LOGGER.debug("Init SkyCookerConfigFlow")
         self.entry = entry
         self.config = {} if not entry else dict(entry.data.items())
 
@@ -60,9 +61,11 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             name = spl[1][1:-1] if len(spl) >= 2 else None
             if not SkyCooker.get_model_code(name):
                 # Model is not supported
+                _LOGGER.debug("Model is not supported")
                 return self.async_abort(reason='unknown_model')
             if not await self.init_mac(mac):
                 # This cooker already configured
+                _LOGGER.debug("This cooker already configured")
                 return self.async_abort(reason='already_configured')
             if name: self.config[CONF_FRIENDLY_NAME] = name
             # Continue to connect step
@@ -76,7 +79,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except:
                 _LOGGER.error("Bluetooth integration not working")
                 return self.async_abort(reason='no_bluetooth')
-            devices_filtered = [device for device in scanner.discovered_devices if device.name and (device.name.startswith("RK-") or device.name.startswith("RFS-"))]
+            devices_filtered = [device for device in scanner.discovered_devices]# if device.name and (device.name.startswith("RC-"))]
             if len(devices_filtered) == 0:
                 return self.async_abort(reason='cooker_not_found')
             mac_list = [f"{r.address} ({r.name})" for r in devices_filtered]
