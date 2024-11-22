@@ -1,0 +1,1 @@
+# SkyCooker HomeAssistant Integration
