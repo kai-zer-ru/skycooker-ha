@@ -79,7 +79,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except:
                 _LOGGER.error("Bluetooth integration not working")
                 return self.async_abort(reason='no_bluetooth')
-            devices_filtered = [device for device in scanner.discovered_devices if device.name and (device.name.startswith("RMC-"))]
+            devices_filtered = [device for device in scanner.discovered_devices]# if device.name and (device.name.startswith("RMC-"))]
             if len(devices_filtered) == 0:
                 return self.async_abort(reason='cooker_not_found')
             mac_list = [f"{r.address} ({r.name})" for r in devices_filtered]
