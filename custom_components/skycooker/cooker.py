@@ -42,7 +42,7 @@ class SkyWaterHeater(WaterHeaterEntity):
 
     @property
     def unique_id(self):
-        return self.entry.entry_id + "_water_heater"
+        return self.entry.entry_id + "_cooker"
 
     @property
     def name(self):
