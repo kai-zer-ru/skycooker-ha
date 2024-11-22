@@ -22,6 +22,13 @@ PLATFORMS = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up SkyCooker integration from a config entry."""
+
+    _LOGGER.error("async_setup_entry")
+    _LOGGER.error("async_setup_entry")
+    _LOGGER.error("async_setup_entry")
+    _LOGGER.error("async_setup_entry")
+    _LOGGER.error("async_setup_entry")
+    _LOGGER.error("async_setup_entry")
     entry.async_on_unload(entry.add_update_listener(entry_update_listener))
 
     if DOMAIN not in hass.data:
@@ -51,13 +58,6 @@ def device_info(entry):
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     _LOGGER.debug("Unloading")
-    hass.data[DOMAIN][DATA_WORKING] = False
-    for component in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_unload(entry, component)
-        )
-    hass.data[DOMAIN][DATA_CANCEL]()
-    hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = None
     _LOGGER.debug("Entry unloaded")
     return True
 
