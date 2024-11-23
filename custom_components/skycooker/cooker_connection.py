@@ -62,7 +62,7 @@ class CookerConnection(SkyCooker):
         self._iter = (self._iter + 1) % 256
         _LOGGER.warning(f"Writing command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
-        # _LOGGER.warning(f"Writing {data}")
+        _LOGGER.warning(f"Writing {data}")
         self._last_data = None
         await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
         timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
@@ -84,7 +84,7 @@ class CookerConnection(SkyCooker):
         return clean
 
     def _rx_callback(self, sender, data):
-        # _LOGGER.warning(f"Received (full): {' '.join([f'{c:02x}' for c in data])}")
+        _LOGGER.warning(f"Received (full): {' '.join([f'{c:02x}' for c in data])}")
         self._last_data = data
 
     async def _connect(self):

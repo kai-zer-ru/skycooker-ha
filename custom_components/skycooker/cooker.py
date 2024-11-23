@@ -99,7 +99,7 @@ class SkyWaterHeater(WaterHeaterEntity):
 
     @property
     def operation_list(self):
-        if self.cooker.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.cooker.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             return [
                 STATE_OFF,
                 SkyCooker.MODE_NAMES[SkyCooker.MODE_HEAT],
@@ -154,6 +154,7 @@ class SkyWaterHeater(WaterHeaterEntity):
     @property
     def is_on(self):
         """If the switch is currently on or off."""
+        _LOGGER.warning(f"TargetMode: {self.cooker.target_mode != None}")
         return self.cooker.target_mode != None
 
     async def async_turn_on(self, **kwargs):
