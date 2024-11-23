@@ -60,9 +60,9 @@ class CookerConnection(SkyCooker):
         if not self._client or not self._client.is_connected:
             raise IOError("not connected")
         self._iter = (self._iter + 1) % 256
-        _LOGGER.debug(f"Writing command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
+        _LOGGER.warning(f"Writing command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
-        # _LOGGER.debug(f"Writing {data}")
+        # _LOGGER.warning(f"Writing {data}")
         self._last_data = None
         await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
         timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
@@ -80,11 +80,11 @@ class CookerConnection(SkyCooker):
         if r[2] != command:
             raise IOError("Invalid response command")
         clean = bytes(r[3:-1])
-        _LOGGER.debug(f"Received: {' '.join([f'{c:02x}' for c in clean])}")
+        _LOGGER.warning(f"Received: {' '.join([f'{c:02x}' for c in clean])}")
         return clean
 
     def _rx_callback(self, sender, data):
-        # _LOGGER.debug(f"Received (full): {' '.join([f'{c:02x}' for c in data])}")
+        # _LOGGER.warning(f"Received (full): {' '.join([f'{c:02x}' for c in data])}")
         self._last_data = data
 
     async def _connect(self):
@@ -93,15 +93,15 @@ class CookerConnection(SkyCooker):
         if self._client and self._client.is_connected: return
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
         self._client = BleakClient(self._device)
-        _LOGGER.debug("Connecting to the Cooker...")
+        _LOGGER.warning("Connecting to the Cooker...")
         await asyncio.wait_for(
             # Bluez connection timeout is not working actually
             self._client.connect(timeout=CookerConnection.CONNECTION_TIMEOUT),
             timeout=CookerConnection.CONNECTION_TIMEOUT
         )
-        _LOGGER.debug("Connected to the Cooker")
+        _LOGGER.warning("Connected to the Cooker")
         await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
-        _LOGGER.debug("Subscribed to RX")
+        _LOGGER.warning("Subscribed to RX")
 
     auth = lambda self: super().auth(self._key)
 
@@ -110,7 +110,7 @@ class CookerConnection(SkyCooker):
             if self._client:
                 was_connected = self._client.is_connected
                 await self._client.disconnect()
-                if was_connected: _LOGGER.debug("Disconnected")
+                if was_connected: _LOGGER.warning("Disconnected")
         finally:
             self._auth_ok = False
             self._device = None
@@ -124,7 +124,7 @@ class CookerConnection(SkyCooker):
 
     async def _connect_if_need(self):
         if self._client and not self._client.is_connected:
-            _LOGGER.debug("Connection lost")
+            _LOGGER.warning("Connection lost")
             await self.disconnect()
         if not self._client or not self._client.is_connected:
             try:
@@ -139,7 +139,7 @@ class CookerConnection(SkyCooker):
             if not self._auth_ok:
                 _LOGGER.error(f"Auth failed. You need to enable pairing mode on the Cooker.")
                 raise AuthError("Auth failed")
-            _LOGGER.debug("Auth ok")
+            _LOGGER.warning("Auth ok")
             self._sw_version = await self.get_version()
             await self.sync_time()
 
@@ -151,7 +151,7 @@ class CookerConnection(SkyCooker):
         try:
             async with self._update_lock:
                 if self._disposed: return
-                _LOGGER.debug(f"Updating")
+                _LOGGER.warning(f"Updating")
                 if not self.available: force_stats = True # Update stats after unavailable state
                 await self._connect_if_need()
 
@@ -162,7 +162,7 @@ class CookerConnection(SkyCooker):
                 boil_time = self._status.boil_time
                 if self._target_boil_time != None and self._target_boil_time != boil_time:
                     try:
-                        _LOGGER.debug(f"Need to update boil time from {boil_time} to {self._target_boil_time}")
+                        _LOGGER.warning(f"Need to update boil time from {boil_time} to {self._target_boil_time}")
                         boil_time = self._target_boil_time
                         if self._target_state == None: # To return previous state
                             self._target_state = self._status.mode if self._status.is_on else None, self._status.target_temp
@@ -215,7 +215,7 @@ class CookerConnection(SkyCooker):
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     else:
-                        _LOGGER.debug(f"There is no reason to update state")
+                        _LOGGER.warning(f"There is no reason to update state")
                     # Not scheduled anymore
                     self._target_state = None
 
@@ -241,12 +241,12 @@ class CookerConnection(SkyCooker):
             if type(ex) == AuthError: return
             self.add_stat(False)
             if tries > 1 and extra_action == None:
-                _LOGGER.debug(f"{type(ex).__name__}: {str(ex)}, retry #{CookerConnection.MAX_TRIES - tries + 1}")
+                _LOGGER.warning(f"{type(ex).__name__}: {str(ex)}, retry #{CookerConnection.MAX_TRIES - tries + 1}")
                 await asyncio.sleep(CookerConnection.TRIES_INTERVAL)
                 return await self.update(tries=tries-1, force_stats=force_stats, extra_action=extra_action, commit=commit)
             else:
                 _LOGGER.warning(f"Can't update status, {type(ex).__name__}: {str(ex)}")
-                _LOGGER.debug(traceback.format_exc())
+                _LOGGER.warning(traceback.format_exc())
             return False
 
     def add_stat(self, value):

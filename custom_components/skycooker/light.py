@@ -166,14 +166,14 @@ class CookerLight(LightEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the light on."""
-        _LOGGER.debug(f"Turn on ({self.light_type}): {kwargs}")
+        _LOGGER.warning(f"Turn on ({self.light_type}): {kwargs}")
         if self.light_type == LIGHT_GAME:
             r, g, b, brightness = self.current
             if ATTR_RGB_COLOR in kwargs:
                 r, g, b = kwargs[ATTR_RGB_COLOR]
             if ATTR_BRIGHTNESS in kwargs:
                 brightness = kwargs[ATTR_BRIGHTNESS]
-            _LOGGER.debug(f"Setting {self.light_type} color of the Cooker: r={r}, g={g}, b={b}, brightness={brightness}")
+            _LOGGER.warning(f"Setting {self.light_type} color of the Cooker: r={r}, g={g}, b={b}, brightness={brightness}")
             await self.cooker.set_target_mode(SkyCooker.MODE_NAMES[SkyCooker.MODE_GAME])
             await self.cooker.impulse_color(r, g, b, brightness)
             self.on = True
@@ -187,7 +187,7 @@ class CookerLight(LightEntity):
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
-        _LOGGER.debug(f"Turn off ({self.light_type}): {kwargs}")
+        _LOGGER.warning(f"Turn off ({self.light_type}): {kwargs}")
         if self.light_type == LIGHT_GAME:
             await self.cooker.set_target_mode(STATE_OFF)
             self.on = False

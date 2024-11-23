@@ -78,7 +78,7 @@ def device_info(entry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
-    _LOGGER.debug("Unloading")
+    _LOGGER.warning("Unloading")
     hass.data[DOMAIN][DATA_WORKING] = False
     for component in PLATFORMS:
         hass.async_create_task(
@@ -87,11 +87,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][DATA_CANCEL]()
     await hass.async_add_executor_job(hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].stop)
     hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = None
-    _LOGGER.debug("Entry unloaded")
+    _LOGGER.warning("Entry unloaded")
     return True
 
 async def entry_update_listener(hass, entry):
     """Handle options update."""
     cooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
     cooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
-    _LOGGER.debug("Options updated")
+    _LOGGER.warning("Options updated")

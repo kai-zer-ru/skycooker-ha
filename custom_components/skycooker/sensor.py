@@ -28,7 +28,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         SkySensor(hass, entry, SENSOR_TYPE_SUCCESS_RATE),
     ])
-    if model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+    if model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
         async_add_entities([
             SkySensor(hass, entry, SENSOR_TYPE_ENERGY),
             SkySensor(hass, entry, SENSOR_TYPE_ONTIME),
