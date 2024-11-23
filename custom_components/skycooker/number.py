@@ -2,7 +2,7 @@
 import logging
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.const import (CONF_FRIENDLY_NAME, UnitOfTemperature,
+from homeassistant.const import (CONF_FRIENDLY_NAME,
                                  UnitOfTime)
 from homeassistant.helpers.dispatcher import (async_dispatcher_connect,
                                               dispatcher_send)
@@ -13,26 +13,20 @@ from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
 
-
-NUMBER_TYPE_BOIL_TIME = "boil_time"
-NUMBER_TEMPERATURE_LOW = "temp_low"
-NUMBER_TEMPERATURE_MID = "temp_mid"
-NUMBER_TEMPERATURE_HIGH = "temp_high"
-NUMBER_COLOR_INTERVAL = "color_interval"
-NUMBER_LAMP_AUTO_OFF_HOURS = "lamp_auto_off_hours"
-
+NUMBER_COOK_HOURS = "cook_hours"
+NUMBER_WAIT_HOURS = "wait_hours"
+NUMBER_COOK_MINUTES = "cook_minutes"
+NUMBER_WAIT_MINUTES = "wait_minutes"
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the SkyCooker entry."""
     model_code = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].model_code
     if model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
         async_add_entities([
-            SkyNumber(hass, entry, NUMBER_TYPE_BOIL_TIME),
-            SkyNumber(hass, entry, NUMBER_TEMPERATURE_LOW),
-            SkyNumber(hass, entry, NUMBER_TEMPERATURE_MID),
-            SkyNumber(hass, entry, NUMBER_TEMPERATURE_HIGH),
-            SkyNumber(hass, entry, NUMBER_COLOR_INTERVAL),
-            SkyNumber(hass, entry, NUMBER_LAMP_AUTO_OFF_HOURS),
+            SkyNumber(hass, entry, NUMBER_COOK_HOURS),
+            SkyNumber(hass, entry, NUMBER_COOK_MINUTES),
+            SkyNumber(hass, entry, NUMBER_WAIT_HOURS),
+            SkyNumber(hass, entry, NUMBER_WAIT_MINUTES),
         ])
 
 
@@ -63,38 +57,21 @@ class SkyNumber(NumberEntity):
     @property
     def name(self):
         """Name of the entity."""
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " boil time"
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " temperature #1"
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " temperature #2"
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " temperature #3"
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " lamp color change interval"
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " lamp auto off time"
+        if self.number_type == NUMBER_COOK_HOURS:
+            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " hours"
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " minutes"
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " wait hours"
+        if self.number_type == NUMBER_WAIT_MINUTES:
+            return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "")).strip() + " wait minutes"
     # todo
     @property
     def icon(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return "mdi:kettle-steam"
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return "mdi:thermometer-low"
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return "mdi:thermometer"
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return "mdi:thermometer-high"
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return "mdi:timer"
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            return "mdi:timer-sand"
+        return "mdi:clock-time-four"
 
     @property
     def device_class(self):
-        if self.number_type in [NUMBER_TEMPERATURE_LOW, NUMBER_TEMPERATURE_MID, NUMBER_TEMPERATURE_HIGH]:
-            return "temperature"
         return None
 
     @property
@@ -111,135 +88,99 @@ class SkyNumber(NumberEntity):
 
     @property
     def available(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return self.cooker.available and self.cooker.boil_time != None
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return self.cooker.available and self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 0) != None
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return self.cooker.available and self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 1) != None
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return self.cooker.available and self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 2) != None
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return self.cooker.available and self.cooker.color_interval != None
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            return self.cooker.available and self.cooker.lamp_auto_off_hours != None
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return self.cooker.available and self.cooker.cook_minutes != None
+        if self.number_type == NUMBER_COOK_HOURS:
+            return self.cooker.available and self.cooker.cook_hours != None
+        if self.number_type == NUMBER_WAIT_MINUTES:
+            return self.cooker.available and self.cooker.wait_minutes != None
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return self.cooker.available and self.cooker.wait_hours != None
 
     @property
     def entity_category(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
+        if self.number_type == NUMBER_COOK_HOURS:
             return EntityCategory.CONFIG
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
+        if self.number_type == NUMBER_COOK_MINUTES:
             return EntityCategory.CONFIG
-        if self.number_type == NUMBER_TEMPERATURE_MID:
+        if self.number_type == NUMBER_WAIT_HOURS:
             return EntityCategory.CONFIG
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return EntityCategory.CONFIG
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return EntityCategory.CONFIG
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
+        if self.number_type == NUMBER_WAIT_MINUTES:
             return EntityCategory.CONFIG
 
     @property
     def native_unit_of_measurement(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return None
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return UnitOfTemperature.CELSIUS
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return UnitOfTemperature.CELSIUS
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return UnitOfTemperature.CELSIUS
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return "secs"
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
+        if self.number_type == NUMBER_COOK_HOURS:
             return UnitOfTime.HOURS
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return UnitOfTime.MINUTES
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return UnitOfTime.HOURS
+        if self.number_type == NUMBER_WAIT_MINUTES:
+            return UnitOfTime.MINUTES
 
     @property
     def native_value(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return self.cooker.boil_time
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 0)
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 1)
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 2)
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return self.cooker.color_interval
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            return self.cooker.lamp_auto_off_hours
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return self.cooker.cook_minutes
+        if self.number_type == NUMBER_COOK_HOURS:
+            return self.cooker.cook_hours
+        if self.number_type == NUMBER_WAIT_MINUTES:
+            return self.cooker.wait_minutes
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return self.cooker.wait_hours
 
     @property
     def native_min_value(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return -5
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
+        if self.number_type == NUMBER_COOK_HOURS:
             return 0
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 0)
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 1)
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return 30
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            return 1
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return 0
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return 0
+        if self.number_type == NUMBER_WAIT_MINUTES:
+            return 0
 
     @property
     def native_max_value(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return 5
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 1)
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return self.cooker.get_temperature(SkyCooker.LIGHT_BOIL, 2)
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return 100
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return 180
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            return 24
+        if self.number_type == NUMBER_COOK_HOURS:
+            return 23
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return 59
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return 23
+        if self.number_type == NUMBER_WAIT_MINUTES:
+            return 59
 
     @property
     def native_step(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
+        if self.number_type == NUMBER_COOK_HOURS:
             return 1
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            return 5
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            return 5
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            return 5
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return 10
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
+        if self.number_type == NUMBER_COOK_MINUTES:
+            return 1
+        if self.number_type == NUMBER_WAIT_HOURS:
+            return 1
+        if self.number_type == NUMBER_WAIT_MINUTES:
             return 1
 
     @property
     def mode(self):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            return NumberMode.SLIDER
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
+        if self.number_type == NUMBER_COOK_HOURS:
             return NumberMode.BOX
-        if self.number_type == NUMBER_TEMPERATURE_MID:
+        if self.number_type == NUMBER_COOK_MINUTES:
             return NumberMode.BOX
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
+        if self.number_type == NUMBER_WAIT_HOURS:
             return NumberMode.BOX
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            return NumberMode.BOX
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
+        if self.number_type == NUMBER_WAIT_MINUTES:
             return NumberMode.BOX
 
     async def async_set_native_value(self, value):
-        if self.number_type == NUMBER_TYPE_BOIL_TIME:
-            await self.cooker.set_boil_time(value)
-        if self.number_type == NUMBER_TEMPERATURE_LOW:
-            await self.cooker.set_temperature(SkyCooker.LIGHT_BOIL, 0, value)
-        if self.number_type == NUMBER_TEMPERATURE_MID:
-            await self.cooker.set_temperature(SkyCooker.LIGHT_BOIL, 1, value)
-        if self.number_type == NUMBER_TEMPERATURE_HIGH:
-            await self.cooker.set_temperature(SkyCooker.LIGHT_BOIL, 2, value)
-        if self.number_type == NUMBER_COLOR_INTERVAL:
-            await self.cooker.set_lamp_color_interval(value)
-        if self.number_type == NUMBER_LAMP_AUTO_OFF_HOURS:
-            await self.cooker.set_lamp_auto_off_hours(value)
+        if self.number_type == NUMBER_COOK_HOURS:
+            await self.cooker.set_cook_hours(value)
+        if self.number_type == NUMBER_COOK_MINUTES:
+            await self.cooker.set_cook_minutes(value)
+        if self.number_type == NUMBER_WAIT_HOURS:
+            await self.cooker.set_wait_hours(value)
+        if self.number_type == NUMBER_COOK_MINUTES:
+            await self.cooker.set_wait_minutes(value)
         self.hass.async_add_executor_job(dispatcher_send, self.hass, DISPATCHER_UPDATE)

@@ -43,10 +43,12 @@ class CookerConnection(SkyCooker):
         self._last_auth_ok = False
         self._successes = []
         self._target_state = None
-        self._target_boil_time = None
+        self._cook_hours = None
+        self._cook_minutes = None
+        self._wait_hours = None
+        self._wait_minutes = None
         self._status = None
         self._stats = None
-        self._lamp_auto_off_hours = None
         self._light_switch_boil = None
         self._light_switch_sync = None
         self._fresh_water = None
@@ -159,11 +161,11 @@ class CookerConnection(SkyCooker):
 
                 # Is there scheduled boil_time?
                 self._status = await self.get_status()
-                boil_time = self._status.boil_time
-                if self._target_boil_time != None and self._target_boil_time != boil_time:
+                boil_time = self._status.cook_minutes
+                if self._cook_hours != None and self._cook_hours != boil_time:
                     try:
-                        _LOGGER.warning(f"Need to update boil time from {boil_time} to {self._target_boil_time}")
-                        boil_time = self._target_boil_time
+                        _LOGGER.warning(f"Need to update boil time from {boil_time} to {self._cook_hours}")
+                        boil_time = self._cook_hours
                         if self._target_state == None: # To return previous state
                             self._target_state = self._status.mode if self._status.is_on else None, self._status.target_temp
                             self._last_set_target = monotonic()
@@ -175,7 +177,7 @@ class CookerConnection(SkyCooker):
                     except Exception as ex:
                         _LOGGER.error(f"Can't update boil time ({type(ex).__name__}): {str(ex)}")
                     self._status = await self.get_status()
-                self._target_boil_time = None
+                self._cook_hours = None
 
                 if commit: await self.commit()
 
@@ -224,7 +226,7 @@ class CookerConnection(SkyCooker):
                     self._stats = await self.get_stats()
                     self._light_switch_boil = await self.get_light_switch(SkyCooker.LIGHT_BOIL)
                     self._light_switch_sync = await self.get_light_switch(SkyCooker.LIGHT_SYNC)
-                    self._lamp_auto_off_hours = await self.get_lamp_auto_off_hours()
+                    self._wait_hours = await self.get_lamp_auto_off_hours()
                     self._fresh_water = await self.get_fresh_water()
                     for lt in [SkyCooker.LIGHT_BOIL, SkyCooker.LIGHT_LAMP]:
                         self._colors[lt] = await self.get_colors(lt)
@@ -401,18 +403,24 @@ class CookerConnection(SkyCooker):
         return self._status.sound_enabled
 
     @property
-    def color_interval(self):
+    def cook_hours(self):
         if not self._status: return None
-        return self._status.color_interval
+        return self._status.cook_hours
 
     @property
-    def boil_time(self):
+    def cook_minutes(self):
         if not self._status: return None
-        return self._status.boil_time
+        return self._status.cook_minutes
 
     @property
-    def lamp_auto_off_hours(self):
-        return self._lamp_auto_off_hours
+    def wait_hours(self):
+        if not self._status: return None
+        return self._status.wait_hours
+
+    @property
+    def wait_minutes(self):
+        if not self._status: return None
+        return self._status.wait_minutes
 
     @property
     def light_switch_boil(self):
@@ -484,10 +492,28 @@ class CookerConnection(SkyCooker):
         if not self._stats: return None
         return self._stats.user_on_count
 
-    async def set_boil_time(self, value):
+    async def set_cook_hours(self, value):
         value = int(value)
-        _LOGGER.info(f"Setting boil time to {value}")
-        self._target_boil_time = value
+        _LOGGER.info(f"Setting cook hours to {value}")
+        self._cook_hours = value
+        await self.update(commit=True)
+
+    async def set_cook_minutes(self, value):
+        value = int(value)
+        _LOGGER.info(f"Setting cook minutes to {value}")
+        self._cook_minutes = value
+        await self.update(commit=True)
+
+    async def set_wait_hours(self, value):
+        value = int(value)
+        _LOGGER.info(f"Setting wait hours to {value}")
+        self._wait_hours = value
+        await self.update(commit=True)
+
+    async def set_wait_minutes(self, value):
+        value = int(value)
+        _LOGGER.info(f"Setting wait minutes to {value}")
+        self._wait_minutes = value
         await self.update(commit=True)
 
     async def impulse_color(self, r, g, b, brightness):
@@ -558,7 +584,7 @@ class CookerConnection(SkyCooker):
     async def set_lamp_auto_off_hours(self, hours):
         hours = int(hours)
         self._last_get_stats = monotonic() # To avoid race condition
-        self._lamp_auto_off_hours = hours
+        self._wait_hours = hours
         if await self.update(extra_action=super().set_lamp_auto_off_hours(hours)):
             _LOGGER.info(f"Lamp auto off hours is set to {hours}")
         else:
