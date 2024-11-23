@@ -17,11 +17,11 @@ from .cooker_connection import CookerConnection
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
-    Platform.WATER_HEATER,
-    Platform.SWITCH,
-    Platform.LIGHT,
-    Platform.SENSOR,
-    Platform.NUMBER,
+    "water_heater",
+    "switch",
+    "light",
+    "sensor",
+    "number",
 ]
 
 
@@ -55,7 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.data[DOMAIN][DATA_WORKING] = True
     hass.data[DOMAIN][DATA_DEVICE_INFO] = lambda: device_info(entry)
-    _LOGGER.warning(PLATFORMS)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     schedule_poll(timedelta(seconds=3))
