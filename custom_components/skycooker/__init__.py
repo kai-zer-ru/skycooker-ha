@@ -7,7 +7,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (ATTR_SW_VERSION, CONF_DEVICE,
                                  CONF_FRIENDLY_NAME, CONF_MAC, CONF_PASSWORD,
                                  CONF_SCAN_INTERVAL)
-from homeassistant.core import HomeAssistant, BlockedIntegration
+from homeassistant.core import HomeAssistant
+from homeassistant import loader
 from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.entity import DeviceInfo
 
@@ -55,7 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.data[DOMAIN][DATA_WORKING] = True
     hass.data[DOMAIN][DATA_DEVICE_INFO] = lambda: device_info(entry)
-    _LOGGER.warning(hass.data[BlockedIntegration.DATA_MISSING_PLATFORMS])
+    _LOGGER.warning(hass.data[loader.DATA_MISSING_PLATFORMS])
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     schedule_poll(timedelta(seconds=3))
