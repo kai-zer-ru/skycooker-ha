@@ -88,25 +88,11 @@ class SkyNumber(NumberEntity):
 
     @property
     def available(self):
-        if self.number_type == NUMBER_COOK_MINUTES:
-            return self.cooker.available and self.cooker.cook_minutes != None
-        if self.number_type == NUMBER_COOK_HOURS:
-            return self.cooker.available and self.cooker.cook_hours != None
-        if self.number_type == NUMBER_WAIT_MINUTES:
-            return self.cooker.available and self.cooker.wait_minutes != None
-        if self.number_type == NUMBER_WAIT_HOURS:
-            return self.cooker.available and self.cooker.wait_hours != None
+        return self.cooker.available
 
     @property
     def entity_category(self):
-        if self.number_type == NUMBER_COOK_HOURS:
-            return EntityCategory.CONFIG
-        if self.number_type == NUMBER_COOK_MINUTES:
-            return EntityCategory.CONFIG
-        if self.number_type == NUMBER_WAIT_HOURS:
-            return EntityCategory.CONFIG
-        if self.number_type == NUMBER_WAIT_MINUTES:
-            return EntityCategory.CONFIG
+        return EntityCategory.CONFIG
 
     @property
     def native_unit_of_measurement(self):
@@ -132,14 +118,7 @@ class SkyNumber(NumberEntity):
 
     @property
     def native_min_value(self):
-        if self.number_type == NUMBER_COOK_HOURS:
-            return 0
-        if self.number_type == NUMBER_COOK_MINUTES:
-            return 0
-        if self.number_type == NUMBER_WAIT_HOURS:
-            return 0
-        if self.number_type == NUMBER_WAIT_MINUTES:
-            return 0
+        return 0
 
     @property
     def native_max_value(self):
@@ -154,25 +133,11 @@ class SkyNumber(NumberEntity):
 
     @property
     def native_step(self):
-        if self.number_type == NUMBER_COOK_HOURS:
-            return 1
-        if self.number_type == NUMBER_COOK_MINUTES:
-            return 1
-        if self.number_type == NUMBER_WAIT_HOURS:
-            return 1
-        if self.number_type == NUMBER_WAIT_MINUTES:
-            return 1
+        return 1
 
     @property
     def mode(self):
-        if self.number_type == NUMBER_COOK_HOURS:
-            return NumberMode.BOX
-        if self.number_type == NUMBER_COOK_MINUTES:
-            return NumberMode.BOX
-        if self.number_type == NUMBER_WAIT_HOURS:
-            return NumberMode.BOX
-        if self.number_type == NUMBER_WAIT_MINUTES:
-            return NumberMode.BOX
+        return NumberMode.BOX
 
     async def async_set_native_value(self, value):
         if self.number_type == NUMBER_COOK_HOURS:
