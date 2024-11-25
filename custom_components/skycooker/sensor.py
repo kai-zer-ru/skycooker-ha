@@ -8,7 +8,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import *
-from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
 

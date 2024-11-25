@@ -163,9 +163,9 @@ class SkyCooker():
                 target_temp = 5
         if self.model_code in [SkyCooker.MODELS_1]: # RK-M170S and
             data = pack("BBxx", int(mode), int(target_temp))
-        if self.model_code in [SkyCooker.MODELS_2, SkyCooker.MODELS_3]: # RK-M171S, RK-M173S and RK-G200
+        if self.model_code in [SkyCooker.MODELS_2]: # RK-M171S, RK-M173S and RK-G200
             data = pack("BxBx", int(mode), int(target_temp))
-        elif self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
+        elif self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
             data = pack("BxBxxxxxxxxxxBxx", int(mode), int(target_temp), int(0x80 + boil_time))
         else:
             _LOGGER.warning(f"set_main_mode is not supported by this model")
@@ -177,17 +177,17 @@ class SkyCooker():
     async def get_status(self):
         r = await self.command(SkyCooker.COMMAND_GET_STATUS)
         # if self.model_code in [MODELS_1] # ???
-        if self.model_code in [SkyCooker.MODELS_2, SkyCooker.MODELS_3]: # RK-M173S (?), RK-G200
+        if self.model_code in [SkyCooker.MODELS_3]: # RK-M173S (?), RK-G200
             mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
             status = SkyCooker.Status(mode=mode,
                                       is_on=is_on,
                                       error_code=None)
-        elif self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
-            # New models
-            status = SkyCooker.Status(*unpack("<BxBx?BB??BxxxBxx", r))
-            status = status._replace(
-                error_code=None if status.error_code == 0 else status.error_code
-            )
+        # elif self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
+        #     # New models
+        #     status = SkyCooker.Status(*unpack("<BxBx?BB??BxxxBxx", r))
+        #     status = status._replace(
+        #         error_code=None if status.error_code == 0 else status.error_code
+        #     )
         else:
             _LOGGER.warning(f"get_status is not supported by this model")
             return
@@ -204,7 +204,7 @@ class SkyCooker():
         return status
 
     async def sync_time(self):
-        if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
+        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
             t = time.localtime()
             offset = calendar.timegm(t) - calendar.timegm(time.gmtime(time.mktime(t)))
             now = int(time.time())
@@ -216,7 +216,7 @@ class SkyCooker():
             _LOGGER.warning(f"sync_time is not supported by this model")
 
     async def get_time(self):
-        if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_TIME)
             t, offset = unpack("<ii", r)
             _LOGGER.warning(f"time={t} ({datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
@@ -225,7 +225,7 @@ class SkyCooker():
             _LOGGER.warning(f"get_time is not supported by this model")
 
     async def commit(self):
-        if self.model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_COMMIT_SETTINGS)
             if r[0] != 1: raise SkyCookerError("can't commit settings")
             _LOGGER.warning(f"Settings commited")

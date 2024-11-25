@@ -21,7 +21,7 @@ NUMBER_WAIT_MINUTES = "wait_minutes"
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the SkyCooker entry."""
     model_code = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].model_code
-    if model_code in [SkyCooker.MODELS_4]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+    if model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
         async_add_entities([
             SkyNumber(hass, entry, NUMBER_COOK_HOURS),
             SkyNumber(hass, entry, NUMBER_COOK_MINUTES),
