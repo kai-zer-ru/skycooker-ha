@@ -85,6 +85,11 @@ class SkyWaterHeater(ButtonEntity):
             )
         data = {
             "connected": self.cooker.connected,
+            "cook_hours": self.cooker.cook_hours,
+            "cook_minutes": self.cooker.cook_minutes,
+            "wait_hours": self.cooker.wait_hours,
+            "wait_minutes": self.cooker.wait_minutes,
+            "current_program": self.cooker.current_program,
             "auth_ok": self.cooker.auth_ok,
             "sw_version": sw_version,
             "success_rate": self.cooker.success_rate,

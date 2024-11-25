@@ -424,6 +424,11 @@ class CookerConnection(SkyCooker):
         return self._status.wait_minutes
 
     @property
+    def current_program(self):
+        if not self._status: return None
+        return self._status.current_program
+
+    @property
     def error_code(self):
         if not self._status: return None
         return self._status.error_code
