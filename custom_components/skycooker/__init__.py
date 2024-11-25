@@ -17,7 +17,7 @@ from .cooker_connection import CookerConnection
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
-    Platform.WATER_HEATER,
+    Platform.BUTTON,
     Platform.SWITCH,
     Platform.LIGHT,
     Platform.SENSOR,
