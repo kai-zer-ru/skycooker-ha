@@ -2,7 +2,6 @@
 import logging
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.components.water_heater import (WaterHeaterEntity)
 from homeassistant.const import (ATTR_SW_VERSION, CONF_FRIENDLY_NAME, CONF_SCAN_INTERVAL)
 from homeassistant.helpers.dispatcher import (async_dispatcher_connect)
 
@@ -102,13 +101,13 @@ class SkyWaterHeater(ButtonEntity):
     @property
     def is_on(self):
         """If the switch is currently on or off."""
-        _LOGGER.warning(f"TargetMode: {self.cooker.target_mode != None}")
-        return self.cooker.target_mode != None
+        _LOGGER.warning(f"TargetMode: {self.cooker.current_program != None}")
+        return self.cooker.current_program != None
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
-        await self.cooker.set_target_mode(SkyCooker.MODE_NAMES[SkyCooker.MODE_BOIL])
+        await self.cooker.set_target_program(SkyCooker.MODE_NAMES[SkyCooker.MODE_BOIL])
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
-        await self.cooker.set_target_mode(None)
+        await self.cooker.set_target_program(None)

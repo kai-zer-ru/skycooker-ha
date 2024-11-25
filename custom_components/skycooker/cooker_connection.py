@@ -49,9 +49,6 @@ class CookerConnection(SkyCooker):
         self._wait_minutes = None
         self._current_program = None
         self._status = None
-        self._stats = None
-        self._light_switch_boil = None
-        self._light_switch_sync = None
         self._fresh_water = None
         self._colors = {}
         self._disposed = False
@@ -224,13 +221,11 @@ class CookerConnection(SkyCooker):
 
                 if self._last_get_stats + CookerConnection.STATS_INTERVAL < monotonic() or force_stats:
                     self._last_get_stats = monotonic()
-                    self._stats = await self.get_stats()
-                    self._light_switch_boil = await self.get_light_switch(SkyCooker.LIGHT_BOIL)
-                    self._light_switch_sync = await self.get_light_switch(SkyCooker.LIGHT_SYNC)
-                    self._wait_hours = await self.get_lamp_auto_off_hours()
-                    self._fresh_water = await self.get_fresh_water()
-                    for lt in [SkyCooker.LIGHT_BOIL, SkyCooker.LIGHT_LAMP]:
-                        self._colors[lt] = await self.get_colors(lt)
+                    self._wait_hours = await self.get_wait_hours()
+                    self._wait_minutes = await self.get_wait_minutes()
+                    self._cook_hours = await self.get_cook_hours()
+                    self._cook_minutes = await self.get_cook_minutes()
+                    self._current_program = await self.get_current_program()
 
                 await self._disconnect_if_need()
                 self.add_stat(True)
@@ -256,17 +251,9 @@ class CookerConnection(SkyCooker):
         self._successes.append(value)
         if len(self._successes) > 100: self._successes = self._successes[-100:]
 
-    @staticmethod
-    def limit_temp(temp):
-        if temp != None and temp > SkyCooker.MAX_TEMP:
-            return SkyCooker.MAX_TEMP
-        elif temp != None and temp < SkyCooker.MIN_TEMP:
-            return SkyCooker.MIN_TEMP
-        else:
-            return temp
 
     @staticmethod
-    def get_mode_name(mode_id):
+    def get_program_name(mode_id):
         if mode_id == None: return "off"
         return SkyCooker.MODE_NAMES[mode_id]
 
@@ -275,8 +262,8 @@ class CookerConnection(SkyCooker):
         if len(self._successes) == 0: return 0
         return int(100 * len([s for s in self._successes if s]) / len(self._successes))
 
-    async def _set_target_state(self, target_mode, target_temp = 0):
-        self._target_state = target_mode, target_temp
+    async def _set_target_state(self, target_mode):
+        self._target_state = target_mode
         self._last_set_target = monotonic()
         await self.update()
 
@@ -287,42 +274,16 @@ class CookerConnection(SkyCooker):
         if self._disposed: return
         self._disconnect()
         self._disposed = True
-        _LOGGER.info("Stopped.")
+        _LOGGER.warning("Stopped.")
 
     @property
     def available(self):
         return self._last_connect_ok and self._last_auth_ok
 
     @property
-    def current_temp(self):
-        if self._status:
-            return self._status.current_temp
-        return None
-
-    @property
     def current_mode(self):
         if self._status and self._status.is_on:
             return self._status.mode
-        return None
-
-    @property
-    def target_temp(self):
-        if self._target_state:
-            target_mode, target_temp = self._target_state
-            if target_mode in [SkyCooker.MODE_BOIL_HEAT, SkyCooker.MODE_HEAT]:
-                return target_temp
-            if target_mode == SkyCooker.MODE_BOIL:
-                return BOIL_TEMP
-            if target_mode == None:
-                return ROOM_TEMP
-        if self._status:
-            if self._status.is_on:
-                if self._status.mode in [SkyCooker.MODE_BOIL_HEAT, SkyCooker.MODE_HEAT]:
-                    return self._status.target_temp
-                if self._status.mode == SkyCooker.MODE_BOIL:
-                    return BOIL_TEMP
-            else: # Off
-                return ROOM_TEMP
         return None
 
     @property
@@ -336,55 +297,19 @@ class CookerConnection(SkyCooker):
         return None
 
     @property
-    def target_mode_str(self):
-        return self.get_mode_name(self.target_mode)
+    def target_program_str(self):
+        return self.get_program_name(self.target_mode)
 
-    async def set_target_temp(self, target_temp, operation_mode = None):
-        """Set new temperature."""
-        if target_temp == self.target_temp: return # already set
-        _LOGGER.info(f"Setting target temperature to {target_temp}")
-        target_mode = self.target_mode
-        vs = [k for k, v in SkyCooker.MODE_NAMES.items() if v == operation_mode]
-        if len(vs) > 0: target_mode = vs[0]
-        # Some checks for mode
-        if target_temp < SkyCooker.MIN_TEMP:
-            # Just turn off
-            target_mode = None
-        elif target_temp > SkyCooker.MAX_TEMP:
-            # If set to ~100 - just boiling
-            target_mode = SkyCooker.MODE_BOIL # or BOIL_HEAT?
-        elif target_mode == None:
-            # Kittle is off now, need to turn on some mode
-            target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
-        elif target_mode == SkyCooker.MODE_BOIL:
-            # Replace boiling with...
-            target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
-        if target_mode != self.current_mode:
-            _LOGGER.info(f"Mode autoswitched to {target_mode} ({self.get_mode_name(target_mode)})")
-        await self._set_target_state(target_mode, target_temp)
-
-    async def set_target_mode(self, operation_mode):
+    async def set_target_program(self, operation_mode):
         """Set new operation mode."""
-        if operation_mode == self.target_mode_str: return # already set
-        _LOGGER.info(f"Setting target mode to {operation_mode}")
+        if operation_mode == self.target_program_str: return # already set
+        _LOGGER.warning(f"Setting target mode to {operation_mode}")
         target_mode = None
         # Get target mode ID
         vs = [k for k, v in SkyCooker.MODE_NAMES.items() if v == operation_mode]
         if len(vs) > 0: target_mode = vs[0]
-        # Set heating temperature if not set
-        target_temp = self.target_temp
-        # Some checks for temperature
-        if target_mode in [SkyCooker.MODE_BOIL]:
-            target_temp = 0
-        elif target_mode in [SkyCooker.MODE_LAMP, SkyCooker.MODE_GAME]:
-            target_temp = 85
-        elif target_temp == None:
-            target_temp = SkyCooker.MAX_TEMP
-        else:
-            target_temp = self.limit_temp(target_temp)
-        if target_temp != self.target_temp:
-            _LOGGER.info(f"Target temperature autoswitched to {target_temp}")
-        await self._set_target_state(target_mode, target_temp)
+
+        await self._set_target_state(target_mode)
 
     @property
     def connected(self):

@@ -18,8 +18,6 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
     Platform.BUTTON,
-    Platform.SWITCH,
-    Platform.LIGHT,
     Platform.SENSOR,
     Platform.NUMBER,
 ]
