@@ -88,7 +88,7 @@ class SkyNumber(NumberEntity):
 
     @property
     def available(self):
-        return self.cooker.available
+        return True
 
     @property
     def entity_category(self):
