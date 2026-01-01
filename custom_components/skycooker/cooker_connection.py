@@ -55,46 +55,70 @@ class CookerConnection(SkyCooker):
 
     async def command(self, command, params=[]):
         if self._disposed:
+            _LOGGER.error(f"❌ Command failed: connection disposed")
             raise DisposedError()
         if not self._client or not self._client.is_connected:
+            _LOGGER.error(f"❌ Command failed: not connected")
             raise IOError("not connected")
+        
         self._iter = (self._iter + 1) % 256
-        _LOGGER.debug(f"Writing command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
+        _LOGGER.debug(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
         self._last_data = None
-        await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
+        
+        try:
+            await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
+            _LOGGER.debug(f"📤 Data sent successfully")
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to send command: {e}")
+            raise IOError(f"Failed to send command: {e}")
+        
         timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
         while True:
             await asyncio.sleep(0.05)
             if self._last_data:
                 r = self._last_data
                 if r[0] != 0x55 or r[-1] != 0xAA:
+                    _LOGGER.error(f"❌ Invalid response magic: {r.hex() if hasattr(r, 'hex') else r}")
                     raise IOError("Invalid response magic")
                 if r[1] == self._iter:
                     break
                 else:
+                    _LOGGER.debug(f"🔄 Response iteration mismatch, waiting for correct response")
                     self._last_data = None
-            if monotonic() >= timeout_time: raise IOError("Receive timeout")
+            if monotonic() >= timeout_time:
+                _LOGGER.error(f"❌ Command timeout after {CookerConnection.BLE_RECV_TIMEOUT}s")
+                raise IOError("Receive timeout")
+        
         if r[2] != command:
+            _LOGGER.error(f"❌ Invalid response command: expected {command:02x}, got {r[2]:02x}")
             raise IOError("Invalid response command")
+        
         clean = bytes(r[3:-1])
-        _LOGGER.debug(f"Received: {' '.join([f'{c:02x}' for c in clean])}")
+        _LOGGER.debug(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
         return clean
 
     def _rx_callback(self, sender, data):
         self._last_data = data
 
     async def _connect(self):
+        _LOGGER.info(f"🔗 Starting connection to cooker {self._mac} (model: {self.model})")
         if self._disposed:
+            _LOGGER.error(f"❌ Connection failed: connection disposed")
             raise DisposedError()
-        if self._client and self._client.is_connected: return
+        if self._client and self._client.is_connected:
+            _LOGGER.debug(f"✅ Already connected to cooker {self._mac}")
+            return
         
         # Улучшенная обработка подключения с дополнительными попытками
+        _LOGGER.debug(f"📍 Searching for device {self._mac}...")
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
         if self._device is None:
+            _LOGGER.error(f"❌ Device not found: {self._mac}")
             raise IOError(f"Device not found: {self._mac}")
         
-        _LOGGER.debug(f"Connecting to the Cooker {self._mac}...")
+        device_name = self._device.name or "Unknown Device"
+        _LOGGER.info(f"✅ Device found: {device_name} ({self._mac})")
         
         # Добавляем дополнительные попытки подключения
         max_retries = 5
@@ -102,13 +126,19 @@ class CookerConnection(SkyCooker):
         
         for attempt in range(max_retries):
             try:
+                _LOGGER.info(f"🔌 Connection attempt {attempt + 1}/{max_retries}...")
+                
                 # Убедимся, что устройство существует перед подключением
                 if self._device is None:
+                    _LOGGER.debug(f"📍 Re-searching for device {self._mac}...")
                     self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
                     if self._device is None:
+                        _LOGGER.error(f"❌ Device disappeared: {self._mac}")
                         raise IOError(f"Device not found: {self._mac}")
                 
                 device_name = self._device.name or "Unknown Device"
+                _LOGGER.debug(f"📡 Establishing connection with {device_name}...")
+                
                 self._client = await establish_connection(
                     BleakClientWithServiceCache,
                     self._device,
@@ -116,19 +146,25 @@ class CookerConnection(SkyCooker):
                     max_attempts=3,
                     ble_device_timeout=30.0  # Увеличиваем таймаут
                 )
-                _LOGGER.debug(f"Connected to the Cooker (attempt {attempt + 1})")
-                await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
-                _LOGGER.debug("Subscribed to RX")
-                return  # Успешное подключение
+                
+                if self._client and self._client.is_connected:
+                    _LOGGER.info(f"✅ Successfully connected to cooker (attempt {attempt + 1})")
+                    _LOGGER.debug(f"📡 Starting notifications on RX characteristic...")
+                    await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
+                    _LOGGER.info(f"✅ Subscribed to RX notifications")
+                    return  # Успешное подключение
+                else:
+                    _LOGGER.error(f"❌ Connection failed: client not connected")
+                    raise IOError("Connection failed: client not connected")
                 
             except Exception as e:
-                _LOGGER.warning(f"Connection attempt {attempt + 1} failed: {e}")
+                _LOGGER.warning(f"⚠️ Connection attempt {attempt + 1} failed: {e}")
                 self._client = None
                 self._device = None
                 
                 # Проверяем, является ли это ошибкой нехватки слотов
                 if "No backend with an available connection slot" in str(e):
-                    _LOGGER.error("Bluetooth connection slots exhausted.")
+                    _LOGGER.error(f"❌ Bluetooth connection slots exhausted for {self._mac}")
                     _LOGGER.error("Your adapter supports up to 5 connections, but slots may be temporarily unavailable.")
                     _LOGGER.error("Current slot usage: 20% (1/5 slots used)")
                     _LOGGER.error("Try these solutions:")
@@ -140,11 +176,11 @@ class CookerConnection(SkyCooker):
                     _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
                     
                 if attempt < max_retries - 1:
-                    _LOGGER.info(f"Retrying in {retry_delay} seconds...")
+                    _LOGGER.info(f"⏳ Retrying in {retry_delay:.1f} seconds...")
                     await asyncio.sleep(retry_delay)
                     retry_delay *= 1.5  # Экспоненциальная задержка
                 else:
-                    _LOGGER.error(f"Failed to connect to cooker {self._mac} after {max_retries} attempts: {e}")
+                    _LOGGER.error(f"❌ Failed to connect to cooker {self._mac} after {max_retries} attempts: {e}")
                     _LOGGER.error("This device may be out of range or have connection issues")
                     raise
 
@@ -171,28 +207,41 @@ class CookerConnection(SkyCooker):
             pass
 
     async def _connect_if_need(self):
+        _LOGGER.debug(f"🔗 Checking connection status...")
         if self._client and not self._client.is_connected:
-            _LOGGER.debug("Connection lost")
+            _LOGGER.warning(f"⚠️ Connection lost, disconnecting...")
             await self.disconnect()
         if not self._client or not self._client.is_connected:
             try:
+                _LOGGER.info(f"🔗 Connection needed, establishing...")
                 await self._connect()
                 self._last_connect_ok = True
+                _LOGGER.info(f"✅ Connection established successfully")
             except Exception as ex:
+                _LOGGER.error(f"❌ Connection failed: {ex}")
                 await self.disconnect()
                 self._last_connect_ok = False
                 raise ex
+        
         if not self._auth_ok:
             try:
+                _LOGGER.info(f"🔑 Performing authentication...")
                 self._last_auth_ok = self._auth_ok = await self.auth()
                 if not self._auth_ok:
-                    _LOGGER.error(f"Auth failed. You need to enable pairing mode on the cooker.")
+                    _LOGGER.error(f"❌ Authentication failed. You need to enable pairing mode on the cooker.")
                     raise AuthError("Auth failed")
-                _LOGGER.debug("Auth ok")
+                _LOGGER.info(f"✅ Authentication successful")
+                
+                _LOGGER.info(f"📋 Getting device version...")
                 self._sw_version = await self.get_version()
+                _LOGGER.info(f"📋 Device version: {self._sw_version}")
+                
+                _LOGGER.info(f"⏰ Synchronizing device time...")
                 await self.sync_time()
+                _LOGGER.info(f"✅ Authentication and setup completed successfully")
+                
             except Exception as ex:
-                _LOGGER.error(f"Auth or version sync failed: {ex}")
+                _LOGGER.error(f"❌ Authentication or version sync failed: {ex}")
                 self._auth_ok = False
                 await self.disconnect()
                 raise ex
