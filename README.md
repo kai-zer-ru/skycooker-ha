@@ -2,6 +2,12 @@
 
 Интеграция для управления устройствами Redmond через Bluetooth в HomeAssistant.
 
+## Вдохновение
+
+Этот проект вдохновлен интеграцией [SkyKettle](https://github.com/ClusterM/skykettle-ha) для управления чайниками Redmond. SkyCooker расширяет функциональность для поддержки мультиварок и других устройств Redmond.
+
+## Поддерживаемые устройства
+
 ## Поддерживаемые устройства
 
 ### Мультиварки
@@ -70,6 +76,11 @@
 Проект основан на:
 - [ESPHome-Ready4Sky](https://github.com/KomX/ESPHome-Ready4Sky) - для протоколов
 - [ha_kettler](https://github.com/mavrikkk/ha_kettler) - для архитектуры
+- [SkyKettle](https://github.com/ClusterM/skykettle-ha) - для вдохновения и архитектуры
+
+## Связь с оригинальным проектом
+
+SkyCooker является расширением функциональности [SkyKettle](https://github.com/ClusterM/skykettle-ha) и поддерживает те же принципы разработки и архитектуры.
 
 ## Лицензия
 
