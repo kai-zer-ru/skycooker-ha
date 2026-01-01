@@ -74,20 +74,61 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             try:
                 scanner = bluetooth.async_get_scanner(self.hass)
+                _LOGGER.info("🔍 Scanning for Bluetooth devices...")
+                
+                # Собираем все доступные устройства
+                all_devices = []
+                skycooker_devices = []
+                
                 for device in scanner.discovered_devices:
-                    _LOGGER.debug(f"Device found: {device.address} - {device.name}")
-            except:
-                _LOGGER.error("Bluetooth integration not working")
+                    name = device.name or "Unknown"
+                    address = device.address
+                    rssi = device.rssi if hasattr(device, 'rssi') else "N/A"
+                    
+                    all_devices.append(f"{address} - {name} (RSSI: {rssi})")
+                    _LOGGER.debug(f"📡 Found device: {address} - {name} (RSSI: {rssi})")
+                    
+                    # Фильтрация устройств SkyCooker
+                    if device.name and (
+                        device.name.startswith("RMC-") or
+                        "SkyCooker" in device.name or
+                        "Redmond" in device.name or
+                        address == "DA:D8:9F:9E:0B:4C"  # Известный MAC адрес
+                    ):
+                        skycooker_devices.append(device)
+                        _LOGGER.info(f"🎯 Found SkyCooker device: {address} - {name} (RSSI: {rssi})")
+                
+                # Логируем все найденные устройства для диагностики
+                if all_devices:
+                    _LOGGER.info(f"📋 All discovered devices ({len(all_devices)}):")
+                    for device_info in all_devices:
+                        _LOGGER.info(f"  - {device_info}")
+                else:
+                    _LOGGER.warning("⚠️ No Bluetooth devices found")
+                
+            except Exception as e:
+                _LOGGER.error(f"❌ Bluetooth scanner error: {e}")
                 return self.async_abort(reason='no_bluetooth')
-            devices_filtered = [device for device in scanner.discovered_devices if device.name and (device.name.startswith("RMC-"))]
-            if len(devices_filtered) == 0:
+            
+            if len(skycooker_devices) == 0:
+                _LOGGER.warning("⚠️ No SkyCooker devices found")
+                _LOGGER.info("💡 Tips:")
+                _LOGGER.info("  1. Ensure your RMC-M40S is powered on and in pairing mode")
+                _LOGGER.info("  2. Check that Bluetooth is enabled on your HomeAssistant server")
+                _LOGGER.info("  3. Make sure the device is within range (5-10 meters)")
+                _LOGGER.info("  4. Try restarting your RMC-M40S device")
                 return self.async_abort(reason='cooker_not_found')
-            mac_list = [f"{r.address} ({r.name})" for r in devices_filtered]
+            
+            # Создаем список для выбора
+            mac_list = [f"{device.address} ({device.name})" for device in skycooker_devices]
+            _LOGGER.info(f"✅ Found {len(mac_list)} SkyCooker devices for selection")
+            
             schema = vol.Schema(
             {
                 vol.Required(CONF_MAC): vol.In(mac_list)
             })
-        except Exception:
+        except Exception as e:
+            _LOGGER.error(f"❌ Configuration flow error: {e}")
             _LOGGER.error(traceback.format_exc())
             return self.async_abort(reason='unknown')
         return self.async_show_form(
