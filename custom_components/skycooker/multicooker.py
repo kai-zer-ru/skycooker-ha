@@ -2,7 +2,6 @@
 import logging
 from datetime import timedelta
 
-from homeassistant.components.select import SelectEntity
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import (ATTR_SW_VERSION, CONF_FRIENDLY_NAME, CONF_SCAN_INTERVAL)
@@ -23,7 +22,6 @@ async def async_setup_entry(hass, entry, async_add_entities, discovery_info=None
     if cooker.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
         entities = [
             SkyMulticooker(hass, entry),
-            SkyMulticookerModeSelect(hass, entry),
             SkyMulticookerTemperatureNumber(hass, entry),
             SkyMulticookerCookHoursNumber(hass, entry),
             SkyMulticookerCookMinutesNumber(hass, entry),
