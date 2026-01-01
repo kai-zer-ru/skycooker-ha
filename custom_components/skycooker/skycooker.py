@@ -246,14 +246,20 @@ class SkyCooker():
                         wait_minutes=wait_minutes
                     )
                 else:
-                    # Fallback to basic format
-                    mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
+                    # Fallback to basic format but try to extract available data
+                    if len(r) >= 4:
+                        mode, is_on, current_temp, target_temp = unpack("<B?BB", r[:4])
+                    else:
+                        mode, is_on = unpack("<B?", r[:2])
+                        current_temp = 0
+                        target_temp = 0
+                    
                     status = SkyCooker.Status(
                         mode=mode,
                         is_on=is_on,
                         error_code=None,
-                        current_temp=0,
-                        target_temp=0,
+                        current_temp=current_temp,
+                        target_temp=target_temp,
                         cook_hours=0,
                         cook_minutes=0,
                         wait_hours=0,
@@ -261,14 +267,20 @@ class SkyCooker():
                     )
             except Exception as e:
                 _LOGGER.debug(f"Error unpacking multicooker status: {e}")
-                # Fallback to basic format
-                mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
+                # Fallback to basic format but try to extract available data
+                if len(r) >= 4:
+                    mode, is_on, current_temp, target_temp = unpack("<B?BB", r[:4])
+                else:
+                    mode, is_on = unpack("<B?", r[:2])
+                    current_temp = 0
+                    target_temp = 0
+                
                 status = SkyCooker.Status(
                     mode=mode,
                     is_on=is_on,
                     error_code=None,
-                    current_temp=0,
-                    target_temp=0,
+                    current_temp=current_temp,
+                    target_temp=target_temp,
                     cook_hours=0,
                     cook_minutes=0,
                     wait_hours=0,

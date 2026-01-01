@@ -22,12 +22,14 @@ docker-compose.test.yml
 # Test scripts
 test_*.py
 run_tests.sh
+pytest.ini
 
 # IDE
 .idea
 .vscode
 *.swp
 *.swo
+.roo
 
 # Logs
 *.log
