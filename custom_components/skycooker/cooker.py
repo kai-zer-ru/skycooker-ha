@@ -13,7 +13,16 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities, discovery_info=None):
     """Set up the SkyCooker entry."""
-    async_add_entities([SkyWaterHeater(hass, entry)])
+    cooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
+    
+    # Check if this is a multicooker (RMC-M40S or similar)
+    if cooker.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
+        # Import and use multicooker entities
+        from .multicooker import async_setup_entry as multicooker_setup
+        return await multicooker_setup(hass, entry, async_add_entities, discovery_info)
+    else:
+        # Use regular water heater for kettles
+        async_add_entities([SkyWaterHeater(hass, entry)])
 
 
 class SkyWaterHeater(ButtonEntity):

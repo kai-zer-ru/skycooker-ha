@@ -36,17 +36,67 @@ class SkyCooker():
         "RMC-CBF390S": MODELS_2,
     }
 
+    # Basic modes (for kettles)
     MODE_BOIL = 0x00
     MODE_HEAT = 0x01
     MODE_BOIL_HEAT = 0x02
     MODE_LAMP = 0x03
     MODE_GAME = 0x04
+    
+    # Multicooker modes (for RMC-M40S and similar)
+    MODE_STANDBY = 0x00
+    MODE_MULTI_CHEF = 0x01
+    MODE_RICE_CEREALS = 0x02
+    MODE_LANGUOR = 0x03
+    MODE_PILAF = 0x04
+    MODE_FRYING = 0x05
+    MODE_STEWING = 0x06
+    MODE_PASTA = 0x07
+    MODE_BAKING = 0x08
+    MODE_STEAMING = 0x09
+    MODE_YOGURT = 0x0A
+    MODE_DOUGH = 0x0B
+    MODE_KEEP_WARM = 0x0C
+    MODE_YOGURT2 = 0x0D
+    MODE_BAKING2 = 0x0E
+    MODE_STEAMING2 = 0x0F
+    MODE_STEWING2 = 0x10
+    MODE_FRYING2 = 0x11
+    MODE_PILAF2 = 0x12
+    MODE_LANGUOR2 = 0x13
+    MODE_RICE_CEREALS2 = 0x14
+    MODE_MULTI_CHEF2 = 0x15
+    
     MODE_NAMES = {
+        # Basic modes
         MODE_BOIL: "Boil",
         MODE_HEAT: "Heat",
         MODE_BOIL_HEAT: "Boil+Heat",
         MODE_LAMP: "Lamp",
-        MODE_GAME: "Light"
+        MODE_GAME: "Light",
+        # Multicooker modes
+        MODE_STANDBY: "Standby",
+        MODE_MULTI_CHEF: "Multi-chef",
+        MODE_RICE_CEREALS: "Rice/Cereals",
+        MODE_LANGUOR: "Languor",
+        MODE_PILAF: "Pilaf",
+        MODE_FRYING: "Frying",
+        MODE_STEWING: "Stewing",
+        MODE_PASTA: "Pasta",
+        MODE_BAKING: "Baking",
+        MODE_STEAMING: "Steaming",
+        MODE_YOGURT: "Yogurt",
+        MODE_DOUGH: "Dough",
+        MODE_KEEP_WARM: "Keep Warm",
+        MODE_YOGURT2: "Yogurt 2",
+        MODE_BAKING2: "Baking 2",
+        MODE_STEAMING2: "Steaming 2",
+        MODE_STEWING2: "Stewing 2",
+        MODE_FRYING2: "Frying 2",
+        MODE_PILAF2: "Pilaf 2",
+        MODE_LANGUOR2: "Languor 2",
+        MODE_RICE_CEREALS2: "Rice/Cereals 2",
+        MODE_MULTI_CHEF2: "Multi-chef 2"
     }
 
     LIGHT_BOIL = 0x00
@@ -89,7 +139,7 @@ class SkyCooker():
     COMMAND_DEL_SCHEDULE_RECORD  = 0x74
     COMMAND_AUTH = 0xFF
 
-    Status = namedtuple("Status", ["mode","is_on", "error_code"])
+    Status = namedtuple("Status", ["mode","is_on", "error_code", "current_temp", "target_temp", "cook_hours", "cook_minutes", "wait_hours", "wait_minutes"])
     Stats = namedtuple("Stats", ["ontime", "energy_wh", "heater_on_count", "user_on_count"])
     FreshWaterInfo = namedtuple("FreshWaterInfo", ["is_on", "unknown1", "water_freshness_hours"])
 
@@ -176,31 +226,59 @@ class SkyCooker():
 
     async def get_status(self):
         r = await self.command(SkyCooker.COMMAND_GET_STATUS)
-        # if self.model_code in [MODELS_1] # ???
-        if self.model_code in [SkyCooker.MODELS_3]: # RK-M173S (?), RK-G200
-            mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
-            status = SkyCooker.Status(mode=mode,
-                                      is_on=is_on,
-                                      error_code=None)
-        # elif self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
-        #     # New models
-        #     status = SkyCooker.Status(*unpack("<BxBx?BB??BxxxBxx", r))
-        #     status = status._replace(
-        #         error_code=None if status.error_code == 0 else status.error_code
-        #     )
+        
+        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S, RMC-M40S
+            # For multicookers, try to unpack more detailed status
+            try:
+                # Try to unpack with more fields for multicookers
+                if len(r) >= 20:
+                    # Multicooker status format: mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes
+                    mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes = unpack("<B?BBBBBBB", r[:9])
+                    status = SkyCooker.Status(
+                        mode=mode,
+                        is_on=is_on,
+                        error_code=None,
+                        current_temp=current_temp,
+                        target_temp=target_temp,
+                        cook_hours=cook_hours,
+                        cook_minutes=cook_minutes,
+                        wait_hours=wait_hours,
+                        wait_minutes=wait_minutes
+                    )
+                else:
+                    # Fallback to basic format
+                    mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
+                    status = SkyCooker.Status(
+                        mode=mode,
+                        is_on=is_on,
+                        error_code=None,
+                        current_temp=0,
+                        target_temp=0,
+                        cook_hours=0,
+                        cook_minutes=0,
+                        wait_hours=0,
+                        wait_minutes=0
+                    )
+            except Exception as e:
+                _LOGGER.warning(f"Error unpacking multicooker status: {e}")
+                # Fallback to basic format
+                mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
+                status = SkyCooker.Status(
+                    mode=mode,
+                    is_on=is_on,
+                    error_code=None,
+                    current_temp=0,
+                    target_temp=0,
+                    cook_hours=0,
+                    cook_minutes=0,
+                    wait_hours=0,
+                    wait_minutes=0
+                )
         else:
             _LOGGER.warning(f"get_status is not supported by this model")
-            return
-        # if self.model_code in [SkyCooker.MODELS_2, SkyCooker.MODELS_3]: # RK-M173S (?), RK-G200
-        #     if status.mode == SkyCooker.MODE_BOIL and status.target_temp > 0:
-        #         status = status._replace(
-        #             mode=SkyCooker.MODE_BOIL_HEAT
-        #         )
-        # if self.model_code in [SkyCooker.MODELS_1]: # RK-M170S (?)
-        #     status = status._replace(
-        #         target_temp=target_temp
-        #     )
-        _LOGGER.warning(f"Status: mode={status.mode} ({SkyCooker.MODE_NAMES[status.mode]}), is_on={status.is_on}")
+            return None
+            
+        _LOGGER.warning(f"Status: mode={status.mode} ({SkyCooker.MODE_NAMES.get(status.mode, 'Unknown')}), is_on={status.is_on}, temp={status.current_temp}/{status.target_temp}, cook={status.cook_hours}:{status.cook_minutes}, wait={status.wait_hours}:{status.wait_minutes}")
         return status
 
     async def sync_time(self):
@@ -277,6 +355,60 @@ class SkyCooker():
             return program
         else:
             _LOGGER.debug(f"get_current_program is not supported by this model")
+
+    async def set_target_program(self, program):
+        """Set the target program for multicooker."""
+        if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
+            if program is None:
+                # Turn off
+                await self.turn_off()
+            else:
+                # Set the program
+                await self.set_main_mode(program)
+        else:
+            _LOGGER.warning(f"set_target_program is not supported by this model")
+
+    async def set_target_temperature(self, temperature):
+        """Set the target temperature for multicooker."""
+        if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
+            # Get current mode and set it with new temperature
+            status = await self.get_status()
+            if status:
+                await self.set_main_mode(status.mode, temperature)
+        else:
+            _LOGGER.warning(f"set_target_temperature is not supported by this model")
+
+    async def set_cook_hours(self, hours):
+        """Set the cook hours for multicooker."""
+        if self.model_code in [SkyCooker.MODELS_3]:
+            # This would need specific command implementation based on protocol
+            _LOGGER.warning(f"set_cook_hours: {hours} hours")
+            # TODO: Implement actual command
+        else:
+            _LOGGER.warning(f"set_cook_hours is not supported by this model")
+
+    async def set_cook_minutes(self, minutes):
+        """Set the cook minutes for multicooker."""
+        if self.model_code in [SkyCooker.MODELS_3]:
+            # This would need specific command implementation based on protocol
+            _LOGGER.warning(f"set_cook_minutes: {minutes} minutes")
+            # TODO: Implement actual command
+        else:
+            _LOGGER.warning(f"set_cook_minutes is not supported by this model")
+
+    async def start_cooking(self):
+        """Start cooking with current settings."""
+        if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
+            await self.turn_on()
+        else:
+            _LOGGER.warning(f"start_cooking is not supported by this model")
+
+    async def stop_cooking(self):
+        """Stop cooking."""
+        if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
+            await self.turn_off()
+        else:
+            _LOGGER.warning(f"stop_cooking is not supported by this model")
 
 class SkyCookerError(Exception):
     pass
