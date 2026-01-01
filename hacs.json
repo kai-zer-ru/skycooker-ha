@@ -1,6 +1,7 @@
 {
   "name": "SkyCooker",
-  "homeassistant": "2025.12.5",
+  "homeassistant": "2021.12.0",
   "render_readme": true,
-  "country": ["RU"]
+  "content_in_root": false,
+  "filename": "custom_components/skycooker/manifest.json"
 }

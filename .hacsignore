@@ -1,0 +1,29 @@
+# HACS ignore file
+# Files and directories to ignore during HACS installation
+
+# Development files
+.gitignore
+.pre-commit-config.yaml
+.flake8
+.mypy.ini
+pytest.ini
+run_tests.sh
+test_*.py
+tests/
+.github/
+Dockerfile*
+docker-compose*.yml
+*.md
+*.txt
+*.sh
+*.bat
+*.cmd
+
+# Temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/

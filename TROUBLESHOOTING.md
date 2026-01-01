@@ -142,30 +142,86 @@ sudo usermod -a -G bluetooth homeassistant
 
 ## Логи и диагностика
 
+### Включение дебаг логов
+
+Для подробной диагностики включите дебаг логирование:
+
+#### Через configuration.yaml
+Добавьте в ваш `configuration.yaml`:
+```yaml
+logger:
+  default: info
+  logs:
+    custom_components.skycooker: debug
+    homeassistant.components.bluetooth: debug
+```
+
+#### Через UI (HomeAssistant 2021.6+)
+1. Перейдите в Настройки → Система → Журнал
+2. Нажмите "Load Full Home Assistant Log"
+3. Нажмите "Add Filter"
+4. Добавьте фильтр для `custom_components.skycooker` с уровнем `DEBUG`
+5. Нажмите "Start Logging"
+
+### Что показывают дебаг логи
+
+- **Подключение устройства**: `🔗 Starting connection to cooker`, `✅ Successfully connected`
+- **Аутентификация**: `🔑 Performing authentication`, `✅ Authentication successful`
+- **Команды**: `📡 Sending command`, `📥 Received response`
+- **Статус**: `📊 Requesting device status`, `✅ Status retrieved`
+- **Ошибки**: `❌ Connection failed`, `⚠️ Connection attempt failed`
+
 ### Просмотр логов HomeAssistant
 
 1. Настройки → Система → Журнал
 2. Фильтр: `skycooker`
 3. Ищите сообщения об ошибках
+4. Для дебаг логов используйте фильтр: `custom_components.skycooker`
 
 ### Проверка состояния интеграции
 
 1. Настройки → Интеграции → SkyCooker
 2. Проверьте статус подключения
 3. Проверьте доступные entity
+4. Включите дебаг логи для подробной информации (см. раздел выше)
 
 ### Примеры полезных логов
 
+#### Успешное подключение
 ```
-# Успешное подключение
-Connected to the Cooker
-Subscribed to RX
-Auth ok
+🔗 Starting connection to cooker DA:D8:9F:9E:0B:4C (model: RMC-M40S)
+✅ Device found: RMC-M40S (DA:D8:9F:9E:0B:4C)
+🔌 Connection attempt 1/5...
+✅ Successfully connected to cooker (attempt 1)
+📡 Starting notifications on RX characteristic...
+✅ Subscribed to RX notifications
+🔑 Performing authentication...
+✅ Authentication successful
+📋 Getting device version...
+📋 Device version: (1, 0)
+⏰ Synchronizing device time...
+✅ Time synchronized: 2026-01-01 17:00:00 (GMT+8.00)
+✅ Authentication and setup completed successfully
+```
 
-# Ошибки подключения
-Can't update status, BleakError: ...
-Device with MAC address XX:XX:XX:XX:XX:XX not found
-Auth failed
+#### Ошибки подключения
+```
+❌ Failed to connect to cooker DA:D8:9F:9E:0B:4C after 5 attempts: [Errno 110] Operation timed out
+⚠️ Connection attempt 1 failed: [Errno 110] Operation timed out
+❌ Bluetooth connection slots exhausted for DA:D8:9F:9E:0B:4C
+❌ Auth failed. You need to enable pairing mode on the cooker.
+❌ Command failed: not connected
+❌ Failed to get status: [Errno 110] Operation timed out
+```
+
+#### Команды и ответы
+```
+⚙️ Setting main mode: mode=2 (Rice/Cereals), target_temp=60, boil_time=0
+📦 Packed data for RMC-M40S: 55 01 05 02 3c 80 aa
+📡 Sending command 05, data: [02 3c 80]
+📤 Data sent successfully
+📥 Received response: 55 01 05 01 aa
+✅ Mode set successfully: mode=2 (Rice/Cereals), target_temp=60, boil_time=0
 ```
 
 ## Поддержка
