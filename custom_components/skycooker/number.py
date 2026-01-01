@@ -9,7 +9,6 @@ from homeassistant.helpers.dispatcher import (async_dispatcher_connect,
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import *
-from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,8 +17,16 @@ NUMBER_WAIT_HOURS = "wait_hours"
 NUMBER_COOK_MINUTES = "cook_minutes"
 NUMBER_WAIT_MINUTES = "wait_minutes"
 
+# Import SkyCooker locally to avoid circular import
+def get_skycooker_class():
+    from .skycooker import SkyCooker
+    return SkyCooker
+
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the SkyCooker entry."""
+    # Get SkyCooker class locally to avoid circular import
+    SkyCooker = get_skycooker_class()
+    
     model_code = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].model_code
     if model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
         async_add_entities([
@@ -108,13 +115,13 @@ class SkyNumber(NumberEntity):
     @property
     def native_value(self):
         if self.number_type == NUMBER_COOK_MINUTES:
-            return self.cooker.cook_minutes
+            return self.cooker._skycooker.get_cook_minutes()
         if self.number_type == NUMBER_COOK_HOURS:
-            return self.cooker.cook_hours
+            return self.cooker._skycooker.get_cook_hours()
         if self.number_type == NUMBER_WAIT_MINUTES:
-            return self.cooker.wait_minutes
+            return self.cooker._skycooker.get_wait_minutes()
         if self.number_type == NUMBER_WAIT_HOURS:
-            return self.cooker.wait_hours
+            return self.cooker._skycooker.get_wait_hours()
 
     @property
     def native_min_value(self):
@@ -141,11 +148,11 @@ class SkyNumber(NumberEntity):
 
     async def async_set_native_value(self, value):
         if self.number_type == NUMBER_COOK_HOURS:
-            await self.cooker.set_cook_hours(value)
+            await self.cooker._skycooker.set_cook_hours(value)
         if self.number_type == NUMBER_COOK_MINUTES:
-            await self.cooker.set_cook_minutes(value)
+            await self.cooker._skycooker.set_cook_minutes(value)
         if self.number_type == NUMBER_WAIT_HOURS:
-            await self.cooker.set_wait_hours(value)
+            await self.cooker._skycooker.set_wait_hours(value)
         if self.number_type == NUMBER_COOK_MINUTES:
-            await self.cooker.set_wait_minutes(value)
+            await self.cooker._skycooker.set_wait_minutes(value)
         self.hass.async_add_executor_job(dispatcher_send, self.hass, DISPATCHER_UPDATE)
