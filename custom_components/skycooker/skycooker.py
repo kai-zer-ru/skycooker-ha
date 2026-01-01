@@ -171,6 +171,9 @@ class SkyCooker():
         _LOGGER.info(f"🔑 Starting authentication with key: {key.hex() if hasattr(key, 'hex') else key}")
         try:
             r = await self.command(SkyCooker.COMMAND_AUTH, key)
+            if r is None:
+                _LOGGER.error(f"❌ Authentication failed - no response received")
+                return False
             ok = r[0] != 0
             if ok:
                 _LOGGER.info(f"✅ Authentication successful")
@@ -185,6 +188,9 @@ class SkyCooker():
         _LOGGER.info(f"📋 Requesting device version...")
         try:
             r = await self.command(SkyCooker.COMMAND_GET_VERSION)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get version - no response received")
+                raise SkyCookerError("Failed to get version - no response")
             major, minor = unpack("BB", r)
             ver = f"{major}.{minor}"
             _LOGGER.info(f"✅ Device version: {ver}")
@@ -199,6 +205,9 @@ class SkyCooker():
             # Currently only RMC-M40S (MODELS_3) is supported
             if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
                 r = await self.command(SkyCooker.COMMAND_TURN_ON)
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to turn on device - no response received")
+                    raise SkyCookerError("can't turn on - no response")
                 if r[0] != 1:
                     _LOGGER.error(f"❌ Failed to turn on device - response: {r}")
                     raise SkyCookerError("can't turn on")
@@ -216,6 +225,9 @@ class SkyCooker():
             # Currently only RMC-M40S (MODELS_3) is supported
             if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
                 r = await self.command(SkyCooker.COMMAND_TURN_OFF)
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to turn off device - no response received")
+                    raise SkyCookerError("can't turn off - no response")
                 if r[0] != 1:
                     _LOGGER.error(f"❌ Failed to turn off device - response: {r}")
                     raise SkyCookerError("can't turn off")
@@ -242,6 +254,9 @@ class SkyCooker():
             
             # Send command
             r = await self.command(SkyCooker.COMMAND_SET_MAIN_MODE, data)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to set mode - no response received")
+                raise SkyCookerError("can't set mode - no response")
             if r[0] != 1:
                 _LOGGER.error(f"❌ Failed to set mode - response: {r}")
                 raise SkyCookerError("can't set mode")
@@ -255,6 +270,9 @@ class SkyCooker():
         _LOGGER.info(f"📊 Requesting device status (model code: {self.model_code})")
         try:
             r = await self.command(SkyCooker.COMMAND_GET_STATUS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get status - no response received")
+                raise SkyCookerError("Failed to get status - no response")
             _LOGGER.debug(f"📡 Raw status response: {r.hex() if hasattr(r, 'hex') else r}")
             
             # Currently only RMC-M40S (MODELS_3) is supported
@@ -342,6 +360,9 @@ class SkyCooker():
                 
                 try:
                     r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
+                    if r is None:
+                        _LOGGER.error(f"❌ Failed to sync time - no response received")
+                        raise SkyCookerError("can't sync time - no response")
                     if r[0] != 0:
                         _LOGGER.error(f"❌ Failed to sync time - response: {r}")
                         raise SkyCookerError("can't sync time")
@@ -370,6 +391,7 @@ class SkyCooker():
     async def commit(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_COMMIT_SETTINGS)
+            if r is None: raise SkyCookerError("can't commit settings - no response")
             if r[0] != 1: raise SkyCookerError("can't commit settings")
             _LOGGER.info(f"Settings committed")
         else:
@@ -379,6 +401,9 @@ class SkyCooker():
     async def get_wait_hours(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get wait hours - no response received")
+                return None
             hours, = unpack("<H", r)
             _LOGGER.info(f"Wait hours={hours}")
             return hours
@@ -388,6 +413,9 @@ class SkyCooker():
     async def get_wait_minutes(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get wait minutes - no response received")
+                return None
             minutes, = unpack("<H", r)
             _LOGGER.info(f"Wait minutes={minutes}")
             return minutes
@@ -397,6 +425,9 @@ class SkyCooker():
     async def get_cook_hours(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get cook hours - no response received")
+                return None
             hours, = unpack("<H", r)
             _LOGGER.info(f"Cook hours={hours}")
             return hours
@@ -406,6 +437,9 @@ class SkyCooker():
     async def get_cook_minutes(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get cook minutes - no response received")
+                return None
             minutes, = unpack("<H", r)
             _LOGGER.info(f"Cook minutes={minutes}")
             return minutes
@@ -415,6 +449,9 @@ class SkyCooker():
     async def get_current_program(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get current program - no response received")
+                return None
             program, = unpack("<H", r)
             _LOGGER.info(f"Current program={program}")
             return program
