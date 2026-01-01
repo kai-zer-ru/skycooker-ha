@@ -1,4 +1,45 @@
+# Python
 console_logger.py
 test.py
 __pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test environment
+venv_test/
+venv/
+.env
+test_config/
+*.db
+*.sqlite
+
+# Docker
+docker-compose.test.yml
+
+# Test scripts
+test_*.py
+run_tests.sh
+
+# IDE
 .idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+*.log
+*.log.*
+
+# Cache
+.cache
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
