@@ -49,7 +49,7 @@ class SkyCookerModeSelect(SelectEntity):
     @property
     def name(self):
         """Name of the entity."""
-        return (FRIENDLY_NAME + " " + self.entry.data.get(CONF_FRIENDLY_NAME, "") + " Mode").strip()
+        return (FRIENDLY_NAME + " " + self.entry.data.get("name", "") + " Mode").strip()
 
     @property
     def icon(self):
@@ -70,7 +70,7 @@ class SkyCookerModeSelect(SelectEntity):
     @property
     def current_option(self):
         """Return the current selected mode."""
-        status = self.cooker.status
+        status = self.cooker._status
         if status:
             return SkyCooker.MODE_NAMES.get(status.mode, "Standby")
         return "Standby"
