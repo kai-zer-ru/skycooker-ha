@@ -14,6 +14,7 @@ venv/
 test_config/
 *.db
 *.sqlite
+LOCAL_TESTING_GUIDE.md
 
 # Docker
 docker-compose.test.yml
