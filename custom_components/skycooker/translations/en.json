@@ -11,9 +11,7 @@
           "persistent": "Keep Connection Active",
           "adapter": "Bluetooth Adapter"
         }
-      }
-    },
-    "step": {
+      },
       "connect": {
         "title": "Connecting to device",
         "description": "Connecting to device {mac} ({model}). Please wait..."

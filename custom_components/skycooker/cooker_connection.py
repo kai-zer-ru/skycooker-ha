@@ -8,12 +8,16 @@ from bleak_retry_connector import establish_connection, BleakClientWithServiceCa
 from homeassistant.components import bluetooth
 
 from .const import *
-from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
 
+# Import SkyCooker locally to avoid circular import
+def get_skycooker_class():
+    from .skycooker import SkyCooker
+    return SkyCooker
 
-class CookerConnection(SkyCooker):
+
+class CookerConnection:
     UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
@@ -24,7 +28,6 @@ class CookerConnection(SkyCooker):
     TARGET_TTL = 30
 
     def __init__(self, mac, key, persistent=True, adapter=None, hass=None, model=None):
-        super().__init__(model)
         self._device = None
         self._client = None
         self._mac = mac
@@ -52,6 +55,10 @@ class CookerConnection(SkyCooker):
         self._colors = {}
         self._disposed = False
         self._last_data = None
+        
+        # Initialize SkyCooker instance
+        SkyCooker = get_skycooker_class()
+        self._skycooker = SkyCooker(model)
 
     async def command(self, command, params=[]):
         if self._disposed:
@@ -184,7 +191,256 @@ class CookerConnection(SkyCooker):
                     _LOGGER.error("This device may be out of range or have connection issues")
                     raise
 
-    auth = lambda self: super().auth(self._key)
+    @property
+    def model(self):
+        return self._skycooker.model
+    
+    @property
+    def model_code(self):
+        return self._skycooker.model_code
+    
+    @property
+    def MODE_BOIL(self):
+        return self._skycooker.MODE_BOIL
+    
+    @property
+    def MODE_HEAT(self):
+        return self._skycooker.MODE_HEAT
+    
+    @property
+    def MODE_BOIL_HEAT(self):
+        return self._skycooker.MODE_BOIL_HEAT
+    
+    @property
+    def MODE_LAMP(self):
+        return self._skycooker.MODE_LAMP
+    
+    @property
+    def MODE_GAME(self):
+        return self._skycooker.MODE_GAME
+    
+    @property
+    def MODE_STANDBY(self):
+        return self._skycooker.MODE_STANDBY
+    
+    @property
+    def MODE_MULTI_CHEF(self):
+        return self._skycooker.MODE_MULTI_CHEF
+    
+    @property
+    def MODE_RICE_CEREALS(self):
+        return self._skycooker.MODE_RICE_CEREALS
+    
+    @property
+    def MODE_LANGUOR(self):
+        return self._skycooker.MODE_LANGUOR
+    
+    @property
+    def MODE_PILAF(self):
+        return self._skycooker.MODE_PILAF
+    
+    @property
+    def MODE_FRYING(self):
+        return self._skycooker.MODE_FRYING
+    
+    @property
+    def MODE_STEWING(self):
+        return self._skycooker.MODE_STEWING
+    
+    @property
+    def MODE_PASTA(self):
+        return self._skycooker.MODE_PASTA
+    
+    @property
+    def MODE_BAKING(self):
+        return self._skycooker.MODE_BAKING
+    
+    @property
+    def MODE_STEAMING(self):
+        return self._skycooker.MODE_STEAMING
+    
+    @property
+    def MODE_YOGURT(self):
+        return self._skycooker.MODE_YOGURT
+    
+    @property
+    def MODE_DOUGH(self):
+        return self._skycooker.MODE_DOUGH
+    
+    @property
+    def MODE_KEEP_WARM(self):
+        return self._skycooker.MODE_KEEP_WARM
+    
+    @property
+    def MODE_YOGURT2(self):
+        return self._skycooker.MODE_YOGURT2
+    
+    @property
+    def MODE_BAKING2(self):
+        return self._skycooker.MODE_BAKING2
+    
+    @property
+    def MODE_STEAMING2(self):
+        return self._skycooker.MODE_STEAMING2
+    
+    @property
+    def MODE_STEWING2(self):
+        return self._skycooker.MODE_STEWING2
+    
+    @property
+    def MODE_FRYING2(self):
+        return self._skycooker.MODE_FRYING2
+    
+    @property
+    def MODE_PILAF2(self):
+        return self._skycooker.MODE_PILAF2
+    
+    @property
+    def MODE_LANGUOR2(self):
+        return self._skycooker.MODE_LANGUOR2
+    
+    @property
+    def MODE_RICE_CEREALS2(self):
+        return self._skycooker.MODE_RICE_CEREALS2
+    
+    @property
+    def MODE_MULTI_CHEF2(self):
+        return self._skycooker.MODE_MULTI_CHEF2
+    
+    @property
+    def MODE_NAMES(self):
+        return self._skycooker.MODE_NAMES
+    
+    @property
+    def LIGHT_BOIL(self):
+        return self._skycooker.LIGHT_BOIL
+    
+    @property
+    def LIGHT_LAMP(self):
+        return self._skycooker.LIGHT_LAMP
+    
+    @property
+    def LIGHT_SYNC(self):
+        return self._skycooker.LIGHT_SYNC
+    
+    @property
+    def LIGHT_NAMES(self):
+        return self._skycooker.LIGHT_NAMES
+    
+    @property
+    def MAX_TEMP(self):
+        return self._skycooker.MAX_TEMP
+    
+    @property
+    def MIN_TEMP(self):
+        return self._skycooker.MIN_TEMP
+    
+    @property
+    def COMMAND_GET_VERSION(self):
+        return self._skycooker.COMMAND_GET_VERSION
+    
+    @property
+    def COMMAND_TURN_ON(self):
+        return self._skycooker.COMMAND_TURN_ON
+    
+    @property
+    def COMMAND_TURN_OFF(self):
+        return self._skycooker.COMMAND_TURN_OFF
+    
+    @property
+    def COMMAND_SET_MAIN_MODE(self):
+        return self._skycooker.COMMAND_SET_MAIN_MODE
+    
+    @property
+    def COMMAND_GET_STATUS(self):
+        return self._skycooker.COMMAND_GET_STATUS
+    
+    @property
+    def COMMAND_GET_AUTO_OFF_HOURS(self):
+        return self._skycooker.COMMAND_GET_AUTO_OFF_HOURS
+    
+    @property
+    def COMMAND_SET_COLORS(self):
+        return self._skycooker.COMMAND_SET_COLORS
+    
+    @property
+    def COMMAND_GET_COLORS(self):
+        return self._skycooker.COMMAND_GET_COLORS
+    
+    @property
+    def COMMAND_SET_COLOR_INTERVAL(self):
+        return self._skycooker.COMMAND_SET_COLOR_INTERVAL
+    
+    @property
+    def COMMAND_GET_LIGHT_SWITCH(self):
+        return self._skycooker.COMMAND_GET_LIGHT_SWITCH
+    
+    @property
+    def COMMAND_COMMIT_SETTINGS(self):
+        return self._skycooker.COMMAND_COMMIT_SETTINGS
+    
+    @property
+    def COMMAND_SET_LIGHT_SWITCH(self):
+        return self._skycooker.COMMAND_SET_LIGHT_SWITCH
+    
+    @property
+    def COMMAND_IMPULSE_COLOR(self):
+        return self._skycooker.COMMAND_IMPULSE_COLOR
+    
+    @property
+    def COMMAND_SET_AUTO_OFF_HOURS(self):
+        return self._skycooker.COMMAND_SET_AUTO_OFF_HOURS
+    
+    @property
+    def COMMAND_SET_SOUND(self):
+        return self._skycooker.COMMAND_SET_SOUND
+    
+    @property
+    def COMMAND_GET_STATS1(self):
+        return self._skycooker.COMMAND_GET_STATS1
+    
+    @property
+    def COMMAND_GET_STATS2(self):
+        return self._skycooker.COMMAND_GET_STATS2
+    
+    @property
+    def COMMAND_SET_FRESH_WATER(self):
+        return self._skycooker.COMMAND_SET_FRESH_WATER
+    
+    @property
+    def COMMAND_GET_FRESH_WATER(self):
+        return self._skycooker.COMMAND_GET_FRESH_WATER
+    
+    @property
+    def COMMAND_SYNC_TIME(self):
+        return self._skycooker.COMMAND_SYNC_TIME
+    
+    @property
+    def COMMAND_GET_TIME(self):
+        return self._skycooker.COMMAND_GET_TIME
+    
+    @property
+    def COMMAND_GET_SCHEDULE_RECORD(self):
+        return self._skycooker.COMMAND_GET_SCHEDULE_RECORD
+    
+    @property
+    def COMMAND_ADD_SCHEDULE_RECORD(self):
+        return self._skycooker.COMMAND_ADD_SCHEDULE_RECORD
+    
+    @property
+    def COMMAND_GET_SCHEDULE_COUNT(self):
+        return self._skycooker.COMMAND_GET_SCHEDULE_COUNT
+    
+    @property
+    def COMMAND_DEL_SCHEDULE_RECORD(self):
+        return self._skycooker.COMMAND_DEL_SCHEDULE_RECORD
+    
+    @property
+    def COMMAND_AUTH(self):
+        return self._skycooker.COMMAND_AUTH
+    
+    def auth(self):
+        return self._skycooker.auth(self._key)
 
     async def _disconnect(self):
         try:
@@ -596,78 +852,28 @@ class CookerConnection(SkyCooker):
         await self.update(commit=True)
 
     async def impulse_color(self, r, g, b, brightness):
-        await self.update(extra_action=super().impulse_color(r, g, b, brightness))
-
+        return await self._skycooker.impulse_color(r, g, b, brightness)
+    
     async def set_sound(self, value):
-        if await self.update(force_stats=False, extra_action=super().set_sound(value), commit=True):
-            _LOGGER.info(f"Sound is set to {value}")
-        else:
-            _LOGGER.error(f"Can't set sound to {value}")
-
+        return await self._skycooker.set_sound(value)
+    
     async def set_light_switch(self, light_type, value):
-        if await self.update(force_stats=True, extra_action=super().set_light_switch(light_type, value), commit=True):
-            _LOGGER.info(f"Light 0x{light_type:02X} is set to {value}")
-        else:
-            _LOGGER.error(f"Can't set light 0x{light_type:02X} to {value}")
-
+        return await self._skycooker.set_light_switch(light_type, value)
+    
     async def set_color(self, light_type, n, color):
-        if light_type not in self._colors: return
-        self._last_get_stats = monotonic() # To avoid race condition
-        colors = self._colors[light_type]
-        r, g, b = color
-        if n == 0: colors = colors._replace(r_low=int(r), g_low=int(g), b_low=int(b))
-        if n == 1: colors = colors._replace(r_mid=int(r), g_mid=int(g), b_mid=int(b))
-        if n == 2: colors = colors._replace(r_high=int(r), g_high=int(g), b_high=int(b))
-        self._colors[light_type] = colors
-        if await self.update(extra_action=super().set_colors(colors), commit=True):
-            _LOGGER.info(f"Color 0x{light_type:02X}/{n} is set to {color}")
-        else:
-            _LOGGER.error(f"Can't set color 0x{light_type:02X}/{n} to {color}")
-
+        return await self._skycooker.set_color(light_type, n, color)
+    
     async def set_brightness(self, light_type, brightness):
-        brightness = int(brightness)
-        if light_type not in self._colors: return
-        self._last_get_stats = monotonic() # To avoid race condition
-        colors = self._colors[light_type]
-        colors = colors._replace(brightness=brightness, unknown1=brightness, unknown2=brightness)
-        self._colors[light_type] = colors
-        if await self.update(extra_action=super().set_colors(colors), commit=True):
-            _LOGGER.info(f"Color 0x{light_type:02X} brightness is set to {brightness}")
-        else:
-            _LOGGER.error(f"Can't set color 0x{light_type:02X} brightness to {brightness}")
-
+        return await self._skycooker.set_brightness(light_type, brightness)
+    
     async def set_temperature(self, light_type, n, temp):
-        temp = int(temp)
-        if light_type not in self._colors: return
-        self._last_get_stats = monotonic() # To avoid race condition
-        colors = self._colors[light_type]
-        temp = int(temp)
-        if n == 0: colors = colors._replace(temp_low=temp)
-        if n == 1: colors = colors._replace(temp_mid=temp)
-        if n == 2: colors = colors._replace(temp_high=temp)
-        self._colors[light_type] = colors
-        if await self.update(extra_action=super().set_colors(colors), commit=True):
-            _LOGGER.info(f"Color 0x{light_type:02X}/{n} temperature is set to {temp}")
-        else:
-            _LOGGER.error(f"Can't set color 0x{light_type:02X}/{n} temperature to {temp}")
-
+        return await self._skycooker.set_temperature(light_type, n, temp)
+    
     async def set_lamp_color_interval(self, secs):
-        secs = int(secs)
-        self._last_get_stats = monotonic() # To avoid race condition
-        if self._status: self._status._replace(color_interval=secs)
-        if await self.update(extra_action=super().set_lamp_color_interval(secs), commit=True):
-            _LOGGER.info(f"Lamp color interval is set to {secs}")
-        else:
-            _LOGGER.error(f"Can't set lamp color interval to {secs}")
-
+        return await self._skycooker.set_lamp_color_interval(secs)
+    
     async def set_lamp_auto_off_hours(self, hours):
-        hours = int(hours)
-        self._last_get_stats = monotonic() # To avoid race condition
-        self._lamp_auto_off_hours = hours
-        if await self.update(extra_action=super().set_lamp_auto_off_hours(hours)):
-            _LOGGER.info(f"Lamp auto off hours is set to {hours}")
-        else:
-            _LOGGER.error(f"Can't set lamp auto off hours to {hours}")
+        return await self._skycooker.set_lamp_auto_off_hours(hours)
 
 
 class AuthError(Exception):

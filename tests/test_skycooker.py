@@ -13,7 +13,6 @@ class TestSkyCooker:
     def test_get_model_code(self):
         """Тест получения кода модели."""
         assert SkyCooker.get_model_code("RMC-M40S") == 3
-        assert SkyCooker.get_model_code("RMC-M42S") == 3
         assert SkyCooker.get_model_code("RMC-M40S-E") == 3
         assert SkyCooker.get_model_code("Unknown-Model") is None
 

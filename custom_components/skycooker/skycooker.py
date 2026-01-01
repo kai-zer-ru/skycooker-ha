@@ -6,8 +6,6 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from struct import pack, unpack
 
-from .cooker_connection import CookerConnection
-
 _LOGGER = logging.getLogger(__name__)
 
 
