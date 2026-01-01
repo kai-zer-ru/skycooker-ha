@@ -20,7 +20,6 @@ PLATFORMS = [
     Platform.BUTTON,
     Platform.SENSOR,
     Platform.NUMBER,
-    Platform.SELECT,
 ]
 
 

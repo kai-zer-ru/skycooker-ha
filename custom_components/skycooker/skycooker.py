@@ -6,6 +6,8 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from struct import pack, unpack
 
+from .cooker_connection import CookerConnection
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -336,18 +338,27 @@ class SkyCooker():
                 data = pack("<ii", now, offset)
                 _LOGGER.debug(f"📦 Packed time data: timestamp={now}, offset={offset}")
                 
-                r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
-                if r[0] != 0:
-                    _LOGGER.error(f"❌ Failed to sync time - response: {r}")
-                    raise SkyCookerError("can't sync time")
+                # Use shorter timeout for time sync to avoid blocking
+                original_timeout = CookerConnection.BLE_RECV_TIMEOUT
+                CookerConnection.BLE_RECV_TIMEOUT = 3.0  # Reduce timeout to 3 seconds
                 
-                _LOGGER.info(f"✅ Time synchronized: {datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')} (GMT{offset/60/60:+.2f})")
+                try:
+                    r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
+                    if r[0] != 0:
+                        _LOGGER.error(f"❌ Failed to sync time - response: {r}")
+                        raise SkyCookerError("can't sync time")
+                    
+                    _LOGGER.info(f"✅ Time synchronized: {datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')} (GMT{offset/60/60:+.2f})")
+                finally:
+                    # Restore original timeout
+                    CookerConnection.BLE_RECV_TIMEOUT = original_timeout
+                    
             else:
                 _LOGGER.warning(f"⚠️ sync_time is not supported by this model (code: {self.model_code})")
                 _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
         except Exception as e:
-            _LOGGER.error(f"❌ Error during time sync: {e}")
-            raise
+            _LOGGER.warning(f"⚠️ Time synchronization failed (non-critical): {e}")
+            # Don't raise exception for time sync failure - it's not critical
 
     async def get_time(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
