@@ -505,7 +505,6 @@ class CookerConnection:
     async def _disconnect_if_need(self):
         # Для решения проблемы с BleakOutOfConnectionSlotsError
         # Отключаемся после каждой операции, если не в persistent режиме
-        # Но для SkyKettle-ha поддерживаем постоянное соединение
         if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
             await self.disconnect()
 
