@@ -7,7 +7,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/kai-zer-ru/skycooker-ha/issues",
   "requirements": ["bleak-retry-connector>=1.0.0"],
-  "version": "0.0ю1",
+  "version": "0.0.1",
   "dependencies": [],
   "after_dependencies": [],
   "supported_domains": ["button", "sensor", "number", "select"],
