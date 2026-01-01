@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  home-assistant-test:
+    image: homeassistant/home-assistant:stable
+    container_name: skycooker-ha-test
+    restart: unless-stopped
+    privileged: true
+    # Проброс USB устройств для Bluetooth
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev/ttyACM0:/dev/ttyACM0  # Для USB Bluetooth адаптеров
+      - /dev/ttyUSB0:/dev/ttyUSB0  # Альтернативный путь
+    volumes:
+      # Монтируем конфигурацию Home Assistant
+      - ./test_config:/config
+      # Монтируем интеграцию SkyCooker
+      - ./custom_components/skycooker:/config/custom_components/skycooker
+      # Проброс системных файлов для Bluetooth
+      - /var/run/dbus:/var/run/dbus
+      - /sys:/sys:ro
+    environment:
+      - TZ=Asia/Irkutsk
+      - PUID=1000
+      - PGID=1000
+    ports:
+      - "8123:8123"
+    networks:
+      - skycooker-test-net
+    command: >
+      bash -c "
+        echo '🚀 Starting Home Assistant with SkyCooker integration...'
+        echo '📋 Bluetooth devices available:'
+        ls -la /dev/ | grep -E '(ttyUSB|ttyACM|rfcomm)'
+        echo ''
+        echo '📋 USB devices:'
+        lsusb
+        echo ''
+        echo '📋 Bluetooth status:'
+        hciconfig
+        echo ''
+        echo '📋 Starting Home Assistant...'
+        exec python -m homeassistant --config /config
+      "
+
+  skycooker-test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: skycooker-test-runner
+    restart: unless-stopped
+    volumes:
+      - ./test_config:/config
+      - ./custom_components/skycooker:/app/custom_components/skycooker
+      - ./tests:/app/tests
+    environment:
+      - HA_URL=http://home-assistant-test:8123
+      - HA_TOKEN=test_token_12345
+      - TZ=Asia/Irkutsk
+    depends_on:
+      - home-assistant-test
+    networks:
+      - skycooker-test-net
+    command: >
+      bash -c "
+        echo '🧪 Waiting for Home Assistant to start...'
+        sleep 30
+        echo '🧪 Running integration tests...'
+        python /app/tests/test_integration.py
+      "
+
+networks:
+  skycooker-test-net:
+    driver: bridge
