@@ -100,6 +100,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the connect step."""
         errors = {}
         if user_input is not None:
+            _LOGGER.warning("Attempting to connect to cooker...")
             cooker = CookerConnection(
                 mac=self.config[CONF_MAC],
                 key=self.config[CONF_PASSWORD],
@@ -110,6 +111,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             tries = 3
             while tries > 0 and not cooker._last_connect_ok:
+                _LOGGER.warning(f"Connection attempt {4-tries}/3")
                 await cooker.update()
                 tries = tries - 1
             
@@ -119,16 +121,28 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
             if not connect_ok:
                 errors["base"] = "cant_connect"
+                _LOGGER.error("Cannot connect to device")
             elif not auth_ok:
                 errors["base"] = "cant_auth"
+                _LOGGER.error("Authentication failed")
             else:
+                _LOGGER.warning("Connection successful, proceeding to init step")
                 return await self.async_step_init()
 
+        # Show form with connection attempt button
+        schema = vol.Schema({
+            vol.Optional("connect_button", description="Нажмите для подключения"): cv.boolean
+        })
+        
         return self.async_show_form(
             step_id="connect",
             errors=errors,
-            data_schema=vol.Schema({})
-        )  
+            description_placeholders={
+                "mac": self.config[CONF_MAC],
+                "model": self.config.get(CONF_FRIENDLY_NAME, "Unknown")
+            },
+            data_schema=schema
+        )
 
     async def async_step_init(self, user_input=None):
         """Handle the options step."""
