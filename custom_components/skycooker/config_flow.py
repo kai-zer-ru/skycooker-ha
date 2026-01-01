@@ -71,57 +71,185 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Continue to connect step
             return await self.async_step_connect()
 
+        # Агрессивное сканирование перед показом формы
+        _LOGGER.info("🚀 Starting SkyCooker discovery process...")
+        
         try:
-            try:
-                scanner = bluetooth.async_get_scanner(self.hass)
-                _LOGGER.info("🔍 Scanning for Bluetooth devices...")
+            # Пытаемся найти устройства несколько раз с паузами
+            scanner = bluetooth.async_get_scanner(self.hass)
+            found_devices = []
+            
+            for scan_attempt in range(5):
+                _LOGGER.debug(f"🔍 Scan attempt {scan_attempt + 1}/5")
                 
-                # Собираем все доступные устройства
-                all_devices = []
-                skycooker_devices = []
+                # Делаем сканирование
+                current_devices = scanner.discovered_devices
+                _LOGGER.debug(f"📡 Found {len(current_devices)} devices")
                 
-                for device in scanner.discovered_devices:
-                    name = device.name or "Unknown"
-                    address = device.address
-                    rssi = device.rssi if hasattr(device, 'rssi') else "N/A"
-                    
-                    all_devices.append(f"{address} - {name} (RSSI: {rssi})")
-                    _LOGGER.debug(f"📡 Found device: {address} - {name} (RSSI: {rssi})")
-                    
-                    # Фильтрация устройств SkyCooker
+                # Фильтруем SkyCooker устройства
+                for device in current_devices:
                     if device.name and (
                         device.name.startswith("RMC-") or
                         "SkyCooker" in device.name or
                         "Redmond" in device.name or
-                        address == "DA:D8:9F:9E:0B:4C"  # Известный MAC адрес
+                        "Multicooker" in device.name or
+                        "Cooker" in device.name or
+                        device.address.upper() in ["DA:D8:9F:9E:0B:4C", "DA-D8-9F-9E-0B-4C", "DAD89F9E0B4C"]
                     ):
-                        skycooker_devices.append(device)
-                        _LOGGER.info(f"🎯 Found SkyCooker device: {address} - {name} (RSSI: {rssi})")
+                        if device not in found_devices:
+                            found_devices.append(device)
+                            rssi = getattr(device, 'rssi', None)
+                            rssi_info = f" (RSSI: {rssi})" if rssi is not None else ""
+                            _LOGGER.info(f"🎯 SkyCooker candidate: {device.name} - {device.address}{rssi_info}")
+                
+                # Если нашли устройства, можно остановиться
+                if found_devices:
+                    _LOGGER.info(f"✅ Found {len(found_devices)} SkyCooker devices, proceeding to selection")
+                    break
+                
+                # Пауза между попытками
+                await asyncio.sleep(1.0)
+            
+            if not found_devices:
+                _LOGGER.warning("⚠️ No SkyCooker devices found in any scan attempt")
+                _LOGGER.info("💡 Try these steps:")
+                _LOGGER.info("  1. Power cycle your RMC-M40S (turn off and on)")
+                _LOGGER.info("  2. Put device in pairing mode (hold bluetooth button)")
+                _LOGGER.info("  3. Move closer to HomeAssistant server")
+                _LOGGER.info("  4. Check Bluetooth adapter status")
+                
+                # Показываем все найденные устройства для диагностики
+                all_devices = scanner.discovered_devices
+                if all_devices:
+                    _LOGGER.info("📋 All discovered Bluetooth devices:")
+                    for device in all_devices:
+                        rssi = getattr(device, 'rssi', None)
+                        rssi_info = f" (RSSI: {rssi})" if rssi is not None else ""
+                        _LOGGER.info(f"  - {device.name or 'Unknown'} - {device.address}{rssi_info}")
+                else:
+                    _LOGGER.info("📋 No Bluetooth devices discovered at all")
+                
+                return self.async_abort(reason='cooker_not_found')
+
+        except Exception as e:
+            _LOGGER.error(f"❌ Scan preparation error: {e}")
+            return self.async_abort(reason='no_bluetooth')
+
+        try:
+            try:
+                scanner = bluetooth.async_get_scanner(self.hass)
+                _LOGGER.info("🔍 Starting aggressive Bluetooth scan for SkyCooker devices...")
+                
+                # Агрессивное сканирование - пробуем несколько раз
+                all_devices = []
+                skycooker_devices = []
+                scan_attempts = 3
+                
+                for attempt in range(scan_attempts):
+                    _LOGGER.debug(f"📡 Scan attempt {attempt + 1}/{scan_attempts}")
+                    
+                    # Делаем паузу между попытками для стабильности
+                    if attempt > 0:
+                        await asyncio.sleep(2.0)
+                    
+                    current_devices = scanner.discovered_devices
+                    _LOGGER.debug(f"📡 Found {len(current_devices)} devices in attempt {attempt + 1}")
+                    
+                    for device in current_devices:
+                        name = device.name or "Unknown"
+                        address = device.address
+                        rssi = getattr(device, 'rssi', None)
+                        
+                        # Собираем все устройства для диагностики
+                        rssi_str = f"RSSI: {rssi}" if rssi is not None else "RSSI: N/A"
+                        device_info = f"{address} - {name} ({rssi_str})"
+                        
+                        # Избегаем дубликатов
+                        if device_info not in all_devices:
+                            all_devices.append(device_info)
+                            _LOGGER.debug(f"📡 Device discovered: {device_info}")
+                            
+                            # Расширенная фильтрация SkyCooker устройств
+                            is_skycooker = False
+                            reasons = []
+                            
+                            if device.name:
+                                if device.name.startswith("RMC-"):
+                                    is_skycooker = True
+                                    reasons.append("RMC- prefix")
+                                if "SkyCooker" in device.name:
+                                    is_skycooker = True
+                                    reasons.append("SkyCooker in name")
+                                if "Redmond" in device.name:
+                                    is_skycooker = True
+                                    reasons.append("Redmond in name")
+                                if "Multicooker" in device.name:
+                                    is_skycooker = True
+                                    reasons.append("Multicooker in name")
+                                if "Cooker" in device.name:
+                                    is_skycooker = True
+                                    reasons.append("Cooker in name")
+                            
+                            # Проверка по MAC адресу (если известен)
+                            if address.upper() in ["DA:D8:9F:9E:0B:4C", "DA-D8-9F-9E-0B-4C", "DAD89F9E0B4C"]:
+                                is_skycooker = True
+                                reasons.append("Known MAC address")
+                            
+                            # Проверка по силе сигнала (если устройство близко)
+                            if rssi is not None and rssi > -80:  # Сильный сигнал
+                                # Дополнительная проверка для устройств с нестандартными именами
+                                if any(keyword in name.lower() for keyword in ['r', 'm', 'c', 'sky', 'red']):
+                                    is_skycooker = True
+                                    reasons.append("Signal strength + name pattern")
+                            
+                            if is_skycooker:
+                                # Проверяем, не добавлено ли уже это устройство
+                                if not any(d.address == address for d in skycooker_devices):
+                                    skycooker_devices.append(device)
+                                    reasons_str = ", ".join(reasons) if reasons else "Unknown reason"
+                                    _LOGGER.info(f"🎯 SkyCooker candidate found: {address} - {name} ({rssi_str}) [{reasons_str}]")
                 
                 # Логируем все найденные устройства для диагностики
                 if all_devices:
-                    _LOGGER.info(f"📋 All discovered devices ({len(all_devices)}):")
-                    for device_info in all_devices:
+                    _LOGGER.info(f"📋 Total devices discovered: {len(all_devices)}")
+                    for device_info in sorted(all_devices):
                         _LOGGER.info(f"  - {device_info}")
                 else:
-                    _LOGGER.warning("⚠️ No Bluetooth devices found")
+                    _LOGGER.warning("⚠️ No Bluetooth devices found in any scan attempt")
                 
             except Exception as e:
                 _LOGGER.error(f"❌ Bluetooth scanner error: {e}")
+                _LOGGER.error(traceback.format_exc())
                 return self.async_abort(reason='no_bluetooth')
             
             if len(skycooker_devices) == 0:
-                _LOGGER.warning("⚠️ No SkyCooker devices found")
-                _LOGGER.info("💡 Tips:")
-                _LOGGER.info("  1. Ensure your RMC-M40S is powered on and in pairing mode")
-                _LOGGER.info("  2. Check that Bluetooth is enabled on your HomeAssistant server")
-                _LOGGER.info("  3. Make sure the device is within range (5-10 meters)")
-                _LOGGER.info("  4. Try restarting your RMC-M40S device")
+                _LOGGER.warning("⚠️ No SkyCooker devices found after aggressive scanning")
+                _LOGGER.info("💡 Troubleshooting tips:")
+                _LOGGER.info("  1. Ensure your RMC-M40S is powered ON and in pairing mode (bluetooth indicator blinking)")
+                _LOGGER.info("  2. Check that Bluetooth is enabled and working on your HomeAssistant server")
+                _LOGGER.info("  3. Make sure the device is within close range (3-5 meters recommended)")
+                _LOGGER.info("  4. Try restarting your RMC-M40S device and putting it in pairing mode again")
+                _LOGGER.info("  5. Check if the device is already connected to another application")
+                _LOGGER.info("  6. Verify that your Bluetooth adapter supports the required Bluetooth Low Energy features")
+                
+                # Показываем все найденные устройства, даже если они не распознаны как SkyCooker
+                if all_devices:
+                    _LOGGER.info("🔍 All discovered devices (check if your RMC-M40S is listed):")
+                    for device_info in all_devices:
+                        _LOGGER.info(f"  - {device_info}")
+                
                 return self.async_abort(reason='cooker_not_found')
             
-            # Создаем список для выбора
-            mac_list = [f"{device.address} ({device.name})" for device in skycooker_devices]
-            _LOGGER.info(f"✅ Found {len(mac_list)} SkyCooker devices for selection")
+            # Создаем список для выбора с дополнительной информацией
+            mac_list = []
+            for device in skycooker_devices:
+                rssi = getattr(device, 'rssi', None)
+                rssi_info = f" RSSI:{rssi}" if rssi is not None else ""
+                device_entry = f"{device.address} ({device.name}{rssi_info})"
+                mac_list.append(device_entry)
+                _LOGGER.info(f"✅ Device added to selection list: {device_entry}")
+            
+            _LOGGER.info(f"🎯 Final selection list created with {len(mac_list)} devices")
             
             schema = vol.Schema(
             {
