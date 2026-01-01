@@ -23,12 +23,7 @@ if ! command_exists docker; then
     exit 1
 fi
 
-if ! command_exists docker-compose; then
-    echo -e "${RED}❌ Docker Compose не установлен${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✅ Docker и Docker Compose доступны${NC}"
+echo -e "${GREEN}✅ Docker доступен${NC}"
 echo ""
 
 # Проверка наличия USB Bluetooth адаптера
@@ -73,8 +68,8 @@ echo ""
 echo -e "${BLUE}📋 Запуск Docker контейнеров...${NC}"
 echo -e "${YELLOW}🐳 Запуск Home Assistant и тестового окружения...${NC}"
 
-docker-compose -f docker-compose.integration-test.yml down -v 2>/dev/null
-docker-compose -f docker-compose.integration-test.yml up -d
+docker compose -f docker-compose.integration-test.yml down -v 2>/dev/null
+docker compose -f docker-compose.integration-test.yml up -d
 
 echo ""
 
@@ -84,7 +79,7 @@ sleep 10
 
 # Проверка статуса контейнеров
 echo -e "${BLUE}📋 Проверка статуса контейнеров...${NC}"
-docker-compose -f docker-compose.integration-test.yml ps
+docker compose -f docker-compose.integration-test.yml ps
 
 echo ""
 
@@ -92,7 +87,7 @@ echo ""
 echo -e "${BLUE}📋 Проверка логов Home Assistant...${NC}"
 echo -e "${YELLOW}Проверка запуска Home Assistant (ожидание 60 секунд)...${NC}"
 
-timeout 60 bash -c 'until docker-compose -f docker-compose.integration-test.yml logs home-assistant-test | grep -q "Starting Home Assistant"; do sleep 2; done' 2>/dev/null
+timeout 60 bash -c 'until docker compose -f docker-compose.integration-test.yml logs home-assistant-test | grep -q "Starting Home Assistant"; do sleep 2; done' 2>/dev/null
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Home Assistant запущен${NC}"
@@ -105,7 +100,7 @@ echo ""
 # Проверка логов тестового контейнера
 echo -e "${BLUE}📋 Проверка логов тестового контейнера...${NC}"
 sleep 5
-docker-compose -f docker-compose.integration-test.yml logs skycooker-test-runner
+docker compose -f docker-compose.integration-test.yml logs skycooker-test-runner
 
 echo ""
 
@@ -124,11 +119,11 @@ echo "5. Проверьте обнаружение устройства"
 echo ""
 
 echo -e "${BLUE}📋 Для просмотра логов:${NC}"
-echo "docker-compose -f docker-compose.integration-test.yml logs -f home-assistant-test"
+echo "docker compose -f docker-compose.integration-test.yml logs -f home-assistant-test"
 echo ""
 
 echo -e "${BLUE}📋 Для остановки тестов:${NC}"
-echo "docker-compose -f docker-compose.integration-test.yml down -v"
+echo "docker compose -f docker-compose.integration-test.yml down -v"
 echo ""
 
 echo -e "${GREEN}🎉 Интеграционные тесты запущены!${NC}"

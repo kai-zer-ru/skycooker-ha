@@ -39,6 +39,16 @@ chmod +x run_integration_test.sh
 ./run_integration_test.sh
 ```
 
+**Или вручную:**
+
+```bash
+# Остановка предыдущих контейнеров
+docker compose -f docker-compose.integration-test.yml down -v
+
+# Запуск новых контейнеров
+docker compose -f docker-compose.integration-test.yml up -d
+```
+
 ### 2. Что происходит при запуске
 
 Скрипт выполняет следующие действия:
@@ -100,25 +110,25 @@ http://localhost:8123
 
 ```bash
 # Логи Home Assistant
-docker-compose -f docker-compose.integration-test.yml logs -f home-assistant-test
+docker compose -f docker-compose.integration-test.yml logs -f home-assistant-test
 
 # Логи тестового контейнера
-docker-compose -f docker-compose.integration-test.yml logs -f skycooker-test-runner
+docker compose -f docker-compose.integration-test.yml logs -f skycooker-test-runner
 
 # Все логи
-docker-compose -f docker-compose.integration-test.yml logs -f
+docker compose -f docker-compose.integration-test.yml logs -f
 ```
 
 ### Остановка тестов
 
 ```bash
-docker-compose -f docker-compose.integration-test.yml down -v
+docker compose -f docker-compose.integration-test.yml down -v
 ```
 
 ### Перезапуск тестов
 
 ```bash
-docker-compose -f docker-compose.integration-test.yml down -v
+docker compose -f docker-compose.integration-test.yml down -v
 ./run_integration_test.sh
 ```
 
@@ -189,10 +199,10 @@ sudo usermod -a -G dialout $USER
 **Решение:**
 ```bash
 # Проверка логов
-docker-compose -f docker-compose.integration-test.yml logs home-assistant-test
+docker compose -f docker-compose.integration-test.yml logs home-assistant-test
 
 # Очистка и перезапуск
-docker-compose -f docker-compose.integration-test.yml down -v
+docker compose -f docker-compose.integration-test.yml down -v
 docker system prune -f
 ./run_integration_test.sh
 ```
