@@ -21,9 +21,9 @@ class CookerConnection(SkyCooker):
     CONNECTION_TIMEOUT = 10
     BLE_RECV_TIMEOUT = 1.5
     MAX_TRIES = 3
-    TRIES_INTERVAL = 0.5
-    STATS_INTERVAL = 15
-    TARGET_TTL = 30
+    TRIES_INTERVAL = 1.0  # Увеличим интервал между попытками
+    STATS_INTERVAL = 30   # Увеличим интервал опроса статистики
+    TARGET_TTL = 60       # Увеличим время ожидания установки режима
 
     def __init__(self, mac, key, persistent=True, adapter=None, hass=None, model=None):
         super().__init__(model)
@@ -119,12 +119,18 @@ class CookerConnection(SkyCooker):
         try:
             if self._client:
                 was_connected = self._client.is_connected
-                await self._client.disconnect()
-                if was_connected: _LOGGER.warning("Disconnected")
+                if was_connected:
+                    _LOGGER.warning("Disconnecting from cooker")
+                    await self._client.disconnect()
+                    _LOGGER.warning("Disconnected successfully")
+        except Exception as ex:
+            _LOGGER.warning(f"Error during disconnect: {ex}")
         finally:
+            # Всегда сбрасываем состояние, даже если были ошибки
             self._auth_ok = False
             self._device = None
             self._client = None
+            _LOGGER.warning("Connection state reset")
 
     async def disconnect(self):
         try:
@@ -133,28 +139,42 @@ class CookerConnection(SkyCooker):
             pass
 
     async def _connect_if_need(self):
+        # Если есть клиент, но он не подключен - отключаем
         if self._client and not self._client.is_connected:
-            _LOGGER.warning("Connection lost")
+            _LOGGER.warning("Connection lost, disconnecting")
             await self.disconnect()
+        
+        # Если нет подключенного клиента - пробуем подключиться
         if not self._client or not self._client.is_connected:
             try:
                 await self._connect()
                 self._last_connect_ok = True
+                _LOGGER.warning("Successfully connected to cooker")
             except Exception as ex:
                 await self.disconnect()
                 self._last_connect_ok = False
+                _LOGGER.error(f"Failed to connect: {ex}")
                 raise ex
+        
+        # Проверяем аутентификацию
         if not self._auth_ok:
-            self._last_auth_ok = self._auth_ok = await self.auth()
-            if not self._auth_ok:
-                _LOGGER.error(f"Auth failed. You need to enable pairing mode on the Cooker.")
-                raise AuthError("Auth failed")
-            _LOGGER.warning("Auth ok")
-            self._sw_version = await self.get_version()
-            await self.sync_time()
+            try:
+                self._last_auth_ok = self._auth_ok = await self.auth()
+                if not self._auth_ok:
+                    _LOGGER.error(f"Auth failed. You need to enable pairing mode on the Cooker.")
+                    raise AuthError("Auth failed")
+                _LOGGER.warning("Auth ok")
+                self._sw_version = await self.get_version()
+                await self.sync_time()
+            except Exception as ex:
+                _LOGGER.error(f"Auth or setup failed: {ex}")
+                await self.disconnect()
+                raise ex
 
     async def _disconnect_if_need(self):
+        # Отключаемся только если соединение не постоянное и не в игровом режиме
         if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
+            _LOGGER.warning("Disconnecting as per configuration (not persistent)")
             await self.disconnect()
 
     async def update(self, tries=MAX_TRIES, force_stats=False, extra_action=None, commit=False):
