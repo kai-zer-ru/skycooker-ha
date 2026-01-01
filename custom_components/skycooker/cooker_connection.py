@@ -4,6 +4,7 @@ import traceback
 from time import monotonic
 
 from bleak import BleakClient
+from bleak_retry_connector import establish_connection
 
 from homeassistant.components import bluetooth
 
@@ -91,17 +92,26 @@ class CookerConnection(SkyCooker):
         if self._disposed:
             raise DisposedError()
         if self._client and self._client.is_connected: return
+        
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
-        self._client = BleakClient(self._device)
+        if not self._device:
+            raise IOError(f"Device with MAC address {self._mac} not found")
+            
         _LOGGER.warning("Connecting to the Cooker...")
-        await asyncio.wait_for(
-            # Bluez connection timeout is not working actually
-            self._client.connect(timeout=CookerConnection.CONNECTION_TIMEOUT),
-            timeout=CookerConnection.CONNECTION_TIMEOUT
-        )
-        _LOGGER.warning("Connected to the Cooker")
-        await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
-        _LOGGER.warning("Subscribed to RX")
+        try:
+            self._client = await establish_connection(
+                BleakClient,
+                self._device,
+                self._mac,
+                timeout=CookerConnection.CONNECTION_TIMEOUT
+            )
+            _LOGGER.warning("Connected to the Cooker")
+            await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
+            _LOGGER.warning("Subscribed to RX")
+        except Exception as ex:
+            _LOGGER.error(f"Failed to connect to device: {ex}")
+            self._client = None
+            raise
 
     auth = lambda self: super().auth(self._key)
 
@@ -270,9 +280,9 @@ class CookerConnection(SkyCooker):
     async def cancel_target(self):
         self._target_state = None
 
-    def stop(self):
+    async def stop(self):
         if self._disposed: return
-        self._disconnect()
+        await self._disconnect()
         self._disposed = True
         _LOGGER.warning("Stopped.")
 

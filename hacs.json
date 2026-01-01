@@ -1,6 +1,6 @@
 {
   "name": "SkyCooker",
-  "homeassistant": "2024.9.1",
+  "homeassistant": "2025.12.5",
   "render_readme": true,
   "country": ["RU"],
   "iot_class": "local_polling",
