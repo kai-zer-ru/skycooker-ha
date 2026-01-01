@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   home-assistant-test:
     image: homeassistant/home-assistant:stable
