@@ -110,7 +110,7 @@ class SkyWaterHeater(ButtonEntity):
     @property
     def is_on(self):
         """If the switch is currently on or off."""
-        _LOGGER.warning(f"TargetMode: {self.cooker.current_program != None}")
+        _LOGGER.info(f"TargetMode: {self.cooker.current_program != None}")
         return self.cooker.current_program != None
 
     async def async_turn_on(self, **kwargs):

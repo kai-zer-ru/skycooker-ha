@@ -166,31 +166,31 @@ class SkyCooker():
     async def auth(self, key):
         r = await self.command(SkyCooker.COMMAND_AUTH, key)
         ok = r[0] != 0
-        _LOGGER.warning(f"Auth: ok={ok}")
+        _LOGGER.info(f"Auth: ok={ok}")
         return ok
 
     async def get_version(self):
         r = await self.command(SkyCooker.COMMAND_GET_VERSION)
         major, minor = unpack("BB", r)
         ver = f"{major}.{minor}"
-        _LOGGER.warning(f"Version: {ver}")
+        _LOGGER.info(f"Version: {ver}")
         return (major, minor)
 
     async def turn_on(self):
         if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4]: # All except RK-M171S, RK-M172S, RK-M173S
             r = await self.command(SkyCooker.COMMAND_TURN_ON)
             if r[0] != 1: raise SkyCookerError("can't turn on")
-            _LOGGER.warning(f"Turned on")
+            _LOGGER.info(f"Turned on")
         else:
-            _LOGGER.warning(f"turn_on is not supported by this model")
+            _LOGGER.debug(f"turn_on is not supported by this model")
 
     async def turn_off(self):
         if self.model_code in [SkyCooker.MODELS_1, SkyCooker.MODELS_2, SkyCooker.MODELS_3, SkyCooker.MODELS_4]: # All known models
             r = await self.command(SkyCooker.COMMAND_TURN_OFF)
             if r[0] != 1: raise SkyCookerError("can't turn off")
-            _LOGGER.warning(f"Turned off")
+            _LOGGER.info(f"Turned off")
         else:
-            _LOGGER.warning(f"turn_off is not supported by this model")
+            _LOGGER.debug(f"turn_off is not supported by this model")
 
     async def set_main_mode(self, mode, target_temp = 0, boil_time = 0):
         if self.model_code in [SkyCooker.MODELS_1, SkyCooker.MODELS_2]: # RK-M170S, RK-M171S and RK-M173S but not sure about RK-M170S and RK-M173S
@@ -218,11 +218,11 @@ class SkyCooker():
         elif self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S
             data = pack("BxBxxxxxxxxxxBxx", int(mode), int(target_temp), int(0x80 + boil_time))
         else:
-            _LOGGER.warning(f"set_main_mode is not supported by this model")
+            _LOGGER.debug(f"set_main_mode is not supported by this model")
             return
         r = await self.command(SkyCooker.COMMAND_SET_MAIN_MODE, data)
         if r[0] != 1: raise SkyCookerError("can't set mode")
-        _LOGGER.warning(f"Mode set: mode={mode} ({SkyCooker.MODE_NAMES[mode]}), target_temp={target_temp}, boil_time={boil_time}")
+        _LOGGER.info(f"Mode set: mode={mode} ({SkyCooker.MODE_NAMES[mode]}), target_temp={target_temp}, boil_time={boil_time}")
 
     async def get_status(self):
         r = await self.command(SkyCooker.COMMAND_GET_STATUS)
@@ -260,7 +260,7 @@ class SkyCooker():
                         wait_minutes=0
                     )
             except Exception as e:
-                _LOGGER.warning(f"Error unpacking multicooker status: {e}")
+                _LOGGER.debug(f"Error unpacking multicooker status: {e}")
                 # Fallback to basic format
                 mode, is_on = unpack("<BxBxxxxx?xBxxxxx", r)
                 status = SkyCooker.Status(
@@ -275,10 +275,10 @@ class SkyCooker():
                     wait_minutes=0
                 )
         else:
-            _LOGGER.warning(f"get_status is not supported by this model")
+            _LOGGER.debug(f"get_status is not supported by this model")
             return None
-            
-        _LOGGER.warning(f"Status: mode={status.mode} ({SkyCooker.MODE_NAMES.get(status.mode, 'Unknown')}), is_on={status.is_on}, temp={status.current_temp}/{status.target_temp}, cook={status.cook_hours}:{status.cook_minutes}, wait={status.wait_hours}:{status.wait_minutes}")
+
+        _LOGGER.info(f"Status: mode={status.mode} ({SkyCooker.MODE_NAMES.get(status.mode, 'Unknown')}), is_on={status.is_on}, temp={status.current_temp}/{status.target_temp}, cook={status.cook_hours}:{status.cook_minutes}, wait={status.wait_hours}:{status.wait_minutes}")
         return status
 
     async def sync_time(self):
@@ -289,33 +289,33 @@ class SkyCooker():
             data = pack("<ii", now, offset)
             r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
             if r[0] != 0: raise SkyCookerError("can't sync time")
-            _LOGGER.warning(f"Writed time={now} ({datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
+            _LOGGER.info(f"Synced time={now} ({datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
         else:
-            _LOGGER.warning(f"sync_time is not supported by this model")
+            _LOGGER.debug(f"sync_time is not supported by this model")
 
     async def get_time(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_TIME)
             t, offset = unpack("<ii", r)
-            _LOGGER.warning(f"time={t} ({datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
+            _LOGGER.info(f"time={t} ({datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
             return t, offset
         else:
-            _LOGGER.warning(f"get_time is not supported by this model")
+            _LOGGER.debug(f"get_time is not supported by this model")
 
     async def commit(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_COMMIT_SETTINGS)
             if r[0] != 1: raise SkyCookerError("can't commit settings")
-            _LOGGER.warning(f"Settings commited")
+            _LOGGER.info(f"Settings committed")
         else:
-            _LOGGER.warning(f"commit is not supported by this model")
+            _LOGGER.debug(f"commit is not supported by this model")
 
 
     async def get_wait_hours(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             hours, = unpack("<H", r)
-            _LOGGER.warning(f"Wait hours={hours}")
+            _LOGGER.info(f"Wait hours={hours}")
             return hours
         else:
             _LOGGER.debug(f"get_wait_hours is not supported by this model")
@@ -324,7 +324,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             minutes, = unpack("<H", r)
-            _LOGGER.warning(f"Wait minutes={minutes}")
+            _LOGGER.info(f"Wait minutes={minutes}")
             return minutes
         else:
             _LOGGER.debug(f"get_wait_minutes is not supported by this model")
@@ -333,7 +333,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             hours, = unpack("<H", r)
-            _LOGGER.warning(f"Cook hours={hours}")
+            _LOGGER.info(f"Cook hours={hours}")
             return hours
         else:
             _LOGGER.debug(f"get_cook_hours is not supported by this model")
@@ -342,7 +342,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             minutes, = unpack("<H", r)
-            _LOGGER.warning(f"Cook minutes={minutes}")
+            _LOGGER.info(f"Cook minutes={minutes}")
             return minutes
         else:
             _LOGGER.debug(f"get_cook_minutes is not supported by this model")
@@ -351,7 +351,7 @@ class SkyCooker():
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             program, = unpack("<H", r)
-            _LOGGER.warning(f"Current program={program}")
+            _LOGGER.info(f"Current program={program}")
             return program
         else:
             _LOGGER.debug(f"get_current_program is not supported by this model")
@@ -366,7 +366,7 @@ class SkyCooker():
                 # Set the program
                 await self.set_main_mode(program)
         else:
-            _LOGGER.warning(f"set_target_program is not supported by this model")
+            _LOGGER.debug(f"set_target_program is not supported by this model")
 
     async def set_target_temperature(self, temperature):
         """Set the target temperature for multicooker."""
@@ -376,39 +376,39 @@ class SkyCooker():
             if status:
                 await self.set_main_mode(status.mode, temperature)
         else:
-            _LOGGER.warning(f"set_target_temperature is not supported by this model")
+            _LOGGER.debug(f"set_target_temperature is not supported by this model")
 
     async def set_cook_hours(self, hours):
         """Set the cook hours for multicooker."""
         if self.model_code in [SkyCooker.MODELS_3]:
             # This would need specific command implementation based on protocol
-            _LOGGER.warning(f"set_cook_hours: {hours} hours")
+            _LOGGER.info(f"set_cook_hours: {hours} hours")
             # TODO: Implement actual command
         else:
-            _LOGGER.warning(f"set_cook_hours is not supported by this model")
+            _LOGGER.debug(f"set_cook_hours is not supported by this model")
 
     async def set_cook_minutes(self, minutes):
         """Set the cook minutes for multicooker."""
         if self.model_code in [SkyCooker.MODELS_3]:
             # This would need specific command implementation based on protocol
-            _LOGGER.warning(f"set_cook_minutes: {minutes} minutes")
+            _LOGGER.info(f"set_cook_minutes: {minutes} minutes")
             # TODO: Implement actual command
         else:
-            _LOGGER.warning(f"set_cook_minutes is not supported by this model")
+            _LOGGER.debug(f"set_cook_minutes is not supported by this model")
 
     async def start_cooking(self):
         """Start cooking with current settings."""
         if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
             await self.turn_on()
         else:
-            _LOGGER.warning(f"start_cooking is not supported by this model")
+            _LOGGER.debug(f"start_cooking is not supported by this model")
 
     async def stop_cooking(self):
         """Stop cooking."""
         if self.model_code in [SkyCooker.MODELS_3, SkyCooker.MODELS_4, SkyCooker.MODELS_5, SkyCooker.MODELS_6, SkyCooker.MODELS_7]:
             await self.turn_off()
         else:
-            _LOGGER.warning(f"stop_cooking is not supported by this model")
+            _LOGGER.debug(f"stop_cooking is not supported by this model")
 
 class SkyCookerError(Exception):
     pass

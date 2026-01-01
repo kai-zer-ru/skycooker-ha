@@ -91,16 +91,25 @@ class CookerConnection(SkyCooker):
         
         # Используем тот же подход, что и SkyKettle
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
-        _LOGGER.debug("Connecting to the Cooker...")
-        self._client = await establish_connection(
-            BleakClientWithServiceCache,
-            self._device,
-            self._device.name or "Unknown Device",
-            max_attempts=3  # Используем 3 попытки как в SkyKettle
-        )
-        _LOGGER.debug("Connected to the Cooker")
-        await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
-        _LOGGER.debug("Subscribed to RX")
+        if self._device is None:
+            raise IOError(f"Device not found: {self._mac}")
+        
+        _LOGGER.debug(f"Connecting to the Cooker {self._mac}...")
+        try:
+            self._client = await establish_connection(
+                BleakClientWithServiceCache,
+                self._device,
+                self._device.name or "Unknown Device",
+                max_attempts=3  # Используем 3 попытки как в SkyKettle
+            )
+            _LOGGER.debug("Connected to the Cooker")
+            await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
+            _LOGGER.debug("Subscribed to RX")
+        except Exception as e:
+            _LOGGER.error(f"Failed to connect to cooker: {e}")
+            self._client = None
+            self._device = None
+            raise
 
     auth = lambda self: super().auth(self._key)
 
@@ -108,8 +117,11 @@ class CookerConnection(SkyCooker):
         try:
             if self._client:
                 was_connected = self._client.is_connected
-                await self._client.disconnect()
-                if was_connected: _LOGGER.debug("Disconnected")
+                if was_connected:
+                    await self._client.disconnect()
+                    _LOGGER.debug("Disconnected")
+        except Exception as e:
+            _LOGGER.warning(f"Error during disconnect: {e}")
         finally:
             self._auth_ok = False
             self._device = None
@@ -134,19 +146,25 @@ class CookerConnection(SkyCooker):
                 self._last_connect_ok = False
                 raise ex
         if not self._auth_ok:
-            self._last_auth_ok = self._auth_ok = await self.auth()
-            if not self._auth_ok:
-                _LOGGER.error(f"Auth failed. You need to enable pairing mode on the cooker.")
-                raise AuthError("Auth failed")
-            _LOGGER.debug("Auth ok")
-            self._sw_version = await self.get_version()
-            await self.sync_time()
+            try:
+                self._last_auth_ok = self._auth_ok = await self.auth()
+                if not self._auth_ok:
+                    _LOGGER.error(f"Auth failed. You need to enable pairing mode on the cooker.")
+                    raise AuthError("Auth failed")
+                _LOGGER.debug("Auth ok")
+                self._sw_version = await self.get_version()
+                await self.sync_time()
+            except Exception as ex:
+                _LOGGER.error(f"Auth or version sync failed: {ex}")
+                self._auth_ok = False
+                await self.disconnect()
+                raise ex
 
     async def _disconnect_if_need(self):
-        # Удаляем агрессивное отключение - держим соединение как в SkyKettle
-        # if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
-        #     await self.disconnect()
-        pass
+        # Для решения проблемы с BleakOutOfConnectionSlotsError
+        # Отключаемся после каждой операции, если не в persistent режиме
+        if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
+            await self.disconnect()
 
     async def update(self, tries=MAX_TRIES, force_stats=False, extra_action=None, commit=False):
         try:
@@ -172,7 +190,7 @@ class CookerConnection(SkyCooker):
                             await self.turn_off()
                             await asyncio.sleep(0.2)
                         await self.set_main_mode(self._status.mode, self._status.target_temp, boil_time)
-                        _LOGGER.info(f"Boil time is succesfully set to {boil_time}")
+                        _LOGGER.info(f"Boil time is successfully set to {boil_time}")
                     except Exception as ex:
                         _LOGGER.error(f"Can't update boil time ({type(ex).__name__}): {str(ex)}")
                     self._status = await self.get_status()
@@ -185,14 +203,14 @@ class CookerConnection(SkyCooker):
                     target_mode, target_temp = self._target_state
                     # How to set mode?
                     if target_mode == None and self._status.is_on:
-                        _LOGGER.info(f"State: {self._status} -> {self._target_state}")
+                        _LOGGER.debug(f"State: {self._status} -> {self._target_state}")
                         _LOGGER.info("Need to turn off the cooker...")
                         await self.turn_off()
                         _LOGGER.info("The cooker was turned off")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     elif target_mode != None and not self._status.is_on:
-                        _LOGGER.info(f"State: {self._status} -> {self._target_state}")
+                        _LOGGER.debug(f"State: {self._status} -> {self._target_state}")
                         _LOGGER.info("Need to set mode and turn on the cooker...")
                         await self.set_main_mode(target_mode, target_temp, boil_time)
                         _LOGGER.info("New mode was set")
@@ -204,7 +222,7 @@ class CookerConnection(SkyCooker):
                             target_mode != self._status.mode or
                             (target_mode in [SkyCooker.MODE_HEAT, SkyCooker.MODE_BOIL_HEAT] and
                             target_temp != self._status.target_temp)):
-                        _LOGGER.info(f"State: {self._status} -> {self._target_state}")
+                        _LOGGER.debug(f"State: {self._status} -> {self._target_state}")
                         _LOGGER.info("Need to switch mode of the cooker and restart it")
                         await self.turn_off()
                         _LOGGER.info("The cooker was turned off")
@@ -281,9 +299,9 @@ class CookerConnection(SkyCooker):
     async def cancel_target(self):
         self._target_state = None
 
-    def stop(self):
+    async def stop(self):
         if self._disposed: return
-        self._disconnect()
+        await self._disconnect()
         self._disposed = True
         _LOGGER.info("Stopped.")
 
@@ -358,7 +376,7 @@ class CookerConnection(SkyCooker):
             # Replace boiling with...
             target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
         if target_mode != self.current_mode:
-            _LOGGER.info(f"Mode autoswitched to {target_mode} ({self.get_mode_name(target_mode)})")
+            _LOGGER.info(f"Mode auto-switched to {target_mode} ({self.get_mode_name(target_mode)})")
         await self._set_target_state(target_mode, target_temp)
 
     async def set_target_mode(self, operation_mode):
@@ -381,7 +399,7 @@ class CookerConnection(SkyCooker):
         else:
             target_temp = self.limit_temp(target_temp)
         if target_temp != self.target_temp:
-            _LOGGER.info(f"Target temperature autoswitched to {target_temp}")
+            _LOGGER.info(f"Target temperature auto-switched to {target_temp}")
         await self._set_target_state(target_mode, target_temp)
 
     @property

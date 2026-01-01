@@ -31,7 +31,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self, entry = None):
         """Initialize a new SkyCookerConfigFlow."""
-        _LOGGER.warning("Init SkyCookerConfigFlow")
+        _LOGGER.debug("Init SkyCookerConfigFlow")
         self.entry = entry
         self.config = {} if not entry else dict(entry.data.items())
 
@@ -61,11 +61,11 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             name = spl[1][1:-1] if len(spl) >= 2 else None
             if not SkyCooker.get_model_code(name):
                 # Model is not supported
-                _LOGGER.warning("Model is not supported")
+                _LOGGER.debug("Model is not supported")
                 return self.async_abort(reason='unknown_model')
             if not await self.init_mac(mac):
                 # This cooker already configured
-                _LOGGER.warning("This cooker already configured")
+                _LOGGER.debug("This cooker already configured")
                 return self.async_abort(reason='already_configured')
             if name: self.config[CONF_FRIENDLY_NAME] = name
             # Continue to connect step
@@ -75,7 +75,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 scanner = bluetooth.async_get_scanner(self.hass)
                 for device in scanner.discovered_devices:
-                    _LOGGER.warning(f"Device found: {device.address} - {device.name}")
+                    _LOGGER.debug(f"Device found: {device.address} - {device.name}")
             except:
                 _LOGGER.error("Bluetooth integration not working")
                 return self.async_abort(reason='no_bluetooth')
@@ -100,7 +100,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the connect step."""
         errors = {}
         if user_input is not None:
-            _LOGGER.warning("Attempting to connect to cooker...")
+            _LOGGER.debug("Attempting to connect to cooker...")
             cooker = CookerConnection(
                 mac=self.config[CONF_MAC],
                 key=self.config[CONF_PASSWORD],
@@ -111,7 +111,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             tries = 3
             while tries > 0 and not cooker._last_connect_ok:
-                _LOGGER.warning(f"Connection attempt {4-tries}/3")
+                _LOGGER.debug(f"Connection attempt {4-tries}/3")
                 await cooker.update()
                 tries = tries - 1
             
@@ -126,7 +126,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cant_auth"
                 _LOGGER.error("Authentication failed")
             else:
-                _LOGGER.warning("Connection successful, proceeding to init step")
+                _LOGGER.debug("Connection successful, proceeding to init step")
                 return await self.async_step_init()
 
         # Show form with connection attempt button
@@ -149,7 +149,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.config[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
             self.config[CONF_PERSISTENT_CONNECTION] = user_input[CONF_PERSISTENT_CONNECTION]
             fname = f"{self.config.get(CONF_FRIENDLY_NAME, FRIENDLY_NAME)} ({self.config[CONF_MAC]})"
-            # _LOGGER.warning(f"saving config: {self.config}")
+            # _LOGGER.debug(f"saving config: {self.config}")
             if self.entry:
                 self.hass.config_entries.async_update_entry(self.entry, data=self.config)
             _LOGGER.info(f"Config saved")
