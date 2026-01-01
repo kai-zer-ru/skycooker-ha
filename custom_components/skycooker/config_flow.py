@@ -130,9 +130,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_init()
 
         # Show form with connection attempt button
-        schema = vol.Schema({
-            vol.Optional("connect_button", description="Нажмите для подключения"): cv.boolean
-        })
+        schema = vol.Schema({})
         
         return self.async_show_form(
             step_id="connect",

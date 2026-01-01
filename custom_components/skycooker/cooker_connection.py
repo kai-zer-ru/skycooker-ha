@@ -18,12 +18,12 @@ class CookerConnection(SkyCooker):
     UUID_SERVICE = "6e400001-b5a3-f393e-0a9e-50e24dcca9e"
     UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
-    CONNECTION_TIMEOUT = 10
-    BLE_RECV_TIMEOUT = 1.5
-    MAX_TRIES = 3
-    TRIES_INTERVAL = 1.0  # Увеличим интервал между попытками
-    STATS_INTERVAL = 30   # Увеличим интервал опроса статистики
-    TARGET_TTL = 60       # Увеличим время ожидания установки режима
+    CONNECTION_TIMEOUT = 5    # Уменьшим таймаут подключения
+    BLE_RECV_TIMEOUT = 1.0    # Уменьшим таймаут ответа
+    MAX_TRIES = 2             # Уменьшим количество попыток
+    TRIES_INTERVAL = 2.0      # Увеличим интервал между попытками
+    STATS_INTERVAL = 60       # Значительно увеличим интервал опроса статистики
+    TARGET_TTL = 30           # Уменьшим время ожидания установки режима
 
     def __init__(self, mac, key, persistent=True, adapter=None, hass=None, model=None):
         super().__init__(model)
@@ -172,10 +172,13 @@ class CookerConnection(SkyCooker):
                 raise ex
 
     async def _disconnect_if_need(self):
-        # Отключаемся только если соединение не постоянное и не в игровом режиме
-        if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
-            _LOGGER.warning("Disconnecting as per configuration (not persistent)")
-            await self.disconnect()
+        # Агрессивное отключение для освобождения Bluetooth слотов
+        if not self.persistent:
+            # Отключаемся через 5 секунд после успешного обновления
+            if self._last_connect_ok:
+                await asyncio.sleep(5)
+                _LOGGER.warning("Aggressively disconnecting to free Bluetooth slots")
+                await self.disconnect()
 
     async def update(self, tries=MAX_TRIES, force_stats=False, extra_action=None, commit=False):
         try:
