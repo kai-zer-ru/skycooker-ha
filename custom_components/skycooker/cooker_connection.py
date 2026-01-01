@@ -520,6 +520,9 @@ class CookerConnection:
 
                 # Is there scheduled boil_time?
                 self._status = await self.get_status()
+                if self._status is None:
+                    _LOGGER.warning(f"❌ Status is None, cannot continue update")
+                    return False
                 boil_time = self._status.boil_time
                 if self._target_boil_time != None and self._target_boil_time != boil_time:
                     try:
@@ -536,6 +539,9 @@ class CookerConnection:
                     except Exception as ex:
                         _LOGGER.error(f"Can't update boil time ({type(ex).__name__}): {str(ex)}")
                     self._status = await self.get_status()
+                    if self._status is None:
+                        _LOGGER.warning(f"❌ Status is None after boil time update")
+                        return False
                 self._target_boil_time = None
 
                 if commit: await self.commit()
@@ -551,6 +557,12 @@ class CookerConnection:
                         _LOGGER.info("The cooker was turned off")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
+                        if self._status is None:
+                            _LOGGER.warning(f"❌ Status is None after set mode and turn on")
+                            return False
+                        if self._status is None:
+                            _LOGGER.warning(f"❌ Status is None after turn off")
+                            return False
                     elif target_mode != None and not self._status.is_on:
                         _LOGGER.debug(f"State: {self._status} -> {self._target_state}")
                         _LOGGER.info("Need to set mode and turn on the cooker...")
@@ -560,6 +572,9 @@ class CookerConnection:
                         _LOGGER.info("The cooker was turned on")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
+                        if self._status is None:
+                            _LOGGER.warning(f"❌ Status is None after switch mode and restart")
+                            return False
                     elif target_mode != None  and (
                             target_mode != self._status.mode or
                             (target_mode in [SkyCooker.MODE_HEAT, SkyCooker.MODE_BOIL_HEAT] and
@@ -583,12 +598,24 @@ class CookerConnection:
                 if self._last_get_stats + CookerConnection.STATS_INTERVAL < monotonic() or force_stats:
                     self._last_get_stats = monotonic()
                     self._stats = await self.get_stats()
+                    if self._stats is None:
+                        _LOGGER.warning(f"❌ Stats is None")
                     self._light_switch_boil = await self.get_light_switch(SkyCooker.LIGHT_BOIL)
+                    if self._light_switch_boil is None:
+                        _LOGGER.warning(f"❌ Light switch boil is None")
                     self._light_switch_sync = await self.get_light_switch(SkyCooker.LIGHT_SYNC)
+                    if self._light_switch_sync is None:
+                        _LOGGER.warning(f"❌ Light switch sync is None")
                     self._lamp_auto_off_hours = await self.get_lamp_auto_off_hours()
+                    if self._lamp_auto_off_hours is None:
+                        _LOGGER.warning(f"❌ Lamp auto off hours is None")
                     self._fresh_water = await self.get_fresh_water()
+                    if self._fresh_water is None:
+                        _LOGGER.warning(f"❌ Fresh water is None")
                     for lt in [SkyCooker.LIGHT_BOIL, SkyCooker.LIGHT_LAMP]:
                         self._colors[lt] = await self.get_colors(lt)
+                        if self._colors[lt] is None:
+                            _LOGGER.warning(f"❌ Colors for light type {lt} is None")
 
                 await self._disconnect_if_need()
                 self.add_stat(True)
