@@ -22,7 +22,7 @@ def check_dependencies():
     except ImportError:
         print("✗ bleak не установлен.")
         print("Для установки в HAOS выполните:")
-        print("apk add py3-bleak")
+        print("apk add py3-bleak py3-bleak-retry-connector")
         return False
     
     try:
@@ -31,7 +31,7 @@ def check_dependencies():
     except ImportError:
         print("✗ bleak_retry_connector не установлен.")
         print("Для установки в HAOS выполните:")
-        print("apk add py3-bleak-retry-connector")
+        print("apk add py3-bleak py3-bleak-retry-connector")
         return False
     
     return True

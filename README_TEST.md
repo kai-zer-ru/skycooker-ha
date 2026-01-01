@@ -88,8 +88,7 @@ sudo systemctl restart bluetooth
 
 **Решение для HAOS:**
 ```bash
-apk add py3-bleak
-apk add py3-bleak-retry-connector
+apk add py3-bleak py3-bleak-retry-connector
 ```
 
 **Решение для других систем:**
