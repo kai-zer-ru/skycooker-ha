@@ -3,8 +3,7 @@ import logging
 import traceback
 from time import monotonic
 
-from bleak import BleakClient
-from bleak_retry_connector import establish_connection
+from bleak_retry_connector import establish_connection, BleakClientWithServiceCache
 
 from homeassistant.components import bluetooth
 
@@ -15,15 +14,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class CookerConnection(SkyCooker):
-    UUID_SERVICE = "6e400001-b5a3-f393e-0a9e-50e24dcca9e"
+    UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
-    CONNECTION_TIMEOUT = 5    # Уменьшим таймаут подключения
-    BLE_RECV_TIMEOUT = 1.0    # Уменьшим таймаут ответа
-    MAX_TRIES = 2             # Уменьшим количество попыток
-    TRIES_INTERVAL = 2.0      # Увеличим интервал между попытками
-    STATS_INTERVAL = 60       # Значительно увеличим интервал опроса статистики
-    TARGET_TTL = 30           # Уменьшим время ожидания установки режима
+    BLE_RECV_TIMEOUT = 1.5
+    MAX_TRIES = 3
+    TRIES_INTERVAL = 0.5
+    STATS_INTERVAL = 15
+    TARGET_TTL = 30
 
     def __init__(self, mac, key, persistent=True, adapter=None, hass=None, model=None):
         super().__init__(model)
@@ -44,12 +42,12 @@ class CookerConnection(SkyCooker):
         self._last_auth_ok = False
         self._successes = []
         self._target_state = None
-        self._cook_hours = None
-        self._cook_minutes = None
-        self._wait_hours = None
-        self._wait_minutes = None
-        self._current_program = None
+        self._target_boil_time = None
         self._status = None
+        self._stats = None
+        self._lamp_auto_off_hours = None
+        self._light_switch_boil = None
+        self._light_switch_sync = None
         self._fresh_water = None
         self._colors = {}
         self._disposed = False
@@ -61,9 +59,8 @@ class CookerConnection(SkyCooker):
         if not self._client or not self._client.is_connected:
             raise IOError("not connected")
         self._iter = (self._iter + 1) % 256
-        _LOGGER.warning(f"Writing command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
+        _LOGGER.debug(f"Writing command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
-        _LOGGER.warning(f"Writing {data}")
         self._last_data = None
         await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
         timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
@@ -81,11 +78,10 @@ class CookerConnection(SkyCooker):
         if r[2] != command:
             raise IOError("Invalid response command")
         clean = bytes(r[3:-1])
-        _LOGGER.warning(f"Received: {' '.join([f'{c:02x}' for c in clean])}")
+        _LOGGER.debug(f"Received: {' '.join([f'{c:02x}' for c in clean])}")
         return clean
 
     def _rx_callback(self, sender, data):
-        _LOGGER.warning(f"Received (full): {' '.join([f'{c:02x}' for c in data])}")
         self._last_data = data
 
     async def _connect(self):
@@ -93,25 +89,18 @@ class CookerConnection(SkyCooker):
             raise DisposedError()
         if self._client and self._client.is_connected: return
         
+        # Используем тот же подход, что и SkyKettle
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
-        if not self._device:
-            raise IOError(f"Device with MAC address {self._mac} not found")
-            
-        _LOGGER.warning("Connecting to the Cooker...")
-        try:
-            self._client = await establish_connection(
-                BleakClient,
-                self._device,
-                self._mac,
-                timeout=CookerConnection.CONNECTION_TIMEOUT
-            )
-            _LOGGER.warning("Connected to the Cooker")
-            await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
-            _LOGGER.warning("Subscribed to RX")
-        except Exception as ex:
-            _LOGGER.error(f"Failed to connect to device: {ex}")
-            self._client = None
-            raise
+        _LOGGER.debug("Connecting to the Cooker...")
+        self._client = await establish_connection(
+            BleakClientWithServiceCache,
+            self._device,
+            self._device.name or "Unknown Device",
+            max_attempts=3  # Используем 3 попытки как в SkyKettle
+        )
+        _LOGGER.debug("Connected to the Cooker")
+        await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
+        _LOGGER.debug("Subscribed to RX")
 
     auth = lambda self: super().auth(self._key)
 
@@ -119,18 +108,12 @@ class CookerConnection(SkyCooker):
         try:
             if self._client:
                 was_connected = self._client.is_connected
-                if was_connected:
-                    _LOGGER.warning("Disconnecting from cooker")
-                    await self._client.disconnect()
-                    _LOGGER.warning("Disconnected successfully")
-        except Exception as ex:
-            _LOGGER.warning(f"Error during disconnect: {ex}")
+                await self._client.disconnect()
+                if was_connected: _LOGGER.debug("Disconnected")
         finally:
-            # Всегда сбрасываем состояние, даже если были ошибки
             self._auth_ok = False
             self._device = None
             self._client = None
-            _LOGGER.warning("Connection state reset")
 
     async def disconnect(self):
         try:
@@ -139,52 +122,37 @@ class CookerConnection(SkyCooker):
             pass
 
     async def _connect_if_need(self):
-        # Если есть клиент, но он не подключен - отключаем
         if self._client and not self._client.is_connected:
-            _LOGGER.warning("Connection lost, disconnecting")
+            _LOGGER.debug("Connection lost")
             await self.disconnect()
-        
-        # Если нет подключенного клиента - пробуем подключиться
         if not self._client or not self._client.is_connected:
             try:
                 await self._connect()
                 self._last_connect_ok = True
-                _LOGGER.warning("Successfully connected to cooker")
             except Exception as ex:
                 await self.disconnect()
                 self._last_connect_ok = False
-                _LOGGER.error(f"Failed to connect: {ex}")
                 raise ex
-        
-        # Проверяем аутентификацию
         if not self._auth_ok:
-            try:
-                self._last_auth_ok = self._auth_ok = await self.auth()
-                if not self._auth_ok:
-                    _LOGGER.error(f"Auth failed. You need to enable pairing mode on the Cooker.")
-                    raise AuthError("Auth failed")
-                _LOGGER.warning("Auth ok")
-                self._sw_version = await self.get_version()
-                await self.sync_time()
-            except Exception as ex:
-                _LOGGER.error(f"Auth or setup failed: {ex}")
-                await self.disconnect()
-                raise ex
+            self._last_auth_ok = self._auth_ok = await self.auth()
+            if not self._auth_ok:
+                _LOGGER.error(f"Auth failed. You need to enable pairing mode on the cooker.")
+                raise AuthError("Auth failed")
+            _LOGGER.debug("Auth ok")
+            self._sw_version = await self.get_version()
+            await self.sync_time()
 
     async def _disconnect_if_need(self):
-        # Агрессивное отключение для освобождения Bluetooth слотов
-        if not self.persistent:
-            # Отключаемся через 5 секунд после успешного обновления
-            if self._last_connect_ok:
-                await asyncio.sleep(5)
-                _LOGGER.warning("Aggressively disconnecting to free Bluetooth slots")
-                await self.disconnect()
+        # Удаляем агрессивное отключение - держим соединение как в SkyKettle
+        # if not self.persistent and self.target_mode != SkyCooker.MODE_GAME:
+        #     await self.disconnect()
+        pass
 
     async def update(self, tries=MAX_TRIES, force_stats=False, extra_action=None, commit=False):
         try:
             async with self._update_lock:
                 if self._disposed: return
-                _LOGGER.warning(f"Updating")
+                _LOGGER.debug(f"Updating")
                 if not self.available: force_stats = True # Update stats after unavailable state
                 await self._connect_if_need()
 
@@ -192,11 +160,11 @@ class CookerConnection(SkyCooker):
 
                 # Is there scheduled boil_time?
                 self._status = await self.get_status()
-                boil_time = self._status.cook_minutes
-                if self._cook_hours != None and self._cook_hours != boil_time:
+                boil_time = self._status.boil_time
+                if self._target_boil_time != None and self._target_boil_time != boil_time:
                     try:
-                        _LOGGER.warning(f"Need to update boil time from {boil_time} to {self._cook_hours}")
-                        boil_time = self._cook_hours
+                        _LOGGER.debug(f"Need to update boil time from {boil_time} to {self._target_boil_time}")
+                        boil_time = self._target_boil_time
                         if self._target_state == None: # To return previous state
                             self._target_state = self._status.mode if self._status.is_on else None, self._status.target_temp
                             self._last_set_target = monotonic()
@@ -208,7 +176,7 @@ class CookerConnection(SkyCooker):
                     except Exception as ex:
                         _LOGGER.error(f"Can't update boil time ({type(ex).__name__}): {str(ex)}")
                     self._status = await self.get_status()
-                self._cook_hours = None
+                self._target_boil_time = None
 
                 if commit: await self.commit()
 
@@ -218,18 +186,18 @@ class CookerConnection(SkyCooker):
                     # How to set mode?
                     if target_mode == None and self._status.is_on:
                         _LOGGER.info(f"State: {self._status} -> {self._target_state}")
-                        _LOGGER.info("Need to turn off the Cooker...")
+                        _LOGGER.info("Need to turn off the cooker...")
                         await self.turn_off()
-                        _LOGGER.info("The Cooker was turned off")
+                        _LOGGER.info("The cooker was turned off")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     elif target_mode != None and not self._status.is_on:
                         _LOGGER.info(f"State: {self._status} -> {self._target_state}")
-                        _LOGGER.info("Need to set mode and turn on the Cooker...")
+                        _LOGGER.info("Need to set mode and turn on the cooker...")
                         await self.set_main_mode(target_mode, target_temp, boil_time)
                         _LOGGER.info("New mode was set")
                         await self.turn_on()
-                        _LOGGER.info("The Cooker was turned on")
+                        _LOGGER.info("The cooker was turned on")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     elif target_mode != None  and (
@@ -237,28 +205,30 @@ class CookerConnection(SkyCooker):
                             (target_mode in [SkyCooker.MODE_HEAT, SkyCooker.MODE_BOIL_HEAT] and
                             target_temp != self._status.target_temp)):
                         _LOGGER.info(f"State: {self._status} -> {self._target_state}")
-                        _LOGGER.info("Need to switch mode of the Cooker and restart it")
+                        _LOGGER.info("Need to switch mode of the cooker and restart it")
                         await self.turn_off()
-                        _LOGGER.info("The Cooker was turned off")
+                        _LOGGER.info("The cooker was turned off")
                         await asyncio.sleep(0.2)
                         await self.set_main_mode(target_mode, target_temp, boil_time)
                         _LOGGER.info("New mode was set")
                         await self.turn_on()
-                        _LOGGER.info("The Cooker was turned on")
+                        _LOGGER.info("The cooker was turned on")
                         await asyncio.sleep(0.2)
                         self._status = await self.get_status()
                     else:
-                        _LOGGER.warning(f"There is no reason to update state")
+                        _LOGGER.debug(f"There is no reason to update state")
                     # Not scheduled anymore
                     self._target_state = None
 
                 if self._last_get_stats + CookerConnection.STATS_INTERVAL < monotonic() or force_stats:
                     self._last_get_stats = monotonic()
-                    self._wait_hours = await self.get_wait_hours()
-                    self._wait_minutes = await self.get_wait_minutes()
-                    self._cook_hours = await self.get_cook_hours()
-                    self._cook_minutes = await self.get_cook_minutes()
-                    self._current_program = await self.get_current_program()
+                    self._stats = await self.get_stats()
+                    self._light_switch_boil = await self.get_light_switch(SkyCooker.LIGHT_BOIL)
+                    self._light_switch_sync = await self.get_light_switch(SkyCooker.LIGHT_SYNC)
+                    self._lamp_auto_off_hours = await self.get_lamp_auto_off_hours()
+                    self._fresh_water = await self.get_fresh_water()
+                    for lt in [SkyCooker.LIGHT_BOIL, SkyCooker.LIGHT_LAMP]:
+                        self._colors[lt] = await self.get_colors(lt)
 
                 await self._disconnect_if_need()
                 self.add_stat(True)
@@ -272,21 +242,29 @@ class CookerConnection(SkyCooker):
             if type(ex) == AuthError: return
             self.add_stat(False)
             if tries > 1 and extra_action == None:
-                _LOGGER.warning(f"{type(ex).__name__}: {str(ex)}, retry #{CookerConnection.MAX_TRIES - tries + 1}")
+                _LOGGER.debug(f"{type(ex).__name__}: {str(ex)}, retry #{CookerConnection.MAX_TRIES - tries + 1}")
                 await asyncio.sleep(CookerConnection.TRIES_INTERVAL)
                 return await self.update(tries=tries-1, force_stats=force_stats, extra_action=extra_action, commit=commit)
             else:
                 _LOGGER.warning(f"Can't update status, {type(ex).__name__}: {str(ex)}")
-                _LOGGER.warning(traceback.format_exc())
+                _LOGGER.debug(traceback.format_exc())
             return False
 
     def add_stat(self, value):
         self._successes.append(value)
         if len(self._successes) > 100: self._successes = self._successes[-100:]
 
+    @staticmethod
+    def limit_temp(temp):
+        if temp != None and temp > SkyCooker.MAX_TEMP:
+            return SkyCooker.MAX_TEMP
+        elif temp != None and temp < SkyCooker.MIN_TEMP:
+            return SkyCooker.MIN_TEMP
+        else:
+            return temp
 
     @staticmethod
-    def get_program_name(mode_id):
+    def get_mode_name(mode_id):
         if mode_id == None: return "off"
         return SkyCooker.MODE_NAMES[mode_id]
 
@@ -295,28 +273,54 @@ class CookerConnection(SkyCooker):
         if len(self._successes) == 0: return 0
         return int(100 * len([s for s in self._successes if s]) / len(self._successes))
 
-    async def _set_target_state(self, target_mode):
-        self._target_state = target_mode
+    async def _set_target_state(self, target_mode, target_temp = 0):
+        self._target_state = target_mode, target_temp
         self._last_set_target = monotonic()
         await self.update()
 
     async def cancel_target(self):
         self._target_state = None
 
-    async def stop(self):
+    def stop(self):
         if self._disposed: return
-        await self._disconnect()
+        self._disconnect()
         self._disposed = True
-        _LOGGER.warning("Stopped.")
+        _LOGGER.info("Stopped.")
 
     @property
     def available(self):
         return self._last_connect_ok and self._last_auth_ok
 
     @property
+    def current_temp(self):
+        if self._status:
+            return self._status.current_temp
+        return None
+
+    @property
     def current_mode(self):
         if self._status and self._status.is_on:
             return self._status.mode
+        return None
+
+    @property
+    def target_temp(self):
+        if self._target_state:
+            target_mode, target_temp = self._target_state
+            if target_mode in [SkyCooker.MODE_BOIL_HEAT, SkyCooker.MODE_HEAT]:
+                return target_temp
+            if target_mode == SkyCooker.MODE_BOIL:
+                return BOIL_TEMP
+            if target_mode == None:
+                return ROOM_TEMP
+        if self._status:
+            if self._status.is_on:
+                if self._status.mode in [SkyCooker.MODE_BOIL_HEAT, SkyCooker.MODE_HEAT]:
+                    return self._status.target_temp
+                if self._status.mode == SkyCooker.MODE_BOIL:
+                    return BOIL_TEMP
+            else: # Off
+                return ROOM_TEMP
         return None
 
     @property
@@ -330,19 +334,55 @@ class CookerConnection(SkyCooker):
         return None
 
     @property
-    def target_program_str(self):
-        return self.get_program_name(self.target_mode)
+    def target_mode_str(self):
+        return self.get_mode_name(self.target_mode)
 
-    async def set_target_program(self, operation_mode):
+    async def set_target_temp(self, target_temp, operation_mode = None):
+        """Set new temperature."""
+        if target_temp == self.target_temp: return # already set
+        _LOGGER.info(f"Setting target temperature to {target_temp}")
+        target_mode = self.target_mode
+        vs = [k for k, v in SkyCooker.MODE_NAMES.items() if v == operation_mode]
+        if len(vs) > 0: target_mode = vs[0]
+        # Some checks for mode
+        if target_temp < SkyCooker.MIN_TEMP:
+            # Just turn off
+            target_mode = None
+        elif target_temp > SkyCooker.MAX_TEMP:
+            # If set to ~100 - just boiling
+            target_mode = SkyCooker.MODE_BOIL # or BOIL_HEAT?
+        elif target_mode == None:
+            # Cooker is off now, need to turn on some mode
+            target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
+        elif target_mode == SkyCooker.MODE_BOIL:
+            # Replace boiling with...
+            target_mode = SkyCooker.MODE_HEAT # or BOIL_HEAT?
+        if target_mode != self.current_mode:
+            _LOGGER.info(f"Mode autoswitched to {target_mode} ({self.get_mode_name(target_mode)})")
+        await self._set_target_state(target_mode, target_temp)
+
+    async def set_target_mode(self, operation_mode):
         """Set new operation mode."""
-        if operation_mode == self.target_program_str: return # already set
-        _LOGGER.warning(f"Setting target mode to {operation_mode}")
+        if operation_mode == self.target_mode_str: return # already set
+        _LOGGER.info(f"Setting target mode to {operation_mode}")
         target_mode = None
         # Get target mode ID
         vs = [k for k, v in SkyCooker.MODE_NAMES.items() if v == operation_mode]
         if len(vs) > 0: target_mode = vs[0]
-
-        await self._set_target_state(target_mode)
+        # Set heating temperature if not set
+        target_temp = self.target_temp
+        # Some checks for temperature
+        if target_mode in [SkyCooker.MODE_BOIL]:
+            target_temp = 0
+        elif target_mode in [SkyCooker.MODE_LAMP, SkyCooker.MODE_GAME]:
+            target_temp = 85
+        elif target_temp == None:
+            target_temp = SkyCooker.MAX_TEMP
+        else:
+            target_temp = self.limit_temp(target_temp)
+        if target_temp != self.target_temp:
+            _LOGGER.info(f"Target temperature autoswitched to {target_temp}")
+        await self._set_target_state(target_mode, target_temp)
 
     @property
     def connected(self):
@@ -362,64 +402,168 @@ class CookerConnection(SkyCooker):
         return self._status.sound_enabled
 
     @property
-    def cook_hours(self):
+    def color_interval(self):
         if not self._status: return None
-        return self._status.cook_hours
+        return self._status.color_interval
 
     @property
-    def cook_minutes(self):
+    def boil_time(self):
         if not self._status: return None
-        return self._status.cook_minutes
+        return self._status.boil_time
 
     @property
-    def wait_hours(self):
-        if not self._status: return None
-        return self._status.wait_hours
+    def lamp_auto_off_hours(self):
+        return self._lamp_auto_off_hours
 
     @property
-    def wait_minutes(self):
-        if not self._status: return None
-        return self._status.wait_minutes
+    def light_switch_boil(self):
+        return self._light_switch_boil
 
     @property
-    def current_program(self):
+    def light_switch_sync(self):
+        return self._light_switch_sync
+
+    @property
+    def colors_boil(self):
+        return self._colors.get(SkyCooker.LIGHT_BOIL, None)
+
+    @property
+    def colors_lamp(self):
+        return self._colors.get(SkyCooker.LIGHT_LAMP, None)
+
+    @property
+    def parental_control(self):
         if not self._status: return None
-        return self._status.current_program
+        return self._status.parental_control
 
     @property
     def error_code(self):
         if not self._status: return None
         return self._status.error_code
 
-    async def set_cook_hours(self, value):
+    def get_color(self, light_type, n):
+        if light_type not in self._colors: return None
+        colors = self._colors[light_type]
+        if n == 0: return colors.r_low, colors.g_low, colors.b_low
+        if n == 1: return colors.r_mid, colors.g_mid, colors.b_mid
+        if n == 2: return colors.r_high, colors.g_high, colors.b_high
+
+    def get_brightness(self, light_type):
+        if light_type not in self._colors: return None
+        colors = self._colors[light_type]
+        return colors.brightness
+
+    def get_temperature(self, light_type, n):
+        if light_type not in self._colors: return None
+        colors = self._colors[light_type]
+        if n == 0: return colors.temp_low
+        if n == 1: return colors.temp_mid
+        if n == 2: return colors.temp_high
+
+    @property
+    def water_freshness_hours(self):
+        if not self._fresh_water: return None
+        return self._fresh_water.water_freshness_hours
+
+    @property
+    def ontime(self):
+        if not self._stats: return None
+        return self._stats.ontime
+
+    @property
+    def energy_wh(self):
+        if not self._stats: return None
+        return self._stats.energy_wh
+
+    @property
+    def heater_on_count(self):
+        if not self._stats: return None
+        return self._stats.heater_on_count
+
+    @property
+    def user_on_count(self):
+        if not self._stats: return None
+        return self._stats.user_on_count
+
+    async def set_boil_time(self, value):
         value = int(value)
-        _LOGGER.info(f"Setting cook hours to {value}")
-        self._cook_hours = value
+        _LOGGER.info(f"Setting boil time to {value}")
+        self._target_boil_time = value
         await self.update(commit=True)
 
-    async def set_cook_minutes(self, value):
-        value = int(value)
-        _LOGGER.info(f"Setting cook minutes to {value}")
-        self._cook_minutes = value
-        await self.update(commit=True)
+    async def impulse_color(self, r, g, b, brightness):
+        await self.update(extra_action=super().impulse_color(r, g, b, brightness))
 
-    async def set_wait_hours(self, value):
-        value = int(value)
-        _LOGGER.info(f"Setting wait hours to {value}")
-        self._wait_hours = value
-        await self.update(commit=True)
+    async def set_sound(self, value):
+        if await self.update(force_stats=False, extra_action=super().set_sound(value), commit=True):
+            _LOGGER.info(f"Sound is set to {value}")
+        else:
+            _LOGGER.error(f"Can't set sound to {value}")
 
-    async def set_wait_minutes(self, value):
-        value = int(value)
-        _LOGGER.info(f"Setting wait minutes to {value}")
-        self._wait_minutes = value
-        await self.update(commit=True)
+    async def set_light_switch(self, light_type, value):
+        if await self.update(force_stats=True, extra_action=super().set_light_switch(light_type, value), commit=True):
+            _LOGGER.info(f"Light 0x{light_type:02X} is set to {value}")
+        else:
+            _LOGGER.error(f"Can't set light 0x{light_type:02X} to {value}")
 
-    async def set_current_program(self, value):
-        value = int(value)
-        _LOGGER.info(f"Setting current program to {value}")
-        self._current_program = value
-        await self.update(commit=True)
+    async def set_color(self, light_type, n, color):
+        if light_type not in self._colors: return
+        self._last_get_stats = monotonic() # To avoid race condition
+        colors = self._colors[light_type]
+        r, g, b = color
+        if n == 0: colors = colors._replace(r_low=int(r), g_low=int(g), b_low=int(b))
+        if n == 1: colors = colors._replace(r_mid=int(r), g_mid=int(g), b_mid=int(b))
+        if n == 2: colors = colors._replace(r_high=int(r), g_high=int(g), b_high=int(b))
+        self._colors[light_type] = colors
+        if await self.update(extra_action=super().set_colors(colors), commit=True):
+            _LOGGER.info(f"Color 0x{light_type:02X}/{n} is set to {color}")
+        else:
+            _LOGGER.error(f"Can't set color 0x{light_type:02X}/{n} to {color}")
+
+    async def set_brightness(self, light_type, brightness):
+        brightness = int(brightness)
+        if light_type not in self._colors: return
+        self._last_get_stats = monotonic() # To avoid race condition
+        colors = self._colors[light_type]
+        colors = colors._replace(brightness=brightness, unknown1=brightness, unknown2=brightness)
+        self._colors[light_type] = colors
+        if await self.update(extra_action=super().set_colors(colors), commit=True):
+            _LOGGER.info(f"Color 0x{light_type:02X} brightness is set to {brightness}")
+        else:
+            _LOGGER.error(f"Can't set color 0x{light_type:02X} brightness to {brightness}")
+
+    async def set_temperature(self, light_type, n, temp):
+        temp = int(temp)
+        if light_type not in self._colors: return
+        self._last_get_stats = monotonic() # To avoid race condition
+        colors = self._colors[light_type]
+        temp = int(temp)
+        if n == 0: colors = colors._replace(temp_low=temp)
+        if n == 1: colors = colors._replace(temp_mid=temp)
+        if n == 2: colors = colors._replace(temp_high=temp)
+        self._colors[light_type] = colors
+        if await self.update(extra_action=super().set_colors(colors), commit=True):
+            _LOGGER.info(f"Color 0x{light_type:02X}/{n} temperature is set to {temp}")
+        else:
+            _LOGGER.error(f"Can't set color 0x{light_type:02X}/{n} temperature to {temp}")
+
+    async def set_lamp_color_interval(self, secs):
+        secs = int(secs)
+        self._last_get_stats = monotonic() # To avoid race condition
+        if self._status: self._status._replace(color_interval=secs)
+        if await self.update(extra_action=super().set_lamp_color_interval(secs), commit=True):
+            _LOGGER.info(f"Lamp color interval is set to {secs}")
+        else:
+            _LOGGER.error(f"Can't set lamp color interval to {secs}")
+
+    async def set_lamp_auto_off_hours(self, hours):
+        hours = int(hours)
+        self._last_get_stats = monotonic() # To avoid race condition
+        self._lamp_auto_off_hours = hours
+        if await self.update(extra_action=super().set_lamp_auto_off_hours(hours)):
+            _LOGGER.info(f"Lamp auto off hours is set to {hours}")
+        else:
+            _LOGGER.error(f"Can't set lamp auto off hours to {hours}")
 
 
 class AuthError(Exception):
