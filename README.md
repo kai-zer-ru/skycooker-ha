@@ -1,30 +1,30 @@
-# SkyCooker Integration for HomeAssistant
+# Интеграция SkyCooker для HomeAssistant
 
-Integration for managing Redmond SkyCooker devices via Bluetooth in HomeAssistant.
+Интеграция для управления устройствами Redmond SkyCooker через Bluetooth в HomeAssistant.
 
-## Inspiration
+## Вдохновение
 
-This project is inspired by the [SkyKettle](https://github.com/ClusterM/skykettle-ha) integration for managing Redmond kettles. SkyCooker extends the functionality to support multicookers and other Redmond devices.
+Этот проект вдохновлен интеграцией [SkyKettle](https://github.com/ClusterM/skykettle-ha) для управления чайниками Redmond. SkyCooker расширяет функциональность для поддержки мультиварок и других устройств Redmond.
 
-## Supported Devices
+## Поддерживаемые устройства
 
-### Multicookers
-- **RMC-M40S** - Primary supported model (fully tested and optimized)
+### Мультиварки
+- **RMC-M40S** - Основная поддерживаемая модель (полностью протестирована и оптимизирована)
 
-**Note:** Other models are planned for future support but currently only RMC-M40S is fully functional.
+**Примечание:** Другие модели планируются для будущей поддержки, но в настоящее время поддерживается только RMC-M40S.
 
-## Features
+## Возможности
 
-### For Multicookers (RMC-M40S)
-- Program management (13 cooking programs)
-- Temperature control (35°C - 90°C)
-- Timer control (hours and minutes)
-- Real-time status monitoring
-- Start/stop cooking
-- Current temperature monitoring
-- Device authentication and pairing
+### Для мультиварок (RMC-M40S)
+- Управление программами приготовления (13 программ)
+- Контроль температуры (35°C - 90°C)
+- Управление таймерами (часы и минуты)
+- Мониторинг состояния в реальном времени
+- Запуск/остановка приготовления
+- Контроль текущей температуры
+- Аутентификация и сопряжение устройства
 
-### Supported Cooking Programs
+### Поддерживаемые программы приготовления
 - Standby (Ожидание)
 - Multi-chef (Мультиповар)
 - Rice/Cereals (Рис/Крупы)
@@ -39,42 +39,42 @@ This project is inspired by the [SkyKettle](https://github.com/ClusterM/skykettl
 - Dough (Тесто)
 - Keep Warm (Поддержание тепла)
 
-## Installation
+## Установка
 
-### Method 1: Manual Installation
-1. Copy the `custom_components/skycooker` folder to your HomeAssistant `custom_components` directory
-2. Restart HomeAssistant
-3. Add integration via UI: Settings → Integrations → Add Integration → SkyCooker
+### Способ 1: Ручная установка
+1. Скопируйте папку `custom_components/skycooker` в папку `custom_components` вашего HomeAssistant
+2. Перезапустите HomeAssistant
+3. Добавьте интеграцию через UI: Настройки → Интеграции → Добавить интеграцию → SkyCooker
 
-### Method 2: HACS Installation (Recommended)
-1. Open HACS in HomeAssistant
-2. Go to Integrations
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add repository URL: `https://github.com/your-repo/skycooker-ha`
-6. Set Category to "Integration"
-7. Click "Add"
-8. Install the SkyCooker integration from HACS
-9. Restart HomeAssistant
-10. Add integration via UI: Settings → Integrations → Add Integration → SkyCooker
+### Способ 2: Установка через HACS (Рекомендуется)
+1. Откройте HACS в HomeAssistant
+2. Перейдите в Интеграции
+3. Нажмите три точки в правом верхнем углу
+4. Выберите "Custom repositories"
+5. Добавьте URL репозитория: `https://github.com/your-repo/skycooker-ha`
+6. Установите Категорию "Integration"
+7. Нажмите "Add"
+8. Установите интеграцию SkyCooker из HACS
+9. Перезапустите HomeAssistant
+10. Добавьте интеграцию через UI: Настройки → Интеграции → Добавить интеграцию → SkyCooker
 
-## Configuration
+## Настройка
 
-### Required Settings
-- **Device MAC Address** - Bluetooth address of your RMC-M40S (format: AA:BB:CC:DD:EE:FF)
-- **Authorization Key** - Usually "000000" (default pairing code)
+### Требуемые настройки
+- **MAC-адрес устройства** - Bluetooth адрес вашего RMC-M40S (формат: AA:BB:CC:DD:EE:FF)
+- **Ключ авторизации** - Обычно "000000" (код сопряжения по умолчанию)
 
-### Device Preparation
-1. Power on your RMC-M40S
-2. Ensure it's in pairing mode (bluetooth indicator blinking)
-3. Keep the device within Bluetooth range (5-10 meters recommended)
+### Подготовка устройства
+1. Включите ваш RMC-M40S
+2. Убедитесь, что он в режиме сопряжения (индикатор Bluetooth мигает)
+3. Держите устройство в пределах досягаемости Bluetooth (рекомендуется 5-10 метров)
 
-## Debug Logging
+## Дебаг логирование
 
-To enable detailed debug logging for troubleshooting:
+Для включения подробного дебаг логирования для диагностики:
 
-### Via Configuration.yaml
-Add to your `configuration.yaml`:
+### Через Configuration.yaml
+Добавьте в ваш `configuration.yaml`:
 ```yaml
 logger:
   default: info
@@ -83,55 +83,60 @@ logger:
     homeassistant.components.bluetooth: debug
 ```
 
-### Via UI (HomeAssistant 2021.6+)
-1. Go to Settings → System → Logs
-2. Click "Load Full Home Assistant Log"
-3. Click "Add Filter"
-4. Add filter for `custom_components.skycooker` with level `DEBUG`
-5. Click "Start Logging"
+### Через UI (HomeAssistant 2021.6+)
+1. Перейдите в Настройки → Система → Журнал
+2. Нажмите "Load Full Home Assistant Log"
+3. Нажмите "Add Filter"
+4. Добавьте фильтр для `custom_components.skycooker` с уровнем `DEBUG`
+5. Нажмите "Start Logging"
 
-### What Debug Logs Show
-- Device connection attempts and status
-- Bluetooth communication details
-- Command sending and responses
-- Authentication process
-- Status updates and parsing
-- Error details and troubleshooting information
+### Что показывают дебаг логи
+- Попытки подключения устройства и статус
+- Детали Bluetooth-коммуникации
+- Отправка и получение команд
+- Процесс аутентификации
+- Обновление статуса и парсинг данных
+- Детали ошибок и информация для диагностики
 
-## Troubleshooting
+## Устранение неполадок
 
-### Common Issues
-1. **Device not found**: Ensure Bluetooth is enabled and device is in pairing mode
-2. **Authentication failed**: Check pairing mode and try default key "000000"
-3. **Connection timeout**: Move closer to device, check Bluetooth interference
-4. **Commands not working**: Verify device is powered and connected
+### Распространенные проблемы
+1. **Устройство не найдено**: Убедитесь, что Bluetooth включен и устройство в режиме сопряжения
+2. **Аутентификация не удалась**: Проверьте режим сопряжения и попробуйте ключ по умолчанию "000000"
+3. **Таймаут соединения**: Подойдите ближе к устройству, проверьте Bluetooth-помехи
+4. **Команды не работают**: Убедитесь, что устройство включено и подключено
 
-### Getting Help
-1. Enable debug logging as described above
-2. Check HomeAssistant logs for detailed error messages
-3. Verify device compatibility (currently only RMC-M40S is supported)
-4. Ensure HomeAssistant has Bluetooth permissions
-5. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed troubleshooting guide
+### Получение помощи
+1. Включите дебаг логирование, как описано выше
+2. Проверьте логи HomeAssistant на наличие подробных сообщений об ошибках
+3. Проверьте совместимость устройства (в настоящее время поддерживается только RMC-M40S)
+4. Убедитесь, что HomeAssistant имеет права Bluetooth
+5. См. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) для подробного руководства по устранению неполадок
 
-## Development
+## Разработка
 
-### Based on
-- [ESPHome-Ready4Sky](https://github.com/KomX/ESPHome-Ready4Sky) - Protocol definitions
-- [ha_kettler](https://github.com/mavrikkk/ha_kettler) - Architecture patterns
-- [SkyKettle](https://github.com/ClusterM/skykettle-ha) - Inspiration and architecture
+### Основано на
+- [ESPHome-Ready4Sky](https://github.com/KomX/ESPHome-Ready4Sky) - Определения протоколов
+- [ha_kettler](https://github.com/mavrikkk/ha_kettler) - Архитектурные паттерны
+- [SkyKettle](https://github.com/ClusterM/skykettle-ha) - Вдохновение и архитектура
 
-### Current Status
-- **RMC-M40S**: Fully supported and tested
-- **Other models**: Planned for future releases
+### Текущий статус
+- **RMC-M40S**: Полностью поддерживается и протестировано
+- **Другие модели**: Планируются для будущих релизов
 
-## License
+## Лицензия
 
 MIT License
 
-## Support
+## Поддержка
 
-For issues and support:
-1. Check the troubleshooting section above
-2. Enable debug logging for detailed information
-3. Report issues with debug logs included
-4. Ensure you're using a supported device (RMC-M40S)
+По вопросам и поддержке:
+1. Проверьте раздел устранения неполадок выше
+2. Включите дебаг логирование для подробной информации
+3. Сообщайте о проблемах с приложенными дебаг логами
+4. Убедитесь, что вы используете поддерживаемое устройство (RMC-M40S)
+
+## Языковые версии
+
+- [Русская версия](README.md)
+- [English version](README_EN.md)

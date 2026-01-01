@@ -1,0 +1,60 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SkyCooker Configuration",
+        "description": "Please enter your SkyCooker device details.",
+        "data": {
+          "name": "Device Name",
+          "mac": "MAC Address",
+          "key": "Authorization Key",
+          "persistent": "Keep Connection Active",
+          "adapter": "Bluetooth Adapter"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "no_devices": "No SkyCooker devices found"
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to device",
+      "invalid_auth": "Invalid authorization key",
+      "unknown": "Unknown error occurred"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SkyCooker Options",
+        "description": "Configure SkyCooker integration options.",
+        "data": {
+          "scan_interval": "Scan Interval (seconds)",
+          "persistent": "Keep Connection Active"
+        }
+      }
+    }
+  },
+  "services": {
+    "set_target_mode": {
+      "name": "Set Target Mode",
+      "description": "Set the cooking mode for SkyCooker",
+      "fields": {
+        "mode": {
+          "name": "Mode",
+          "description": "The cooking mode to set"
+        }
+      }
+    },
+    "set_target_temperature": {
+      "name": "Set Target Temperature",
+      "description": "Set the target temperature for SkyCooker",
+      "fields": {
+        "temperature": {
+          "name": "Temperature",
+          "description": "The target temperature in Celsius"
+        }
+      }
+    }
+  }
+}
