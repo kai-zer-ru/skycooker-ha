@@ -102,10 +102,17 @@ class CookerConnection(SkyCooker):
         
         for attempt in range(max_retries):
             try:
+                # Убедимся, что устройство существует перед подключением
+                if self._device is None:
+                    self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
+                    if self._device is None:
+                        raise IOError(f"Device not found: {self._mac}")
+                
+                device_name = self._device.name or "Unknown Device"
                 self._client = await establish_connection(
                     BleakClientWithServiceCache,
                     self._device,
-                    self._device.name or "Unknown Device",
+                    device_name,
                     max_attempts=3,
                     ble_device_timeout=30.0  # Увеличиваем таймаут
                 )
