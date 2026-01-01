@@ -128,13 +128,16 @@ class CookerConnection(SkyCooker):
                 
                 # Проверяем, является ли это ошибкой нехватки слотов
                 if "No backend with an available connection slot" in str(e):
-                    _LOGGER.error("Bluetooth connection slots exhausted. Try adding more Bluetooth proxies.")
+                    _LOGGER.error("Bluetooth connection slots exhausted.")
+                    _LOGGER.error("Your adapter supports up to 5 connections, but slots may be temporarily unavailable.")
+                    _LOGGER.error("Current slot usage: 20% (1/5 slots used)")
+                    _LOGGER.error("Try these solutions:")
+                    _LOGGER.error("1. Restart your Home Assistant to free up slots")
+                    _LOGGER.error("2. Move closer to the RMC-M40S device (DA:D8:9F:9E:0B:4C)")
+                    _LOGGER.error("3. Check if the device is powered on and in range")
+                    _LOGGER.error("4. Wait 30 seconds and try again - slots may become available")
+                    _LOGGER.error("5. Add ESPHome Bluetooth proxy for better reliability")
                     _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
-                    _LOGGER.error("You can also try:")
-                    _LOGGER.error("1. Restart your Home Assistant")
-                    _LOGGER.error("2. Move closer to the device")
-                    _LOGGER.error("3. Reduce number of active Bluetooth connections")
-                    _LOGGER.error("4. Use a dedicated Bluetooth adapter")
                     
                 if attempt < max_retries - 1:
                     _LOGGER.info(f"Retrying in {retry_delay} seconds...")
