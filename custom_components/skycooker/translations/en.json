@@ -13,6 +13,16 @@
         }
       }
     },
+    "step": {
+      "connect": {
+        "title": "Connecting to device",
+        "description": "Connecting to device {mac} ({model}). Please wait..."
+      },
+      "auth_retry": {
+        "title": "Authentication retry",
+        "description": "Trying different authentication keys for device {mac} ({model})."
+      }
+    },
     "abort": {
       "already_configured": "Device is already configured",
       "no_devices": "No SkyCooker devices found.\n\n💡 Check:\n1. Device is powered on and in pairing mode\n2. Bluetooth adapter is working\n3. Device is within range (3-5 meters)\n4. Try restarting the device"

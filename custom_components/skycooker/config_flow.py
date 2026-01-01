@@ -44,8 +44,9 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return False
         await self.async_set_unique_id(id)
         self.config[CONF_MAC] = mac
-        # It's time to create random password
-        self.config[CONF_PASSWORD] = list(secrets.token_bytes(8))
+        # Use default password for RMC-M40S (most common)
+        # Try default password first, user can change it later if needed
+        self.config[CONF_PASSWORD] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # Default pairing code
         return True
 
     async def async_step_user(self, user_input=None):
@@ -70,6 +71,106 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if name: self.config[CONF_FRIENDLY_NAME] = name
             # Continue to connect step
             return await self.async_step_connect()
+
+    async def async_step_connect(self, user_input=None):
+        """Handle the connect step."""
+        errors = {}
+        if user_input is not None:
+            _LOGGER.debug("Attempting to connect to cooker...")
+            cooker = CookerConnection(
+                mac=self.config[CONF_MAC],
+                key=self.config[CONF_PASSWORD],
+                persistent=True,
+                adapter=self.config.get(CONF_DEVICE, None),
+                hass=self.hass,
+                model=self.config.get(CONF_FRIENDLY_NAME, None)
+            )
+            tries = 3
+            while tries > 0 and not cooker._last_connect_ok:
+                _LOGGER.debug(f"Connection attempt {4-tries}/3")
+                await cooker.update()
+                tries = tries - 1
+            
+            connect_ok = cooker._last_connect_ok
+            auth_ok = cooker._last_auth_ok
+            await cooker.stop()
+        
+            if not connect_ok:
+                errors["base"] = "cant_connect"
+                _LOGGER.error("Cannot connect to device")
+            elif not auth_ok:
+                errors["base"] = "cant_auth"
+                _LOGGER.error("Authentication failed")
+                # If auth failed, offer to try different keys
+                return await self.async_step_auth_retry()
+            else:
+                _LOGGER.debug("Connection successful, proceeding to init step")
+                return await self.async_step_init()
+
+        # Show form with connection attempt button
+        schema = vol.Schema({})
+        
+        return self.async_show_form(
+            step_id="connect",
+            errors=errors,
+            description_placeholders={
+                "mac": self.config[CONF_MAC],
+                "model": self.config.get(CONF_FRIENDLY_NAME, "Unknown")
+            },
+            data_schema=schema
+        )
+
+    async def async_step_auth_retry(self, user_input=None):
+        """Handle authentication retry."""
+        errors = {}
+        if user_input is not None:
+            # Try different authentication keys
+            auth_keys = [
+                [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],  # Default
+                [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC],  # Alternative
+                [0x11, 0x11, 0x11, 0x11, 0x11, 0x11],  # Another alternative
+            ]
+            
+            for key in auth_keys:
+                _LOGGER.info(f"Trying authentication key: {key}")
+                cooker = CookerConnection(
+                    mac=self.config[CONF_MAC],
+                    key=key,
+                    persistent=True,
+                    adapter=self.config.get(CONF_DEVICE, None),
+                    hass=self.hass,
+                    model=self.config.get(CONF_FRIENDLY_NAME, None)
+                )
+                
+                tries = 3
+                while tries > 0 and not cooker._last_connect_ok:
+                    await cooker.update()
+                    tries = tries - 1
+                
+                if cooker._last_connect_ok and cooker._last_auth_ok:
+                    # Success! Save the working key
+                    self.config[CONF_PASSWORD] = key
+                    await cooker.stop()
+                    _LOGGER.info("✅ Authentication successful with key: {key}")
+                    return await self.async_step_init()
+                else:
+                    await cooker.stop()
+            
+            # If all keys failed
+            errors["base"] = "cant_auth"
+            _LOGGER.error("All authentication keys failed")
+
+        schema = vol.Schema({})
+        
+        return self.async_show_form(
+            step_id="auth_retry",
+            errors=errors,
+            description_placeholders={
+                "mac": self.config[CONF_MAC],
+                "model": self.config.get(CONF_FRIENDLY_NAME, "Unknown")
+            },
+            data_schema=schema
+        )
 
         # Агрессивное сканирование перед показом формы
         _LOGGER.info("🚀 Starting SkyCooker discovery process...")
@@ -262,52 +363,6 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="scan",
             errors=errors,
-            data_schema=schema
-        )
-
-    async def async_step_connect(self, user_input=None):
-        """Handle the connect step."""
-        errors = {}
-        if user_input is not None:
-            _LOGGER.debug("Attempting to connect to cooker...")
-            cooker = CookerConnection(
-                mac=self.config[CONF_MAC],
-                key=self.config[CONF_PASSWORD],
-                persistent=True,
-                adapter=self.config.get(CONF_DEVICE, None),
-                hass=self.hass,
-                model=self.config.get(CONF_FRIENDLY_NAME, None)
-            )
-            tries = 3
-            while tries > 0 and not cooker._last_connect_ok:
-                _LOGGER.debug(f"Connection attempt {4-tries}/3")
-                await cooker.update()
-                tries = tries - 1
-            
-            connect_ok = cooker._last_connect_ok
-            auth_ok = cooker._last_auth_ok
-            cooker.stop()
-        
-            if not connect_ok:
-                errors["base"] = "cant_connect"
-                _LOGGER.error("Cannot connect to device")
-            elif not auth_ok:
-                errors["base"] = "cant_auth"
-                _LOGGER.error("Authentication failed")
-            else:
-                _LOGGER.debug("Connection successful, proceeding to init step")
-                return await self.async_step_init()
-
-        # Show form with connection attempt button
-        schema = vol.Schema({})
-        
-        return self.async_show_form(
-            step_id="connect",
-            errors=errors,
-            description_placeholders={
-                "mac": self.config[CONF_MAC],
-                "model": self.config.get(CONF_FRIENDLY_NAME, "Unknown")
-            },
             data_schema=schema
         )
 
