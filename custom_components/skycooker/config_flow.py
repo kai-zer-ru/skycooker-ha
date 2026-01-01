@@ -33,7 +33,9 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize a new SkyCookerConfigFlow."""
         _LOGGER.debug("Init SkyCookerConfigFlow")
         self.entry = entry
+        _LOGGER.debug("Init SkyCookerConfigFlow 2")
         self.config = {} if not entry else dict(entry.data.items())
+        _LOGGER.debug("Init SkyCookerConfigFlow 3")
 
     async def init_mac(self, mac):
         mac = mac.upper()
