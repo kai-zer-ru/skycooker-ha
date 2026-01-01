@@ -89,27 +89,54 @@ class CookerConnection(SkyCooker):
             raise DisposedError()
         if self._client and self._client.is_connected: return
         
-        # Используем тот же подход, что и SkyKettle
+        # Улучшенная обработка подключения с дополнительными попытками
         self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
         if self._device is None:
             raise IOError(f"Device not found: {self._mac}")
         
         _LOGGER.debug(f"Connecting to the Cooker {self._mac}...")
-        try:
-            self._client = await establish_connection(
-                BleakClientWithServiceCache,
-                self._device,
-                self._device.name or "Unknown Device",
-                max_attempts=3  # Используем 3 попытки как в SkyKettle
-            )
-            _LOGGER.debug("Connected to the Cooker")
-            await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
-            _LOGGER.debug("Subscribed to RX")
-        except Exception as e:
-            _LOGGER.error(f"Failed to connect to cooker: {e}")
-            self._client = None
-            self._device = None
-            raise
+        
+        # Добавляем дополнительные попытки подключения
+        max_retries = 5
+        retry_delay = 2.0
+        
+        for attempt in range(max_retries):
+            try:
+                self._client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    self._device,
+                    self._device.name or "Unknown Device",
+                    max_attempts=3,
+                    ble_device_timeout=30.0  # Увеличиваем таймаут
+                )
+                _LOGGER.debug(f"Connected to the Cooker (attempt {attempt + 1})")
+                await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
+                _LOGGER.debug("Subscribed to RX")
+                return  # Успешное подключение
+                
+            except Exception as e:
+                _LOGGER.warning(f"Connection attempt {attempt + 1} failed: {e}")
+                self._client = None
+                self._device = None
+                
+                # Проверяем, является ли это ошибкой нехватки слотов
+                if "No backend with an available connection slot" in str(e):
+                    _LOGGER.error("Bluetooth connection slots exhausted. Try adding more Bluetooth proxies.")
+                    _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
+                    _LOGGER.error("You can also try:")
+                    _LOGGER.error("1. Restart your Home Assistant")
+                    _LOGGER.error("2. Move closer to the device")
+                    _LOGGER.error("3. Reduce number of active Bluetooth connections")
+                    _LOGGER.error("4. Use a dedicated Bluetooth adapter")
+                    
+                if attempt < max_retries - 1:
+                    _LOGGER.info(f"Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 1.5  # Экспоненциальная задержка
+                else:
+                    _LOGGER.error(f"Failed to connect to cooker {self._mac} after {max_retries} attempts: {e}")
+                    _LOGGER.error("This device may be out of range or have connection issues")
+                    raise
 
     auth = lambda self: super().auth(self._key)
 
