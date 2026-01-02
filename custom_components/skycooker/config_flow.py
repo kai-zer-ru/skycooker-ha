@@ -94,7 +94,12 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             device_info = devices[device_address]
             _LOGGER.info(f"Auto-selected device: {device_address}")
             return await self.async_step_configure(
-                {CONF_ADDRESS: device_address, **device_info}
+                {
+                    CONF_ADDRESS: device_address,
+                    "name": device_info.name,
+                    "address": device_info.address,
+                    "rssi": device_info.rssi
+                }
             )
 
         # Несколько устройств - предлагаем выбор
@@ -108,7 +113,12 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             device_info = devices[self.selected_device]
             _LOGGER.info(f"User selected device: {self.selected_device}")
             return await self.async_step_configure(
-                {CONF_ADDRESS: self.selected_device, **device_info}
+                {
+                    CONF_ADDRESS: self.selected_device,
+                    "name": device_info.name,
+                    "address": device_info.address,
+                    "rssi": device_info.rssi
+                }
             )
 
         # Показываем форму выбора устройства
