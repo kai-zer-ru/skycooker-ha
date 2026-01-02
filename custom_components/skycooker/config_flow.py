@@ -23,7 +23,6 @@ from .const import (
     CONF_SCAN_TIMEOUT,
     CONF_SCAN_INTERVAL,
     CONF_WAIT_TIME,
-    CONF_SCAN_INTERVAL,
     DEFAULT_AUTH_KEY,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_NAME,
@@ -32,11 +31,7 @@ from .const import (
     DEFAULT_SCAN_TIMEOUT,
     DEFAULT_WAIT_TIME,
     DEFAULT_SCAN_INTERVAL,
-    CONF_SCAN_INTERVAL,
-    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
-    CONF_SCAN_INTERVAL,
-    DEFAULT_SCAN_INTERVAL,
 )
 from .cooker_connection import CookerConnection
 from .skycooker import SkyCooker
