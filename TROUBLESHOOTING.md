@@ -170,6 +170,11 @@ logger:
 - **Команды**: `📡 Sending command`, `📥 Received response`
 - **Статус**: `📊 Requesting device status`, `✅ Status retrieved`
 - **Ошибки**: `❌ Connection failed`, `⚠️ Connection attempt failed`
+- **Новые диагностические функции**:
+  - **Сырые ответы**: `📥 Raw response received: 55 01 06 02 01 1e 5a 00 00 00 00 00 00 00 00 01 aa`
+  - **Детальный парсинг**: `📦 Parsed RMC-M40S status: mode=2, is_on=True, temp=30/90, cook=0:0, wait=0:0, boil_time=0`
+  - **Команда статуса**: `📡 Sending command 06, data: []` (команда 0x06 для RMC-M40S)
+  - **Протокол RMC-M40S**: `📦 Detailed byte analysis: data[3]: 1 (hex: 0x01), data[15]: 1 (hex: 0x01)`
 
 ### Просмотр логов HomeAssistant
 

@@ -81,7 +81,7 @@ class CookerConnection:
             raise IOError("not connected")
         
         self._iter = (self._iter + 1) % 256
-        _LOGGER.debug(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
+        _LOGGER.info(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
         self._last_data = None
         
@@ -103,7 +103,7 @@ class CookerConnection:
             
             if self._last_data:
                 r = self._last_data
-                _LOGGER.debug(f"📥 Raw response received: {r.hex() if hasattr(r, 'hex') else r}")
+                _LOGGER.info(f"📥 Raw response received: {r.hex() if hasattr(r, 'hex') else r}")
                 
                 # Проверяем длину ответа
                 if len(r) < 4:
@@ -124,8 +124,8 @@ class CookerConnection:
                         raise IOError("Invalid response command")
                     
                     clean = bytes(r[3:-1])
-                    _LOGGER.debug(f"✅ Command {command:02x} completed successfully")
-                    _LOGGER.debug(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
+                    _LOGGER.info(f"✅ Command {command:02x} completed successfully")
+                    _LOGGER.info(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
                     return clean
                 else:
                     _LOGGER.debug(f"🔄 Response iteration mismatch (expected {self._iter}, got {r[1]}), waiting for correct response")

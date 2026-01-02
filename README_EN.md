@@ -10,19 +10,21 @@ This project is inspired by the [SkyKettle](https://github.com/ClusterM/skykettl
 
 ### Multicookers
 - **RMC-M40S** - Primary supported model (fully tested and optimized)
+- **RMC-M42S** - Supported (uses same protocol as RMC-M40S)
 
-**Note:** Other models are planned for future support but currently only RMC-M40S is fully functional.
+**Note:** Other models are planned for future support. Currently RMC-M4xS series is supported.
 
 ## Features
 
-### For Multicookers (RMC-M40S)
-- Program management (13 cooking programs)
+### For Multicookers (RMC-M40S/RMC-M42S)
+- Program management (16 cooking programs)
 - Temperature control (35°C - 90°C)
 - Timer control (hours and minutes)
 - Real-time status monitoring
 - Start/stop cooking
 - Current temperature monitoring
 - Device authentication and pairing
+- RMC-M4xS variant support (automatic recognition)
 
 ### Supported Cooking Programs
 - Standby (Ожидание)
@@ -38,6 +40,15 @@ This project is inspired by the [SkyKettle](https://github.com/ClusterM/skykettl
 - Yogurt (Йогурт)
 - Dough (Тесто)
 - Keep Warm (Поддержание тепла)
+- Yogurt 2 (Йогурт 2)
+- Baking 2 (Выпечка 2)
+- Steaming 2 (На пару 2)
+- Stewing 2 (Тушение 2)
+- Frying 2 (Жарка 2)
+- Pilaf 2 (Плов 2)
+- Languor 2 (Томление 2)
+- Rice/Cereals 2 (Рис/Крупы 2)
+- Multi-chef 2 (Мультиповар 2)
 
 ## Installation
 
@@ -61,13 +72,13 @@ This project is inspired by the [SkyKettle](https://github.com/ClusterM/skykettl
 ## Configuration
 
 ### Required Settings
-- **Device MAC Address** - Bluetooth address of your RMC-M40S (format: AA:BB:CC:DD:EE:FF)
+- **Device MAC Address** - Bluetooth address of your RMC-M40S/RMC-M42S (format: AA:BB:CC:DD:EE:FF)
 - **Authorization Key** - Usually "000000" (default pairing code)
 
 ### Device Preparation
-1. Power on your RMC-M40S
+1. Power on your RMC-M40S/RMC-M42S
 2. Ensure it's in pairing mode (bluetooth indicator blinking)
-3. Keep the device within Bluetooth range (5-10 meters recommended)
+3. Keep the device within Bluetooth range (3-5 meters recommended)
 
 ## Debug Logging
 
@@ -97,6 +108,11 @@ logger:
 - Authentication process
 - Status updates and parsing
 - Error details and troubleshooting information
+- **New features:**
+  - Raw device responses for protocol analysis
+  - Detailed byte parsing of status data
+  - Command status information (0x06)
+  - RMC-M40S protocol details
 
 ## Troubleshooting
 
@@ -106,10 +122,16 @@ logger:
 3. **Connection timeout**: Move closer to device, check Bluetooth interference
 4. **Commands not working**: Verify device is powered and connected
 
+### New Diagnostic Features
+- **Detailed command logging**: All commands and responses are now logged for analysis
+- **Raw response data**: Raw hex data of responses can be seen in logs for manual analysis
+- **Detailed status parsing**: Step-by-step breakdown of each status response byte
+- **RMC-M40S protocol**: Specific information about RMC-M40S protocol
+
 ### Getting Help
 1. Enable debug logging as described above
 2. Check HomeAssistant logs for detailed error messages
-3. Verify device compatibility (currently only RMC-M40S is supported)
+3. Verify device compatibility (currently RMC-M40S/RMC-M42S is supported)
 4. Ensure HomeAssistant has Bluetooth permissions
 5. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed troubleshooting guide
 
@@ -122,7 +144,16 @@ logger:
 
 ### Current Status
 - **RMC-M40S**: Fully supported and tested
+- **RMC-M42S**: Supported (uses same protocol)
+- **RMC-M4xS**: Automatic recognition and support
 - **Other models**: Planned for future releases
+
+### Recent Improvements
+- **RMC-M40S Protocol**: Full protocol understanding implemented based on ESPHome-Ready4Sky
+- **Status Command 0x06**: Correct status command is used
+- **Detailed Parsing**: Each byte of status response is analyzed separately
+- **Enhanced Logging**: All commands and responses are logged for diagnostics
+- **RMC-M4xS Support**: Automatic recognition of RMC-M40S variants
 
 ## License
 
@@ -134,4 +165,4 @@ For issues and support:
 1. Check the troubleshooting section above
 2. Enable debug logging for detailed information
 3. Report issues with debug logs included
-4. Ensure you're using a supported device (RMC-M40S)
+4. Ensure you're using a supported device (RMC-M40S/RMC-M42S)

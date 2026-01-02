@@ -19,11 +19,11 @@ class SkyCooker():
     MODELS_6 = 6
     MODELS_7 = 7
 
-    # Model types - currently only RMC-M40S is fully supported
+    # Model types - currently only RMC-M40S (RMC-M4xS) is fully supported
     MODEL_TYPE = {
-        "RMC-M40S": MODELS_3,  # Primary supported model
+        "RMC-M40S": MODELS_5,  # Primary supported model (changed from MODELS_3 to MODELS_5 based on ha_kettler)
+        "RMC-M42S": MODELS_5,  # Also use MODELS_5 for RMC-M42S based on user feedback
         # Other models commented out for now
-        # "RMC-M42S": MODELS_3,
         # "RMC-M92S": MODELS_6, "RMC-M92S-A": MODELS_6, "RMC-M92S-C": MODELS_6, "RMC-M92S-E": MODELS_6,
         # "RMC-M222S": MODELS_7, "RMC-M222S-A": MODELS_7,
         # "RMC-M223S": MODELS_7,"RMC-M223S-E": MODELS_7,
@@ -161,6 +161,9 @@ class SkyCooker():
             return SkyCooker.MODEL_TYPE[model]
         if model.endswith("-E"):
             return SkyCooker.MODEL_TYPE.get(model[:-2], None)
+        # Support for RMC-M4xS variants
+        if model.startswith("RMC-M4") and model.endswith("S"):
+            return SkyCooker.MODEL_TYPE.get("RMC-M40S", None)
         return None
 
     @abstractmethod
@@ -211,8 +214,10 @@ class SkyCooker():
     async def turn_on(self):
         _LOGGER.info(f"⚡ Attempting to turn on device (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # For RMC-M40S, use specific protocol
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                # RMC-M40S might need different command format
+                # Try standard command first
                 r = await self.command(SkyCooker.COMMAND_TURN_ON)
                 if r is None:
                     _LOGGER.error(f"❌ Failed to turn on device - no response received")
@@ -231,8 +236,10 @@ class SkyCooker():
     async def turn_off(self):
         _LOGGER.info(f"🛑 Attempting to turn off device (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # For RMC-M40S, use specific protocol
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                # RMC-M40S might need different command format
+                # Try standard command first
                 r = await self.command(SkyCooker.COMMAND_TURN_OFF)
                 if r is None:
                     _LOGGER.error(f"❌ Failed to turn off device - no response received")
@@ -251,9 +258,9 @@ class SkyCooker():
     async def set_main_mode(self, mode, target_temp = 0, boil_time = 0):
         _LOGGER.info(f"⚙️ Setting main mode: mode={mode} ({SkyCooker.MODE_NAMES.get(mode, 'Unknown')}), target_temp={target_temp}, boil_time={boil_time}")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
-                # Pack data for RMC-M40S - corrected format based on protocol analysis
+            # For RMC-M40S, use specific protocol based on ha_kettler
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                # Based on ha_kettler protocol analysis for RMC-M40S
                 # Format: mode (1 byte), padding (1 byte), target_temp (1 byte), padding (13 bytes), boil_time (1 byte), padding (2 bytes)
                 data = pack("BBB13xBB", int(mode), 0, int(target_temp), int(0x80 + boil_time))
                 _LOGGER.debug(f"📦 Packed data for RMC-M40S: {data.hex()}")
@@ -279,47 +286,36 @@ class SkyCooker():
     async def get_status(self):
         _LOGGER.info(f"📊 Requesting device status (model code: {self.model_code})")
         try:
-            # For RMC-M40S, try different status commands
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
-                # Try multiple status commands that might work for RMC-M40S
-                status_commands = [
-                    SkyCooker.COMMAND_GET_STATUS,  # 0x06 - standard status
-                    SkyCooker.COMMAND_GET_STATS1,  # 0x47 - stats might contain status
-                    0x07,  # Alternative status command
-                    0x08,  # Another alternative
-                ]
+            # For RMC-M40S, use specific protocol based on ESPHome-Ready4Sky
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                # Use command 0x06 for RMC-M40S status
+                _LOGGER.debug(f"📡 Using command 0x06 for RMC-M40S status")
+                r = await self.command(SkyCooker.COMMAND_GET_STATUS)
                 
-                for cmd in status_commands:
-                    try:
-                        _LOGGER.debug(f"📡 Trying status command: 0x{cmd:02X}")
-                        r = await self.command(cmd)
-                        if r is not None and len(r) > 0:
-                            _LOGGER.info(f"✅ Status command 0x{cmd:02X} returned response: {r.hex() if hasattr(r, 'hex') else r}")
-                            # If we get a response, try to parse it
-                            return await self._parse_status_response(r)
-                        else:
-                            _LOGGER.debug(f"📡 Command 0x{cmd:02X} returned no response")
-                    except Exception as e:
-                        _LOGGER.debug(f"📡 Command 0x{cmd:02X} failed: {e}")
-                        continue
+                if r is None or len(r) == 0:
+                    _LOGGER.warning(f"⚠️ No response received for status command")
+                    return SkyCooker.Status(
+                        mode=0,
+                        is_on=False,
+                        error_code=None,
+                        current_temp=0,
+                        target_temp=0,
+                        cook_hours=0,
+                        cook_minutes=0,
+                        wait_hours=0,
+                        wait_minutes=0,
+                        boil_time=0
+                    )
                 
-                # If no command worked, return default status
-                _LOGGER.warning(f"⚠️ No status command worked for RMC-M40S")
-                return SkyCooker.Status(
-                    mode=0,
-                    is_on=False,
-                    error_code=None,
-                    current_temp=0,
-                    target_temp=0,
-                    cook_hours=0,
-                    cook_minutes=0,
-                    wait_hours=0,
-                    wait_minutes=0,
-                    boil_time=0
-                )
+                # Log the raw response for debugging
+                _LOGGER.info(f"📡 Raw status response: {r.hex() if hasattr(r, 'hex') else r}")
+                _LOGGER.info(f"📡 Response length: {len(r)} bytes")
+                _LOGGER.info(f"📡 Response bytes: {[hex(b) for b in r]}")
+                
+                return self._parse_rmc_m40s_status(r)
             else:
                 _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
-                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S (MODELS_5) is currently supported")
                 return None
             
         except Exception as e:
@@ -338,109 +334,89 @@ class SkyCooker():
                 boil_time=0
             )
     
-    async def _parse_status_response(self, r):
-        """Parse status response with multiple format attempts."""
-        _LOGGER.debug(f"📦 Parsing status response: {r.hex() if hasattr(r, 'hex') else r}")
+    def _parse_rmc_m40s_status(self, r):
+        """Parse RMC-M40S status response based on ESPHome-Ready4Sky protocol."""
+        _LOGGER.debug(f"📦 Parsing RMC-M40S status response: {r.hex() if hasattr(r, 'hex') else r}")
         
         try:
-            # Try different unpacking formats for RMC-M40S
-            if len(r) >= 9:
-                # Format 1: mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes
-                try:
-                    mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes = unpack("<B?BBBBBBB", r[:9])
-                    _LOGGER.debug(f"📦 Parsed format 1: mode={mode}, is_on={is_on}, temp={current_temp}/{target_temp}, cook={cook_hours}:{cook_minutes}, wait={wait_hours}:{wait_minutes}")
-                    return SkyCooker.Status(
-                        mode=mode,
-                        is_on=is_on,
-                        error_code=None,
-                        current_temp=current_temp,
-                        target_temp=target_temp,
-                        cook_hours=cook_hours,
-                        cook_minutes=cook_minutes,
-                        wait_hours=wait_hours,
-                        wait_minutes=wait_minutes,
-                        boil_time=0
-                    )
-                except Exception as e:
-                    _LOGGER.debug(f"📦 Format 1 failed: {e}")
+            # Log all bytes for detailed analysis
+            _LOGGER.info(f"📦 Detailed byte analysis:")
+            for i, byte in enumerate(r):
+                _LOGGER.info(f"📦   data[{i}]: {byte} (hex: 0x{byte:02x})")
             
-            if len(r) >= 8:
-                # Format 2: mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes (different packing)
-                try:
-                    mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes = unpack("<BBBBBBBB", r[:8])
-                    _LOGGER.debug(f"📦 Parsed format 2: mode={mode}, is_on={is_on}, temp={current_temp}/{target_temp}, cook={cook_hours}:{cook_minutes}, wait={wait_hours}:{wait_minutes}")
-                    return SkyCooker.Status(
-                        mode=mode,
-                        is_on=is_on,
-                        error_code=None,
-                        current_temp=current_temp,
-                        target_temp=target_temp,
-                        cook_hours=cook_hours,
-                        cook_minutes=cook_minutes,
-                        wait_hours=wait_hours,
-                        wait_minutes=wait_minutes,
-                        boil_time=0
-                    )
-                except Exception as e:
-                    _LOGGER.debug(f"📦 Format 2 failed: {e}")
+            # RMC-M40S status format based on ESPHome-Ready4Sky:
+            # data[3] - режим готовки (нужно прибавить 1)
+            # data[15] - статус (0x00 = выключено, > 0x01 = включено)
             
-            if len(r) >= 4:
-                # Format 3: basic format
-                try:
-                    mode, is_on, current_temp, target_temp = unpack("<B?BB", r[:4])
-                    _LOGGER.debug(f"📦 Parsed format 3: mode={mode}, is_on={is_on}, temp={current_temp}/{target_temp}")
-                    return SkyCooker.Status(
-                        mode=mode,
-                        is_on=is_on,
-                        error_code=None,
-                        current_temp=current_temp,
-                        target_temp=target_temp,
-                        cook_hours=0,
-                        cook_minutes=0,
-                        wait_hours=0,
-                        wait_minutes=0,
-                        boil_time=0
-                    )
-                except Exception as e:
-                    _LOGGER.debug(f"📦 Format 3 failed: {e}")
+            if len(r) < 16:
+                _LOGGER.warning(f"⚠️ Status response too short: {len(r)} bytes, expected at least 16")
+                return SkyCooker.Status(
+                    mode=0,
+                    is_on=False,
+                    error_code=None,
+                    current_temp=0,
+                    target_temp=0,
+                    cook_hours=0,
+                    cook_minutes=0,
+                    wait_hours=0,
+                    wait_minutes=0,
+                    boil_time=0
+                )
             
-            if len(r) >= 2:
-                # Format 4: minimal format
-                try:
-                    mode, is_on = unpack("<B?", r[:2])
-                    _LOGGER.debug(f"📦 Parsed format 4: mode={mode}, is_on={is_on}")
-                    return SkyCooker.Status(
-                        mode=mode,
-                        is_on=is_on,
-                        error_code=None,
-                        current_temp=0,
-                        target_temp=0,
-                        cook_hours=0,
-                        cook_minutes=0,
-                        wait_hours=0,
-                        wait_minutes=0,
-                        boil_time=0
-                    )
-                except Exception as e:
-                    _LOGGER.debug(f"📦 Format 4 failed: {e}")
+            # Parse mode (data[3] + 1)
+            mode = r[3] + 1
+            _LOGGER.debug(f"📦 Parsed mode: {mode} ({SkyCooker.MODE_NAMES.get(mode, 'Unknown')})")
             
-            # If all formats failed, return default
-            _LOGGER.warning(f"⚠️ Could not parse status response with any format")
+            # Parse status (data[15])
+            status_byte = r[15]
+            # According to ESPHome-Ready4Sky: data[15] > 0x01 means device is on
+            is_on = status_byte > 0x01
+            _LOGGER.debug(f"📦 Parsed status: {status_byte} -> is_on={is_on}")
+            
+            # Try to extract additional information if available
+            current_temp = 0
+            target_temp = 0
+            cook_hours = 0
+            cook_minutes = 0
+            wait_hours = 0
+            wait_minutes = 0
+            boil_time = 0
+            
+            # If response is longer, try to extract more data
+            if len(r) >= 16:
+                try:
+                    # Try to parse temperature and timing info
+                    if len(r) >= 18:
+                        current_temp = r[16]
+                        target_temp = r[17]
+                    if len(r) >= 20:
+                        cook_hours = r[18]
+                        cook_minutes = r[19]
+                    if len(r) >= 22:
+                        wait_hours = r[20]
+                        wait_minutes = r[21]
+                    if len(r) >= 23:
+                        boil_time = r[22] & 0x7F  # Extract boil time from byte
+                except Exception as e:
+                    _LOGGER.debug(f"📦 Could not parse additional status data: {e}")
+            
+            _LOGGER.debug(f"📦 Parsed RMC-M40S status: mode={mode}, is_on={is_on}, temp={current_temp}/{target_temp}, cook={cook_hours}:{cook_minutes}, wait={wait_hours}:{wait_minutes}, boil_time={boil_time}")
+            
             return SkyCooker.Status(
-                mode=0,
-                is_on=False,
+                mode=mode,
+                is_on=is_on,
                 error_code=None,
-                current_temp=0,
-                target_temp=0,
-                cook_hours=0,
-                cook_minutes=0,
-                wait_hours=0,
-                wait_minutes=0,
-                boil_time=0
+                current_temp=current_temp,
+                target_temp=target_temp,
+                cook_hours=cook_hours,
+                cook_minutes=cook_minutes,
+                wait_hours=wait_hours,
+                wait_minutes=wait_minutes,
+                boil_time=boil_time
             )
             
         except Exception as e:
-            _LOGGER.error(f"❌ Error parsing status response: {e}")
+            _LOGGER.error(f"❌ Error parsing RMC-M40S status response: {e}")
             return SkyCooker.Status(
                 mode=0,
                 is_on=False,
@@ -457,8 +433,8 @@ class SkyCooker():
     async def sync_time(self):
         _LOGGER.info(f"⏰ Synchronizing device time (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 t = time.localtime()
                 offset = calendar.timegm(t) - calendar.timegm(time.gmtime(time.mktime(t)))
                 now = int(time.time())
@@ -512,7 +488,7 @@ class SkyCooker():
 
 
     async def get_wait_hours(self):
-        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_5]: # RMC-M40S
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             if r is None:
                 _LOGGER.error(f"❌ Failed to get wait hours - no response received")
@@ -525,7 +501,7 @@ class SkyCooker():
             _LOGGER.debug(f"get_wait_hours is not supported by this model")
 
     async def get_wait_minutes(self):
-        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_5]: # RMC-M40S
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             if r is None:
                 _LOGGER.error(f"❌ Failed to get wait minutes - no response received")
@@ -538,7 +514,7 @@ class SkyCooker():
             _LOGGER.debug(f"get_wait_minutes is not supported by this model")
 
     async def get_cook_hours(self):
-        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_5]: # RMC-M40S
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             if r is None:
                 _LOGGER.error(f"❌ Failed to get cook hours - no response received")
@@ -551,7 +527,7 @@ class SkyCooker():
             _LOGGER.debug(f"get_cook_hours is not supported by this model")
 
     async def get_cook_minutes(self):
-        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_5]: # RMC-M40S
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             if r is None:
                 _LOGGER.error(f"❌ Failed to get cook minutes - no response received")
@@ -564,7 +540,7 @@ class SkyCooker():
             _LOGGER.debug(f"get_cook_minutes is not supported by this model")
 
     async def get_current_program(self):
-        if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+        if self.model_code in [SkyCooker.MODELS_5]: # RMC-M40S
             r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
             if r is None:
                 _LOGGER.error(f"❌ Failed to get current program - no response received")
@@ -580,8 +556,8 @@ class SkyCooker():
         """Set the target program for multicooker."""
         _LOGGER.info(f"🎯 Setting target program: {program} (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 if program is None:
                     # Turn off
                     _LOGGER.debug(f"🔧 Turning off device (program=None)")
@@ -601,8 +577,8 @@ class SkyCooker():
         """Set the target temperature for multicooker."""
         _LOGGER.info(f"🌡️ Setting target temperature: {temperature}°C (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 # Get current mode and set it with new temperature
                 _LOGGER.debug(f"🔧 Getting current status to preserve mode...")
                 status = await self.get_status()
@@ -620,7 +596,7 @@ class SkyCooker():
 
     async def set_cook_hours(self, hours):
         """Set the cook hours for multicooker."""
-        if self.model_code in [SkyCooker.MODELS_3]:
+        if self.model_code in [SkyCooker.MODELS_5]:
             # This would need specific command implementation based on protocol
             _LOGGER.info(f"set_cook_hours: {hours} hours")
             # TODO: Implement actual command
@@ -629,7 +605,7 @@ class SkyCooker():
 
     async def set_cook_minutes(self, minutes):
         """Set the cook minutes for multicooker."""
-        if self.model_code in [SkyCooker.MODELS_3]:
+        if self.model_code in [SkyCooker.MODELS_5]:
             # This would need specific command implementation based on protocol
             _LOGGER.info(f"set_cook_minutes: {minutes} minutes")
             # TODO: Implement actual command
@@ -640,8 +616,8 @@ class SkyCooker():
         """Start cooking with current settings."""
         _LOGGER.info(f"🔥 Starting cooking (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 _LOGGER.debug(f"🔧 Turning on device to start cooking...")
                 await self.turn_on()
                 _LOGGER.info(f"✅ Cooking started successfully")
@@ -656,8 +632,8 @@ class SkyCooker():
         """Stop cooking."""
         _LOGGER.info(f"🛑 Stopping cooking (model code: {self.model_code})")
         try:
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 _LOGGER.debug(f"🔧 Turning off device to stop cooking...")
                 await self.turn_off()
                 _LOGGER.info(f"✅ Cooking stopped successfully")
