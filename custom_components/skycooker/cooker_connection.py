@@ -783,6 +783,14 @@ class CookerConnection:
                 if not self.available: force_stats = True # Update stats after unavailable state
                 await self._connect_if_need()
 
+                # Test basic connection first
+                if self._status is None:
+                    _LOGGER.info(f"🧪 Testing basic connection before status request...")
+                    test_result = await self._skycooker.test_connection()
+                    if not test_result:
+                        _LOGGER.error(f"❌ Basic connection test failed - device may not support this protocol")
+                        return False
+
                 if extra_action: await extra_action
 
                 # Is there scheduled boil_time?

@@ -211,6 +211,22 @@ class SkyCooker():
             _LOGGER.error(f"❌ Failed to get version: {e}")
             raise
 
+    async def test_connection(self):
+        """Test basic connection with simple command."""
+        _LOGGER.info(f"🧪 Testing basic connection (model code: {self.model_code})")
+        try:
+            # Try version command first - it's usually the most basic
+            r = await self.command(SkyCooker.COMMAND_GET_VERSION)
+            if r is not None:
+                _LOGGER.info(f"✅ Basic connection test successful")
+                return True
+            else:
+                _LOGGER.warning(f"⚠️ Basic connection test failed - no response")
+                return False
+        except Exception as e:
+            _LOGGER.error(f"❌ Basic connection test failed: {e}")
+            return False
+
     async def turn_on(self):
         _LOGGER.info(f"⚡ Attempting to turn on device (model code: {self.model_code})")
         try:
