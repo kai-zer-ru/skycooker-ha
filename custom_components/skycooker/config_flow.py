@@ -46,7 +46,7 @@ STEP_SELECT_DEVICE_SCHEMA = vol.Schema({
 
 # Шаг с предустановленными данными
 STEP_CONFIG_SCHEMA = vol.Schema({
-    vol.Required(CONF_FRIENDLY_NAME, default="SkyCooker"): str,
+    vol.Required(CONF_FRIENDLY_NAME, default=DEFAULT_DEVICE_NAME): str,
     vol.Required(CONF_AUTH_KEY, default=DEFAULT_AUTH_KEY): str,
     vol.Required(CONF_PERSISTENT_CONNECTION, default=DEFAULT_PERSISTENT_CONNECTION): bool,
 })
@@ -97,7 +97,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Автоматически заполняем все данные
             config_data = {
                 CONF_MAC: device_address,
-                CONF_FRIENDLY_NAME: f"SkyCooker {device_address[-5:]}",  # Автоматическое имя
+                CONF_FRIENDLY_NAME: DEFAULT_DEVICE_NAME,  # Используем имя модели
                 CONF_AUTH_KEY: DEFAULT_AUTH_KEY,  # Автоматический ключ
                 CONF_PERSISTENT_CONNECTION: DEFAULT_PERSISTENT_CONNECTION,  # Автоматическая настройка
                 CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
@@ -119,7 +119,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Автоматически заполняем все данные
             config_data = {
                 CONF_MAC: self.selected_device,
-                CONF_FRIENDLY_NAME: f"SkyCooker {self.selected_device[-5:]}",  # Автоматическое имя
+                CONF_FRIENDLY_NAME: DEFAULT_DEVICE_NAME,  # Используем имя модели
                 CONF_AUTH_KEY: DEFAULT_AUTH_KEY,  # Автоматический ключ
                 CONF_PERSISTENT_CONNECTION: DEFAULT_PERSISTENT_CONNECTION,  # Автоматическая настройка
                 CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
@@ -173,7 +173,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             # Создаем запись конфигурации
             return self.async_create_entry(
-                title=config_data.get(CONF_FRIENDLY_NAME, "SkyCooker"),
+                title=config_data.get(CONF_FRIENDLY_NAME, DEFAULT_DEVICE_NAME),
                 data=config_data,
             )
 
@@ -190,7 +190,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="options",
             data_schema=schema,
             description_placeholders={
-                "device_name": self.device_info.get("name", "SkyCooker"),
+                "device_name": self.device_info.get("name", DEFAULT_DEVICE_NAME),
                 "device_address": self.device_info.get(CONF_MAC, "")
             }
         )
