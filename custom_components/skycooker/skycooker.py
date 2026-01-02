@@ -486,6 +486,203 @@ class SkyCooker():
         else:
             _LOGGER.debug(f"commit is not supported by this model")
 
+    # Additional methods needed by CookerConnection
+    async def get_stats(self):
+        """Get device statistics."""
+        _LOGGER.info(f"📊 Requesting device stats (model code: {self.model_code})")
+        try:
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                r = await self.command(SkyCooker.COMMAND_GET_STATS1)
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to get stats - no response received")
+                    return None
+                
+                # Parse stats data
+                try:
+                    ontime, energy_wh, heater_on_count, user_on_count = unpack("<IHHH", r[:10])
+                    _LOGGER.debug(f"📦 Parsed stats: ontime={ontime}, energy_wh={energy_wh}, heater_on_count={heater_on_count}, user_on_count={user_on_count}")
+                    
+                    stats = SkyCooker.Stats(
+                        ontime=ontime,
+                        energy_wh=energy_wh,
+                        heater_on_count=heater_on_count,
+                        user_on_count=user_on_count
+                    )
+                except Exception as e:
+                    _LOGGER.error(f"❌ Error unpacking stats: {e}")
+                    # Fallback to default stats
+                    stats = SkyCooker.Stats(
+                        ontime=0,
+                        energy_wh=0,
+                        heater_on_count=0,
+                        user_on_count=0
+                    )
+                
+                _LOGGER.info(f"✅ Stats retrieved: ontime={stats.ontime}, energy_wh={stats.energy_wh}, heater_on_count={stats.heater_on_count}, user_on_count={stats.user_on_count}")
+                return stats
+            else:
+                _LOGGER.warning(f"⚠️ get_stats is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return None
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get stats: {e}")
+            return SkyCooker.Stats(
+                ontime=0,
+                energy_wh=0,
+                heater_on_count=0,
+                user_on_count=0
+            )
+
+    async def get_light_switch(self, light_type):
+        """Get light switch status."""
+        _LOGGER.info(f"💡 Requesting light switch status for type {light_type} (model code: {self.model_code})")
+        try:
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                r = await self.command(SkyCooker.COMMAND_GET_LIGHT_SWITCH, [light_type])
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to get light switch - no response received")
+                    return None
+                
+                # Parse light switch data
+                try:
+                    light_switch = r[0]
+                    _LOGGER.debug(f"📦 Parsed light switch: {light_switch}")
+                except Exception as e:
+                    _LOGGER.error(f"❌ Error unpacking light switch: {e}")
+                    light_switch = 0
+                
+                _LOGGER.info(f"✅ Light switch retrieved: {light_switch}")
+                return light_switch
+            else:
+                _LOGGER.warning(f"⚠️ get_light_switch is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return None
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get light switch: {e}")
+            return None
+
+    async def get_lamp_auto_off_hours(self):
+        """Get lamp auto-off hours."""
+        _LOGGER.info(f"⏰ Requesting lamp auto-off hours (model code: {self.model_code})")
+        try:
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to get lamp auto-off hours - no response received")
+                    return None
+                
+                # Parse lamp auto-off hours data
+                try:
+                    hours, = unpack("<H", r[:2])
+                    _LOGGER.debug(f"📦 Parsed lamp auto-off hours: {hours}")
+                except Exception as e:
+                    _LOGGER.error(f"❌ Error unpacking lamp auto-off hours: {e}")
+                    hours = 0
+                
+                _LOGGER.info(f"✅ Lamp auto-off hours retrieved: {hours}")
+                return hours
+            else:
+                _LOGGER.warning(f"⚠️ get_lamp_auto_off_hours is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return None
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get lamp auto-off hours: {e}")
+            return None
+
+    async def get_fresh_water(self):
+        """Get fresh water information."""
+        _LOGGER.info(f"💧 Requesting fresh water information (model code: {self.model_code})")
+        try:
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                r = await self.command(SkyCooker.COMMAND_GET_FRESH_WATER)
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to get fresh water - no response received")
+                    return None
+                
+                # Parse fresh water data
+                try:
+                    is_on, unknown1, water_freshness_hours = unpack("<BBB", r[:3])
+                    _LOGGER.debug(f"📦 Parsed fresh water: is_on={is_on}, unknown1={unknown1}, water_freshness_hours={water_freshness_hours}")
+                    
+                    fresh_water = SkyCooker.FreshWaterInfo(
+                        is_on=is_on,
+                        unknown1=unknown1,
+                        water_freshness_hours=water_freshness_hours
+                    )
+                except Exception as e:
+                    _LOGGER.error(f"❌ Error unpacking fresh water: {e}")
+                    # Fallback to default fresh water info
+                    fresh_water = SkyCooker.FreshWaterInfo(
+                        is_on=False,
+                        unknown1=0,
+                        water_freshness_hours=0
+                    )
+                
+                _LOGGER.info(f"✅ Fresh water retrieved: is_on={fresh_water.is_on}, water_freshness_hours={fresh_water.water_freshness_hours}")
+                return fresh_water
+            else:
+                _LOGGER.warning(f"⚠️ get_fresh_water is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return None
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get fresh water: {e}")
+            return SkyCooker.FreshWaterInfo(
+                is_on=False,
+                unknown1=0,
+                water_freshness_hours=0
+            )
+
+    async def get_colors(self, light_type):
+        """Get colors for light type."""
+        _LOGGER.info(f"🌈 Requesting colors for light type {light_type} (model code: {self.model_code})")
+        try:
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+                r = await self.command(SkyCooker.COMMAND_GET_COLORS, [light_type])
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to get colors - no response received")
+                    return None
+                
+                # Parse colors data
+                try:
+                    r_low, g_low, b_low, brightness, r_mid, g_mid, b_mid, temp_low, temp_mid, r_high, g_high, b_high, temp_high = unpack("<BBBBBBBBBBBBB", r[:13])
+                    _LOGGER.debug(f"📦 Parsed colors: r_low={r_low}, g_low={g_low}, b_low={b_low}, brightness={brightness}, r_mid={r_mid}, g_mid={g_mid}, b_mid={b_mid}, temp_low={temp_low}, temp_mid={temp_mid}, r_high={r_high}, g_high={g_high}, b_high={b_high}, temp_high={temp_high}")
+                    
+                    # Create a simple colors object
+                    colors = type('Colors', (), {
+                        'r_low': r_low, 'g_low': g_low, 'b_low': b_low,
+                        'brightness': brightness,
+                        'r_mid': r_mid, 'g_mid': g_mid, 'b_mid': b_mid,
+                        'temp_low': temp_low, 'temp_mid': temp_mid,
+                        'r_high': r_high, 'g_high': g_high, 'b_high': b_high,
+                        'temp_high': temp_high
+                    })()
+                except Exception as e:
+                    _LOGGER.error(f"❌ Error unpacking colors: {e}")
+                    # Fallback to default colors
+                    colors = type('Colors', (), {
+                        'r_low': 0, 'g_low': 0, 'b_low': 0,
+                        'brightness': 0,
+                        'r_mid': 0, 'g_mid': 0, 'b_mid': 0,
+                        'temp_low': 0, 'temp_mid': 0,
+                        'r_high': 0, 'g_high': 0, 'b_high': 0,
+                        'temp_high': 0
+                    })()
+                
+                _LOGGER.info(f"✅ Colors retrieved for light type {light_type}")
+                return colors
+            else:
+                _LOGGER.warning(f"⚠️ get_colors is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return None
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get colors: {e}")
+            return None
+
 
     async def get_wait_hours(self):
         if self.model_code in [SkyCooker.MODELS_5]: # RMC-M40S
