@@ -82,6 +82,7 @@ class CookerConnection:
         
         self._iter = (self._iter + 1) % 256
         _LOGGER.info(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
+        _LOGGER.info(f"📡 Full command packet: 55 {self._iter:02x} {command:02x} [{' '.join([f'{c:02x}' for c in params])}] AA")
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
         self._last_data = None
         
