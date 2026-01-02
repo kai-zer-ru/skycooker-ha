@@ -174,6 +174,7 @@ class SkyCooker():
         pass
 
     async def auth(self, key):
+        """Authenticate with the device using the provided key."""
         _LOGGER.info(f"🔑 Starting authentication with key: {key.hex() if hasattr(key, 'hex') else key}")
         try:
             r = await self.command(SkyCooker.COMMAND_AUTH, key)
@@ -266,6 +267,26 @@ class SkyCooker():
                 for i, cmd in enumerate(commands_to_try):
                     _LOGGER.info(f"🧪 Trying command 0x{cmd:02x} (attempt {i+1}/{len(commands_to_try)})")
                     try:
+                        # For RMC-M4xS series, try authentication first if available
+                        if hasattr(self, 'auth') and callable(getattr(self, 'auth', None)):
+                            _LOGGER.info(f"🔐 Attempting authentication before command 0x{cmd:02x}")
+                            try:
+                                # Try to authenticate with the real key from CookerConnection
+                                # Note: We need to access the key from the CookerConnection instance
+                                # This will be passed through the connection object
+                                auth_key = getattr(self, '_auth_key', None)
+                                if auth_key is None:
+                                    _LOGGER.warning(f"⚠️ No authentication key available, skipping authentication")
+                                else:
+                                    _LOGGER.info(f"🔐 Using authentication key: {auth_key.hex() if hasattr(auth_key, 'hex') else auth_key}")
+                                    auth_result = await self.auth(auth_key)
+                                    if auth_result:
+                                        _LOGGER.info(f"✅ Authentication successful before command 0x{cmd:02x}")
+                                    else:
+                                        _LOGGER.warning(f"⚠️ Authentication failed before command 0x{cmd:02x}, trying anyway...")
+                            except Exception as auth_e:
+                                _LOGGER.warning(f"⚠️ Authentication error before command 0x{cmd:02x}: {auth_e}, trying anyway...")
+                        
                         r = await self.command(cmd)
                         if r is not None:
                             _LOGGER.info(f"✅ Basic connection test successful with command 0x{cmd:02x}, got response: {r.hex() if hasattr(r, 'hex') else r}")

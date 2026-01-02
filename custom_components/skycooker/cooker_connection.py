@@ -73,6 +73,9 @@ class CookerConnection:
         SkyCooker = get_skycooker_class()
         self._skycooker = SkyCooker(model)
         
+        # Pass the authentication key to SkyCooker for test_connection
+        self._skycooker._auth_key = key
+        
         # Log model information for debugging
         _LOGGER.info(f"🔧 CookerConnection initialized for model: {model} (code: {self.model_code})")
 
@@ -232,6 +235,18 @@ class CookerConnection:
                     _LOGGER.debug(f"📡 Starting notifications on RX characteristic...")
                     await self._client.start_notify(CookerConnection.UUID_RX, self._rx_callback)
                     _LOGGER.info(f"✅ Subscribed to RX notifications")
+                    
+                    # Test basic communication with version command
+                    _LOGGER.debug(f"🧪 Testing basic communication with version command...")
+                    try:
+                        version = await asyncio.wait_for(
+                            self._skycooker.get_version(),
+                            timeout=3.0
+                        )
+                        _LOGGER.info(f"✅ Basic communication test successful, version: {version}")
+                    except Exception as e:
+                        _LOGGER.warning(f"⚠️ Basic communication test failed: {e}")
+                        # Don't fail the connection, just log the warning
                     return  # Успешное подключение
                 else:
                     _LOGGER.error(f"❌ Connection failed: client not connected")

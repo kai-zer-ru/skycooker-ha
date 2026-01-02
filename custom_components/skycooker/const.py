@@ -1,7 +1,7 @@
 """Constants for SkyCooker integration."""
 
 # Integration version
-VERSION = "0.0.10"
+VERSION = "0.0.11"
 
 # Model codes
 MODELS_0 = 0x00

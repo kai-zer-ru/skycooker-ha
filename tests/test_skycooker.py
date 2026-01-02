@@ -245,3 +245,24 @@ class TestSkyCooker:
         assert SkyCooker.COMMAND_SET_MAIN_MODE == 0x05
         assert SkyCooker.COMMAND_GET_STATUS == 0x06
         assert SkyCooker.COMMAND_AUTH == 0xFF
+
+    @pytest.mark.asyncio
+    async def test_test_connection_uses_real_key(self):
+        """Тест что test_connection использует реальный ключ для аутентификации."""
+        cooker = SkyCooker("RMC-M40S")
+        real_key = b'\x01\x02\x03\x04\x05\x06\x07\x08'
+        cooker._auth_key = real_key
+        
+        # Мокаем command для имитации успешного ответа
+        cooker.command = AsyncMock(return_value=b'\x01')
+        
+        # Мокаем auth для проверки что он вызывается с реальным ключом
+        cooker.auth = AsyncMock(return_value=True)
+        
+        result = await cooker.test_connection()
+        
+        # Проверяем что test_connection вернул True (успешное соединение)
+        assert result is True
+        
+        # Проверяем что auth был вызван с реальным ключом
+        cooker.auth.assert_called_once_with(real_key)
