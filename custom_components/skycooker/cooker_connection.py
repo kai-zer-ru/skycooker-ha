@@ -21,11 +21,13 @@ class CookerConnection:
     UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
     UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
-    BLE_RECV_TIMEOUT = 1.5
-    MAX_TRIES = 3
-    TRIES_INTERVAL = 0.5
+    BLE_RECV_TIMEOUT = 5.0  # Увеличенный таймаут для Bluetooth
+    MAX_TRIES = 5           # Увеличенное количество попыток
+    TRIES_INTERVAL = 1.0    # Увеличенный интервал между попытками
     STATS_INTERVAL = 15
     TARGET_TTL = 30
+    VERSION_CHECK_TIMEOUT = 3.0  # Таймаут для проверки версии
+    AUTH_TIMEOUT = 4.0      # Таймаут для аутентификации
 
     def __init__(self, mac, key, persistent=True, adapter=None, hass=None, model=None):
         self._device = None
@@ -80,33 +82,61 @@ class CookerConnection:
             _LOGGER.error(f"❌ Failed to send command: {e}")
             raise IOError(f"Failed to send command: {e}")
         
+        # Улучшенная логика ожидания ответа с более гибким таймаутом
         timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
-        while True:
+        response_attempts = 0
+        max_response_attempts = 100  # Максимум 5 секунд при 0.05с интервале
+        
+        while response_attempts < max_response_attempts:
             await asyncio.sleep(0.05)
+            response_attempts += 1
+            
             if self._last_data:
                 r = self._last_data
+                _LOGGER.debug(f"📥 Raw response received: {r.hex() if hasattr(r, 'hex') else r}")
+                
+                # Проверяем длину ответа
+                if len(r) < 4:
+                    _LOGGER.warning(f"⚠️ Response too short: {len(r)} bytes")
+                    self._last_data = None
+                    continue
+                
+                # Проверяем магические байты
                 if r[0] != 0x55 or r[-1] != 0xAA:
                     _LOGGER.error(f"❌ Invalid response magic: {r.hex() if hasattr(r, 'hex') else r}")
                     raise IOError("Invalid response magic")
+                
+                # Проверяем итерацию
                 if r[1] == self._iter:
-                    break
+                    # Проверяем команду
+                    if r[2] != command:
+                        _LOGGER.error(f"❌ Invalid response command: expected {command:02x}, got {r[2]:02x}")
+                        raise IOError("Invalid response command")
+                    
+                    clean = bytes(r[3:-1])
+                    _LOGGER.debug(f"✅ Command {command:02x} completed successfully")
+                    _LOGGER.debug(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
+                    return clean
                 else:
-                    _LOGGER.debug(f"🔄 Response iteration mismatch, waiting for correct response")
+                    _LOGGER.debug(f"🔄 Response iteration mismatch (expected {self._iter}, got {r[1]}), waiting for correct response")
                     self._last_data = None
+            
             if monotonic() >= timeout_time:
                 _LOGGER.error(f"❌ Command timeout after {CookerConnection.BLE_RECV_TIMEOUT}s")
                 raise IOError("Receive timeout")
         
-        if r[2] != command:
-            _LOGGER.error(f"❌ Invalid response command: expected {command:02x}, got {r[2]:02x}")
-            raise IOError("Invalid response command")
-        
-        clean = bytes(r[3:-1])
-        _LOGGER.debug(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
-        return clean
+        _LOGGER.error(f"❌ Command {command:02x} failed: no valid response received")
+        raise IOError("No valid response received")
 
     def _rx_callback(self, sender, data):
         self._last_data = data
+
+    def _on_disconnect(self, client):
+        """Callback when device disconnects."""
+        _LOGGER.warning(f"⚠️ Device {self._mac} disconnected unexpectedly")
+        self._auth_ok = False
+        self._client = None
+        self._device = None
 
     async def connect(self):
         """Public method to connect to the cooker."""
@@ -131,7 +161,7 @@ class CookerConnection:
         device_name = self._device.name or "Unknown Device"
         _LOGGER.info(f"✅ Device found: {device_name} ({self._mac})")
         
-        # Добавляем дополнительные попытки подключения
+        # Добавляем дополнительные попытки подключения с улучшенной логикой
         max_retries = 5
         retry_delay = 2.0
         
@@ -150,12 +180,15 @@ class CookerConnection:
                 device_name = self._device.name or "Unknown Device"
                 _LOGGER.debug(f"📡 Establishing connection with {device_name}...")
                 
+                # Улучшенные параметры подключения
                 self._client = await establish_connection(
                     BleakClientWithServiceCache,
                     self._device,
                     device_name,
                     max_attempts=3,
-                    ble_device_timeout=30.0  # Увеличиваем таймаут
+                    ble_device_timeout=30.0,  # Увеличиваем таймаут
+                    use_services_cache=True,  # Используем кэш сервисов для ускорения
+                    disconnected_callback=self._on_disconnect  # Колбэк на отключение
                 )
                 
                 if self._client and self._client.is_connected:
@@ -193,6 +226,9 @@ class CookerConnection:
                 else:
                     _LOGGER.error(f"❌ Failed to connect to cooker {self._mac} after {max_retries} attempts: {e}")
                     _LOGGER.error("This device may be out of range or have connection issues")
+                    _LOGGER.error("💡 Troubleshooting tips:")
+                    for tip in self.get_troubleshooting_tips():
+                        _LOGGER.error(f"  {tip}")
                     raise
 
     @property
@@ -482,36 +518,236 @@ class CookerConnection:
                 await self.disconnect()
                 self._last_connect_ok = False
                 raise ex
+
+    async def diagnose_connection(self):
+        """Enhanced connection diagnosis for troubleshooting."""
+        _LOGGER.info(f"🔍 Starting connection diagnosis for {self._mac}...")
+        
+        try:
+            # Check if device is discoverable
+            _LOGGER.debug(f"📍 Checking device discovery...")
+            self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
+            if self._device is None:
+                _LOGGER.error(f"❌ Device not found in Bluetooth cache for MAC: {self._mac}")
+                _LOGGER.error("💡 Troubleshooting tips:")
+                for tip in self.get_troubleshooting_tips():
+                    _LOGGER.error(f"  {tip}")
+                return False
+            
+            device_name = self._device.name or "Unknown Device"
+            _LOGGER.info(f"✅ Device found: {device_name} (MAC: {self._mac})")
+            
+            # Check if we can establish connection
+            _LOGGER.debug(f"📡 Testing connection establishment...")
+            try:
+                self._client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    self._device,
+                    device_name,
+                    max_attempts=2,
+                    ble_device_timeout=10.0
+                )
+                
+                if self._client and self._client.is_connected:
+                    _LOGGER.info(f"✅ Connection test successful for {device_name}")
+                    
+                    # Test basic communication
+                    _LOGGER.debug(f"📡 Testing basic communication...")
+                    try:
+                        version = await asyncio.wait_for(
+                            self._skycooker.get_version(),
+                            timeout=3.0
+                        )
+                        _LOGGER.info(f"✅ Communication test successful for {device_name}, version: {version}")
+                        return True
+                    except Exception as e:
+                        _LOGGER.error(f"❌ Communication test failed for {device_name}: {e}")
+                        _LOGGER.error("💡 Troubleshooting tips:")
+                        for tip in self.get_troubleshooting_tips():
+                            _LOGGER.error(f"  {tip}")
+                        return False
+                    finally:
+                        await self._client.disconnect()
+                else:
+                    _LOGGER.error(f"❌ Connection establishment failed for {device_name}")
+                    _LOGGER.error("💡 Troubleshooting tips:")
+                    for tip in self.get_troubleshooting_tips():
+                        _LOGGER.error(f"  {tip}")
+                    return False
+                    
+            except Exception as e:
+                _LOGGER.error(f"❌ Connection test failed for {device_name}: {e}")
+                _LOGGER.error("💡 Troubleshooting tips:")
+                for tip in self.get_troubleshooting_tips():
+                    _LOGGER.error(f"  {tip}")
+                return False
+                
+        except Exception as e:
+            _LOGGER.error(f"❌ Diagnosis failed for {self._mac}: {e}")
+            _LOGGER.error("💡 Troubleshooting tips:")
+            for tip in self.get_troubleshooting_tips():
+                _LOGGER.error(f"  {tip}")
+            return False
+
+    async def check_device_status(self):
+        """Check device status and provide detailed diagnostics."""
+        _LOGGER.info(f"🔍 Checking device status for {self._mac}...")
+        
+        status = {
+            "device_found": False,
+            "connection_possible": False,
+            "authentication_possible": False,
+            "version_accessible": False,
+            "device_name": None,
+            "error_details": []
+        }
+        
+        try:
+            # Step 1: Check device discovery
+            _LOGGER.debug(f"📍 Step 1: Checking device discovery...")
+            self._device = bluetooth.async_ble_device_from_address(self.hass, self._mac)
+            if self._device is None:
+                status["error_details"].append("Device not found in Bluetooth cache")
+                _LOGGER.error(f"❌ Device not found in Bluetooth cache for MAC: {self._mac}")
+                return status
+            
+            device_name = self._device.name or "Unknown Device"
+            status["device_found"] = True
+            status["device_name"] = device_name
+            _LOGGER.info(f"✅ Device found: {device_name} (MAC: {self._mac})")
+            
+            # Step 2: Check connection possibility
+            _LOGGER.debug(f"📡 Step 2: Testing connection establishment...")
+            try:
+                self._client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    self._device,
+                    device_name,
+                    max_attempts=2,
+                    ble_device_timeout=10.0
+                )
+                
+                if self._client and self._client.is_connected:
+                    status["connection_possible"] = True
+                    _LOGGER.info(f"✅ Connection test successful for {device_name}")
+                    
+                    # Step 3: Test authentication
+                    _LOGGER.debug(f"🔐 Step 3: Testing authentication...")
+                    try:
+                        auth_result = await self.auth()
+                        status["authentication_possible"] = auth_result
+                        if auth_result:
+                            _LOGGER.info(f"✅ Authentication test successful for {device_name}")
+                            
+                            # Step 4: Test version access
+                            _LOGGER.debug(f"📋 Step 4: Testing version access...")
+                            try:
+                                version = await asyncio.wait_for(
+                                    self._skycooker.get_version(),
+                                    timeout=3.0
+                                )
+                                status["version_accessible"] = True
+                                _LOGGER.info(f"✅ Version access test successful for {device_name}, version: {version}")
+                            except Exception as e:
+                                status["error_details"].append(f"Version access failed: {e}")
+                                _LOGGER.error(f"❌ Version access test failed for {device_name}: {e}")
+                        else:
+                            status["error_details"].append("Authentication failed")
+                            _LOGGER.error(f"❌ Authentication test failed for {device_name}")
+                    except Exception as e:
+                        status["error_details"].append(f"Authentication test failed: {e}")
+                        _LOGGER.error(f"❌ Authentication test failed for {device_name}: {e}")
+                    finally:
+                        await self._client.disconnect()
+                else:
+                    status["error_details"].append("Connection establishment failed")
+                    _LOGGER.error(f"❌ Connection establishment failed for {device_name}")
+                    
+            except Exception as e:
+                status["error_details"].append(f"Connection test failed: {e}")
+                _LOGGER.error(f"❌ Connection test failed for {device_name}: {e}")
+                
+        except Exception as e:
+            status["error_details"].append(f"Diagnosis failed: {e}")
+            _LOGGER.error(f"❌ Diagnosis failed for {self._mac}: {e}")
+        
+        # Log final status
+        _LOGGER.info(f"📊 Device status for {self._mac}:")
+        _LOGGER.info(f"  Device found: {status['device_found']}")
+        _LOGGER.info(f"  Connection possible: {status['connection_possible']}")
+        _LOGGER.info(f"  Authentication possible: {status['authentication_possible']}")
+        _LOGGER.info(f"  Version accessible: {status['version_accessible']}")
+        if status["error_details"]:
+            _LOGGER.info(f"  Errors: {', '.join(status['error_details'])}")
+        
+        return status
         
         if not self._auth_ok:
             try:
                 _LOGGER.info(f"🔑 Performing authentication...")
-                # Verify device is in pairing mode by requesting firmware version
-                try:
-                    await asyncio.wait_for(
-                        self._skycooker.get_version(),
-                        timeout=2.0,
-                    )
-                except (asyncio.TimeoutError, Exception) as exc:
-                    _LOGGER.error(
-                        f"❌ Device did not respond to version request – "
-                        f"ensure it is in Bluetooth pairing mode: {exc}"
-                    )
-                    raise AuthError(
-                        "Device not responding – please put the cooker into "
-                        "pairing mode (blinking indicator) and retry."
-                    )
-                # End new block
+                
+                # Step 1: Verify device is in pairing mode by requesting firmware version
+                version_attempts = 3
+                version_success = False
+                
+                for attempt in range(version_attempts):
+                    try:
+                        _LOGGER.debug(f"📋 Requesting device version (attempt {attempt + 1}/{version_attempts})...")
+                        version = await asyncio.wait_for(
+                            self._skycooker.get_version(),
+                            timeout=CookerConnection.VERSION_CHECK_TIMEOUT,
+                        )
+                        _LOGGER.info(f"✅ Device version received: {version}")
+                        version_success = True
+                        break
+                        
+                    except asyncio.TimeoutError:
+                        _LOGGER.warning(f"⚠️ Version request timeout (attempt {attempt + 1}/{version_attempts})")
+                        if attempt < version_attempts - 1:
+                            _LOGGER.info(f"⏳ Waiting 2 seconds before retry...")
+                            await asyncio.sleep(2.0)
+                        else:
+                            _LOGGER.error(
+                                f"❌ Device did not respond to version request after {version_attempts} attempts. "
+                                f"Ensure it is in Bluetooth pairing mode (blinking indicator)."
+                            )
+                            _LOGGER.error("💡 Troubleshooting tips:")
+                            for tip in self.get_troubleshooting_tips():
+                                _LOGGER.error(f"  {tip}")
+                            raise AuthError(
+                                "Device not responding – please put the cooker into "
+                                "pairing mode (blinking indicator) and retry."
+                            )
+                    except Exception as exc:
+                        _LOGGER.error(f"❌ Version request failed: {exc}")
+                        if attempt < version_attempts - 1:
+                            await asyncio.sleep(2.0)
+                        else:
+                            _LOGGER.error("💡 Troubleshooting tips:")
+                            for tip in self.get_troubleshooting_tips():
+                                _LOGGER.error(f"  {tip}")
+                            raise AuthError(f"Version check failed: {exc}")
+                
+                if not version_success:
+                    raise AuthError("Could not verify device version")
+                
+                # Step 2: Perform authentication
+                _LOGGER.info(f"🔐 Attempting device authentication...")
                 self._last_auth_ok = self._auth_ok = await self.auth()
                 if not self._auth_ok:
                     _LOGGER.error(f"❌ Authentication failed. You need to enable pairing mode on the cooker.")
+                    _LOGGER.error("💡 Troubleshooting tips:")
+                    for tip in self.get_troubleshooting_tips():
+                        _LOGGER.error(f"  {tip}")
                     raise AuthError("Auth failed")
                 _LOGGER.info(f"✅ Authentication successful")
                 
+                # Step 3: Get device version for logging
                 _LOGGER.info(f"📋 Getting device version...")
                 self._sw_version = await self.get_version()
                 _LOGGER.info(f"📋 Device version: {self._sw_version}")
                 
+                # Step 4: Synchronize device time
                 _LOGGER.info(f"⏰ Synchronizing device time...")
                 await self.sync_time()
                 _LOGGER.info(f"✅ Authentication and setup completed successfully")
@@ -927,6 +1163,22 @@ class CookerConnection:
     
     async def set_lamp_auto_off_hours(self, hours):
         return await self._skycooker.set_lamp_auto_off_hours(hours)
+
+    def get_troubleshooting_tips(self):
+        """Get troubleshooting tips based on common issues."""
+        tips = []
+        
+        # Check if device is in range
+        tips.append("📍 **Device Range**: Ensure the cooker is within 3-5 meters of your HomeAssistant server")
+        tips.append("📍 **Power**: Make sure the cooker is powered on and the indicator is lit")
+        tips.append("📍 **Pairing Mode**: Put the cooker into Bluetooth pairing mode (blinking indicator)")
+        tips.append("📍 **Bluetooth Adapter**: Verify your Bluetooth adapter is working properly")
+        tips.append("📍 **Interference**: Reduce interference from other Bluetooth/WiFi devices")
+        tips.append("📍 **Restart**: Try restarting both the cooker and HomeAssistant")
+        tips.append("📍 **Proximity**: Move closer to the cooker during initial setup")
+        tips.append("📍 **ESPHome Proxy**: Consider using ESPHome Bluetooth proxy for better reliability")
+        
+        return tips
 
 
 class AuthError(Exception):

@@ -191,10 +191,19 @@ class SkyCooker():
             if r is None:
                 _LOGGER.error(f"❌ Failed to get version - no response received")
                 raise SkyCookerError("Failed to get version - no response")
-            major, minor = unpack("BB", r)
+            
+            # Проверяем длину ответа
+            if len(r) < 2:
+                _LOGGER.error(f"❌ Invalid version response length: {len(r)} bytes")
+                raise SkyCookerError(f"Invalid version response length: {len(r)} bytes")
+            
+            major, minor = unpack("BB", r[:2])
             ver = f"{major}.{minor}"
             _LOGGER.info(f"✅ Device version: {ver}")
             return (major, minor)
+        except asyncio.TimeoutError:
+            _LOGGER.error(f"❌ Version request timeout")
+            raise SkyCookerError("Version request timeout")
         except Exception as e:
             _LOGGER.error(f"❌ Failed to get version: {e}")
             raise
