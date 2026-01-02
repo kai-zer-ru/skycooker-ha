@@ -1222,8 +1222,8 @@ class CookerConnection:
             
             _LOGGER.debug(f"📡 Raw status response: {r.hex() if hasattr(r, 'hex') else r}")
             
-            # Currently only RMC-M40S (MODELS_5) is supported
-            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+            # Currently RMC-M40S and RMC-M22xS series (MODELS_5 and MODELS_7) are supported
+            if self.model_code in [SkyCooker.MODELS_5, SkyCooker.MODELS_7]:  # RMC-M40S and RMC-M22xS
                 # For RMC-M40S, try to unpack detailed status
                 try:
                     # Multicooker status format: mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes
@@ -1540,8 +1540,8 @@ class CookerConnection:
         try:
             _LOGGER.debug(f"⚙️ Setting main mode: mode={mode}, target_temp={target_temp}, boil_time={boil_time}")
             
-            # Currently only RMC-M40S (MODELS_5) is supported
-            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
+            # Currently RMC-M40S and RMC-M22xS series (MODELS_5 and MODELS_7) are supported
+            if self.model_code in [SkyCooker.MODELS_5, SkyCooker.MODELS_7]:  # RMC-M40S and RMC-M22xS
                 # Pack data for RMC-M40S
                 data = pack("BxBxxxxxxxxxxBxx", int(mode), int(target_temp), int(0x80 + boil_time))
                 _LOGGER.debug(f"📦 Packed data for RMC-M40S: {data.hex()}")

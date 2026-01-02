@@ -24,19 +24,20 @@ class SkyCooker():
     MODEL_TYPE = {
         "RMC-M40S": MODELS_5,  # Primary supported model
         "RMC-M42S": MODELS_5,  # Also use MODELS_5 for RMC-M42S based on user feedback
-        # Other models commented out for now
-        # "RMC-M92S": MODELS_6, "RMC-M92S-A": MODELS_6, "RMC-M92S-C": MODELS_6, "RMC-M92S-E": MODELS_6,
-        # "RMC-M222S": MODELS_7, "RMC-M222S-A": MODELS_7,
-        # "RMC-M223S": MODELS_7,"RMC-M223S-E": MODELS_7,
-        # "RMC-M224S": MODELS_7,"RFS-KMC001": MODELS_7,
-        # "RMC-M225S": MODELS_7,"RMC-M225S-E": MODELS_7,
-        # "RMC-M226S": MODELS_7,"RMC-M226S-E": MODELS_7,"JK-MC501": MODELS_7,"NK-MC10": MODELS_7,
-        # "RMC-M227S": MODELS_7,
-        # "RMC-M800S": MODELS_0,
-        # "RMC-M903S": MODELS_5, "RFS-KMC005": MODELS_5,
-        # "RMC-961S": MODELS_4,
-        # "RMC-CBD100S": MODELS_1,
-        # "RMC-CBF390S": MODELS_2,
+        # RMC-M22xS series (based on ha_kettler and hassio-r4s)
+        "RMC-M222S": MODELS_7, "RMC-M222S-A": MODELS_7,
+        "RMC-M223S": MODELS_7,"RMC-M223S-E": MODELS_7,
+        "RMC-M224S": MODELS_7,"RFS-KMC001": MODELS_7,
+        "RMC-M225S": MODELS_7,"RMC-M225S-E": MODELS_7,
+        "RMC-M226S": MODELS_7,"RMC-M226S-E": MODELS_7,"JK-MC501": MODELS_7,"NK-MC10": MODELS_7,
+        "RMC-M227S": MODELS_7,
+        # Other models
+        "RMC-M800S": MODELS_0,
+        "RMC-M903S": MODELS_5, "RFS-KMC005": MODELS_5,
+        "RMC-961S": MODELS_4,
+        "RMC-CBD100S": MODELS_1,
+        "RMC-CBF390S": MODELS_2,
+        "RMC-M92S": MODELS_6, "RMC-M92S-A": MODELS_6, "RMC-M92S-C": MODELS_6, "RMC-M92S-E": MODELS_6,
     }
 
     # Basic modes (for kettles)
@@ -217,11 +218,11 @@ class SkyCooker():
         try:
             _LOGGER.info(f"🧪 About to call command method with command 0x{SkyCooker.COMMAND_GET_VERSION:02x}")
             
-            # For RMC-M40S, try multiple commands to find the correct one
-            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
-                _LOGGER.info(f"🧪 RMC-M40S detected, trying multiple commands...")
+            # For RMC-M40S and RMC-M22xS, try multiple commands to find the correct one
+            if self.model_code in [SkyCooker.MODELS_5, SkyCooker.MODELS_7]:  # RMC-M40S and RMC-M22xS
+                _LOGGER.info(f"🧪 RMC-M4xS or RMC-M22xS detected (code: {self.model_code}), trying multiple commands...")
                 
-                # Try different commands that might work for RMC-M40S
+                # Try different commands that might work for RMC-M4xS series
                 commands_to_try = [
                     SkyCooker.COMMAND_GET_VERSION,  # 0x01 - standard version command
                     0x06,  # Alternative status command
@@ -245,12 +246,13 @@ class SkyCooker():
                     except Exception as e:
                         _LOGGER.debug(f"⚠️ Command 0x{cmd:02x} failed: {e}")
                 
-                _LOGGER.error(f"❌ All commands failed for RMC-M40S")
+                _LOGGER.error(f"❌ All commands failed for RMC-M4xS/M22xS series (code: {self.model_code})")
                 _LOGGER.error(f"💡 Troubleshooting tips:")
                 _LOGGER.error(f"  1. Ensure device is in Bluetooth pairing mode (blinking indicator)")
                 _LOGGER.error(f"  2. Check distance - device should be within 3-5 meters")
                 _LOGGER.error(f"  3. Try restarting the device and HomeAssistant")
                 _LOGGER.error(f"  4. Consider using ESPHome Bluetooth proxy for better stability")
+                _LOGGER.error(f"  5. For RMC-M4xS series, ensure proper authentication key")
                 return False
             else:
                 # For other models, use standard version command
@@ -346,9 +348,11 @@ class SkyCooker():
     async def get_status(self):
         _LOGGER.info(f"📊 Requesting device status (model code: {self.model_code})")
         try:
-            # For RMC-M40S, use specific protocol based on ESPHome-Ready4Sky
-            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
-                # Try multiple commands to find the correct one for RMC-M40S
+            # For RMC-M40S and RMC-M22xS, use specific protocol based on ESPHome-Ready4Sky
+            if self.model_code in [SkyCooker.MODELS_5, SkyCooker.MODELS_7]:  # RMC-M40S and RMC-M22xS
+                _LOGGER.info(f"📡 RMC-M4xS or RMC-M22xS detected (code: {self.model_code}), trying multiple commands...")
+                
+                # Try multiple commands to find the correct one for RMC-M4xS series
                 commands_to_try = [
                     SkyCooker.COMMAND_GET_STATUS,  # 0x06 - original
                     0x01,  # Alternative command 1 - version command
@@ -360,7 +364,7 @@ class SkyCooker():
                 ]
                 
                 for cmd in commands_to_try:
-                    _LOGGER.info(f"📡 Trying command 0x{cmd:02x} for RMC-M40S status")
+                    _LOGGER.info(f"📡 Trying command 0x{cmd:02x} for RMC-M4xS/M22xS status (attempt {cmd})")
                     try:
                         r = await self.command(cmd)
                         if r is not None and len(r) > 0:
@@ -374,7 +378,7 @@ class SkyCooker():
                     except Exception as e:
                         _LOGGER.debug(f"⚠️ Command 0x{cmd:02x} failed: {e}")
                 
-                _LOGGER.error(f"❌ No valid response from any status command")
+                _LOGGER.error(f"❌ No valid response from any status command for RMC-M4xS/M22xS (code: {self.model_code})")
                 return SkyCooker.Status(
                     mode=0,
                     is_on=False,
@@ -389,7 +393,7 @@ class SkyCooker():
                 )
             else:
                 _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
-                _LOGGER.warning(f"⚠️ Only RMC-M40S (MODELS_5) is currently supported")
+                _LOGGER.warning(f"⚠️ Only RMC-M4xS and RMC-M22xS series are currently supported")
                 return None
             
         except Exception as e:
