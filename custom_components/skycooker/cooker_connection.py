@@ -54,6 +54,8 @@ class CookerConnection:
         self._last_connect_ok = False
         self._last_auth_ok = False
         self._successes = []
+        self._consecutive_failures = 0
+        self._max_consecutive_failures = 5
         self._target_state = None
         self._target_boil_time = None
         self._status = None
@@ -889,6 +891,8 @@ class CookerConnection:
                     _LOGGER.debug(f"📡 Keeping connection alive (persistent={self.persistent}, mode={self.target_mode})")
                 
                 self.add_stat(True)
+                # Сброс счетчика неудач при успешном обновлении
+                self._consecutive_failures = 0
                 return True
 
         except Exception as ex:
@@ -898,6 +902,18 @@ class CookerConnection:
                 self._target_state = None
             if type(ex) == AuthError: return
             self.add_stat(False)
+            
+            # Увеличиваем счетчик последовательных неудач
+            self._consecutive_failures += 1
+            _LOGGER.warning(f"Consecutive failures: {self._consecutive_failures}/{self._max_consecutive_failures}")
+            
+            if self._consecutive_failures >= self._max_consecutive_failures:
+                _LOGGER.error(f"❌ Too many consecutive failures ({self._consecutive_failures}). Disabling integration to prevent log spam.")
+                _LOGGER.error(f"💡 Please check device connectivity and restart HomeAssistant to re-enable.")
+                # Останавливаем соединение и помечаем как disposed
+                await self.stop()
+                return False
+            
             if tries > 1 and extra_action == None:
                 _LOGGER.debug(f"{type(ex).__name__}: {str(ex)}, retry #{CookerConnection.MAX_TRIES - tries + 1}")
                 await asyncio.sleep(CookerConnection.TRIES_INTERVAL)
