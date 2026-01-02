@@ -23,15 +23,6 @@
           "address": "Устройство"
         }
       },
-      "configure": {
-        "title": "Настройка {device_name}",
-        "description": "Настройте параметры для {device_name} ({device_address})",
-        "data": {
-          "friendly_name": "Имя устройства",
-          "auth_key": "Ключ авторизации",
-          "persistent": "Поддерживать постоянное соединение"
-        }
-      },
       "connect": {
         "title": "Подключение к устройству",
         "description": "Происходит подключение к устройству {mac} ({model}). Пожалуйста, подождите..."

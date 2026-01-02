@@ -23,15 +23,6 @@
           "address": "Device"
         }
       },
-      "configure": {
-        "title": "Configure {device_name}",
-        "description": "Configure settings for {device_name} ({device_address})",
-        "data": {
-          "friendly_name": "Device Name",
-          "auth_key": "Authorization Key",
-          "persistent": "Keep Connection Active"
-        }
-      },
       "connect": {
         "title": "Connecting to device",
         "description": "Connecting to device {mac} ({model}). Please wait..."

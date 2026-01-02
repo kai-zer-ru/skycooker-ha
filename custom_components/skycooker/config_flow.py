@@ -93,15 +93,17 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             device_address = list(devices.keys())[0]
             device_info = devices[device_address]
             _LOGGER.info(f"Auto-selected device: {device_address}")
-            return await self.async_step_configure(
-                {
-                    CONF_ADDRESS: device_address,
-                    "name": device_info.name,
-                    "address": device_info.address,
-                    "rssi": device_info.rssi,
-                    CONF_FRIENDLY_NAME: f"SkyCooker {device_address[-5:]}"
-                }
-            )
+            
+            # Автоматически заполняем все данные
+            config_data = {
+                CONF_ADDRESS: device_address,
+                CONF_FRIENDLY_NAME: f"SkyCooker {device_address[-5:]}",  # Автоматическое имя
+                CONF_AUTH_KEY: DEFAULT_AUTH_KEY,  # Автоматический ключ
+                CONF_PERSISTENT_CONNECTION: DEFAULT_PERSISTENT_CONNECTION,  # Автоматическая настройка
+                CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
+            }
+            
+            return await self.async_step_options(config_data)
 
         # Несколько устройств - предлагаем выбор
         device_options = {
@@ -113,15 +115,17 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.selected_device = user_input[CONF_ADDRESS]
             device_info = devices[self.selected_device]
             _LOGGER.info(f"User selected device: {self.selected_device}")
-            return await self.async_step_configure(
-                {
-                    CONF_ADDRESS: self.selected_device,
-                    "name": device_info.name,
-                    "address": device_info.address,
-                    "rssi": device_info.rssi,
-                    CONF_FRIENDLY_NAME: f"SkyCooker {self.selected_device[-5:]}"
-                }
-            )
+            
+            # Автоматически заполняем все данные
+            config_data = {
+                CONF_ADDRESS: self.selected_device,
+                CONF_FRIENDLY_NAME: f"SkyCooker {self.selected_device[-5:]}",  # Автоматическое имя
+                CONF_AUTH_KEY: DEFAULT_AUTH_KEY,  # Автоматический ключ
+                CONF_PERSISTENT_CONNECTION: DEFAULT_PERSISTENT_CONNECTION,  # Автоматическая настройка
+                CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
+            }
+            
+            return await self.async_step_options(config_data)
 
         # Показываем форму выбора устройства
         schema = vol.Schema({
@@ -146,50 +150,10 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_configure(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle configuration step with pre-filled data."""
-        _LOGGER.debug("Configure step with device: %s", user_input.get(CONF_ADDRESS))
-        
-        self.device_info = user_input
-        device_name = user_input.get("name", "SkyCooker")
-        device_address = user_input[CONF_ADDRESS]
-        
-        if user_input is not None:
-            # Сохраняем данные и переходим к опциям
-            # (проверка соединения будет в options шаге)
-            config_data = {
-                CONF_ADDRESS: device_address,
-                CONF_FRIENDLY_NAME: user_input[CONF_FRIENDLY_NAME],
-                CONF_AUTH_KEY: user_input[CONF_AUTH_KEY],
-                CONF_PERSISTENT_CONNECTION: user_input[CONF_PERSISTENT_CONNECTION],
-                CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
-            }
-            
-            return await self.async_step_options(config_data)
-
-        # Создаем схему с предустановленными значениями
-        schema = vol.Schema({
-            vol.Required(
-                CONF_FRIENDLY_NAME,
-                default=f"SkyCooker {device_address[-5:]}"
-            ): str,
-            vol.Required(
-                CONF_AUTH_KEY,
-                default=DEFAULT_AUTH_KEY
-            ): str,
-            vol.Required(
-                CONF_PERSISTENT_CONNECTION,
-                default=DEFAULT_PERSISTENT_CONNECTION
-            ): bool,
-        })
-
-        return self.async_show_form(
-            step_id="configure",
-            data_schema=schema,
-            description_placeholders={
-                "device_name": device_name,
-                "device_address": device_address
-            }
-        )
+        """Handle configuration step - should not be called in new logic."""
+        # Этот шаг больше не нужен, так как все данные заполняются автоматически
+        _LOGGER.warning("Configure step called but should not be used in new logic")
+        return await self.async_step_options(user_input)
 
     async def async_step_options(
         self, user_input: dict[str, Any] | None = None
