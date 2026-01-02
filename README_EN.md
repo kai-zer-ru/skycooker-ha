@@ -1,168 +1,111 @@
-# SkyCooker Integration for HomeAssistant
+# SkyCooker Integration for Home Assistant
 
-Integration for managing Redmond SkyCooker devices via Bluetooth in HomeAssistant.
+Integration for managing Redmond RMC series multicookers via Bluetooth.
 
-## Inspiration
+## Supported Models
 
-This project is inspired by the [SkyKettle](https://github.com/ClusterM/skykettle-ha) integration for managing Redmond kettles. SkyCooker extends the functionality to support multicookers and other Redmond devices.
+- **RMC-M40S** (primary support)
+- **RMC-M42S** (experimental support)
 
-## Supported Devices
+## Requirements
 
-### Multicookers
-- **RMC-M40S** - Primary supported model (fully tested and optimized)
-- **RMC-M42S** - Supported (uses same protocol as RMC-M40S)
-
-**Note:** Other models are planned for future support. Currently RMC-M4xS series is supported.
-
-## Features
-
-### For Multicookers (RMC-M40S/RMC-M42S)
-- Program management (16 cooking programs)
-- Temperature control (35°C - 90°C)
-- Timer control (hours and minutes)
-- Real-time status monitoring
-- Start/stop cooking
-- Current temperature monitoring
-- Device authentication and pairing
-- RMC-M4xS variant support (automatic recognition)
-
-### Supported Cooking Programs
-- Standby (Ожидание)
-- Multi-chef (Мультиповар)
-- Rice/Cereals (Рис/Крупы)
-- Languor (Томление)
-- Pilaf (Плов)
-- Frying (Жарка)
-- Stewing (Тушение)
-- Pasta (Макароны)
-- Baking (Выпечка)
-- Steaming (На пару)
-- Yogurt (Йогурт)
-- Dough (Тесто)
-- Keep Warm (Поддержание тепла)
-- Yogurt 2 (Йогурт 2)
-- Baking 2 (Выпечка 2)
-- Steaming 2 (На пару 2)
-- Stewing 2 (Тушение 2)
-- Frying 2 (Жарка 2)
-- Pilaf 2 (Плов 2)
-- Languor 2 (Томление 2)
-- Rice/Cereals 2 (Рис/Крупы 2)
-- Multi-chef 2 (Мультиповар 2)
+- Home Assistant 2025.12.5+
+- Bluetooth adapter
+- Redmond RMC-M40S multicooker in Bluetooth pairing mode
 
 ## Installation
 
-### Method 1: Manual Installation
-1. Copy the `custom_components/skycooker` folder to your HomeAssistant `custom_components` directory
-2. Restart HomeAssistant
-3. Add integration via UI: Settings → Integrations → Add Integration → SkyCooker
-
-### Method 2: HACS Installation (Recommended)
-1. Open HACS in HomeAssistant
-2. Go to Integrations
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add repository URL: `https://github.com/your-repo/skycooker-ha`
-6. Set Category to "Integration"
-7. Click "Add"
-8. Install the SkyCooker integration from HACS
-9. Restart HomeAssistant
-10. Add integration via UI: Settings → Integrations → Add Integration → SkyCooker
+1. Download integration to `custom_components/skycooker` folder
+2. Restart Home Assistant
+3. Go to Settings → Integrations → Add Integration
+4. Select "SkyCooker"
+5. Enter device MAC address and password
 
 ## Configuration
 
-### Required Settings
-- **Device MAC Address** - Bluetooth address of your RMC-M40S/RMC-M42S (format: AA:BB:CC:DD:EE:FF)
-- **Authorization Key** - Usually "000000" (default pairing code)
+### Device MAC Address
+Find your multicooker MAC address in your device Bluetooth settings.
 
-### Device Preparation
-1. Power on your RMC-M40S/RMC-M42S
-2. Ensure it's in pairing mode (bluetooth indicator blinking)
-3. Keep the device within Bluetooth range (3-5 meters recommended)
+### Password
+Password should be in HEX format, 8 bytes length. You can:
+- Use generator: https://crypt-online.ru/crypts/text2hex/
+- Or try standard passwords: `0000000000000000`, `1111111111111111`
 
-## Debug Logging
+### Pairing Mode
+1. Turn on multicooker
+2. Hold pairing button until indicator starts blinking
+3. Start integration adding process in Home Assistant
 
-To enable detailed debug logging for troubleshooting:
+## Features
 
-### Via Configuration.yaml
-Add to your `configuration.yaml`:
+- Turn on/off multicooker
+- Control cooking modes
+- Set temperature
+- Cooking time control
+- Status monitoring
+- Usage statistics
+
+## Cooking Modes
+
+- Standby
+- Multi-chef
+- Rice/Cereals
+- Languor
+- Pilaf
+- Frying
+- Stewing
+- Pasta
+- Baking
+- Steaming
+- Yogurt
+- Dough
+- Keep Warm
+
+## Troubleshooting
+
+### Problem: "Basic connection test failed"
+**Solution:**
+1. Ensure multicooker is in Bluetooth pairing mode
+2. Check distance (no more than 3-5 meters)
+3. Restart multicooker and Home Assistant
+4. Consider using ESPHome Bluetooth proxy for better stability
+
+### Problem: "Device not found"
+**Solution:**
+1. Check if Bluetooth is enabled on Home Assistant server
+2. Ensure multicooker is powered and in pairing mode
+3. Verify MAC address for typos
+
+### Problem: "Authentication failed"
+**Solution:**
+1. Ensure multicooker is in pairing mode
+2. Check password correctness
+3. Try restarting multicooker
+
+## Logging
+
+Enable debug logging for troubleshooting in `configuration.yaml`:
+
 ```yaml
 logger:
   default: info
   logs:
     custom_components.skycooker: debug
-    homeassistant.components.bluetooth: debug
 ```
 
-### Via UI (HomeAssistant 2021.6+)
-1. Go to Settings → System → Logs
-2. Click "Load Full Home Assistant Log"
-3. Click "Add Filter"
-4. Add filter for `custom_components.skycooker` with level `DEBUG`
-5. Click "Start Logging"
+## Support
 
-### What Debug Logs Show
-- Device connection attempts and status
-- Bluetooth communication details
-- Command sending and responses
-- Authentication process
-- Status updates and parsing
-- Error details and troubleshooting information
-- **New features:**
-  - Raw device responses for protocol analysis
-  - Detailed byte parsing of status data
-  - Command status information (0x06)
-  - RMC-M40S protocol details
-
-## Troubleshooting
-
-### Common Issues
-1. **Device not found**: Ensure Bluetooth is enabled and device is in pairing mode
-2. **Authentication failed**: Check pairing mode and try default key "000000"
-3. **Connection timeout**: Move closer to device, check Bluetooth interference
-4. **Commands not working**: Verify device is powered and connected
-
-### New Diagnostic Features
-- **Detailed command logging**: All commands and responses are now logged for analysis
-- **Raw response data**: Raw hex data of responses can be seen in logs for manual analysis
-- **Detailed status parsing**: Step-by-step breakdown of each status response byte
-- **RMC-M40S protocol**: Specific information about RMC-M40S protocol
-
-### Getting Help
-1. Enable debug logging as described above
-2. Check HomeAssistant logs for detailed error messages
-3. Verify device compatibility (currently RMC-M40S/RMC-M42S is supported)
-4. Ensure HomeAssistant has Bluetooth permissions
-5. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed troubleshooting guide
-
-## Development
-
-### Based on
-- [ESPHome-Ready4Sky](https://github.com/KomX/ESPHome-Ready4Sky) - Protocol definitions
-- [ha_kettler](https://github.com/mavrikkk/ha_kettler) - Architecture patterns
-- [SkyKettle](https://github.com/ClusterM/skykettle-ha) - Inspiration and architecture
-
-### Current Status
-- **RMC-M40S**: Fully supported and tested
-- **RMC-M42S**: Supported (uses same protocol)
-- **RMC-M4xS**: Automatic recognition and support
-- **Other models**: Planned for future releases
-
-### Recent Improvements
-- **RMC-M40S Protocol**: Full protocol understanding implemented based on ESPHome-Ready4Sky
-- **Status Command 0x06**: Correct status command is used
-- **Detailed Parsing**: Each byte of status response is analyzed separately
-- **Enhanced Logging**: All commands and responses are logged for diagnostics
-- **RMC-M4xS Support**: Automatic recognition of RMC-M40S variants
+If you have issues:
+1. Check "Troubleshooting" section above
+2. Enable logging and check logs
+3. Create issue in repository with problem description and logs
 
 ## License
 
 MIT License
 
-## Support
+## Acknowledgments
 
-For issues and support:
-1. Check the troubleshooting section above
-2. Enable debug logging for detailed information
-3. Report issues with debug logs included
-4. Ensure you're using a supported device (RMC-M40S/RMC-M42S)
+- [ESPHome-Ready4Sky](https://github.com/KomX/ESPHome-Ready4Sky) - for protocol
+- [ha_kettler](https://github.com/mavrikkk/ha_kettler) - for architecture
+- [skykettle-ha](https://github.com/ClusterM/skykettle-ha) - for inspiration

@@ -1,256 +1,126 @@
-# SkyCooker Troubleshooting Guide
+# Troubleshooting Guide
 
-## Connection Problems
+## Connection Issues
 
-### Error: "No backend with an available connection slot" / "BleakOutOfConnectionSlotsError"
-
-**Cause:** Bluetooth adapter has exhausted the limit of simultaneous connections. This can happen when:
-- Other Bluetooth integrations are present (e.g., ha_kettler)
-- Too frequent device polling
-- Incorrect connection management
+### "Basic connection test failed"
+**Cause:** Device is not responding to commands
 
 **Solution:**
-1. **Increase polling interval** in integration settings (recommended 30-60 seconds)
-2. **Enable persistent connection** in integration settings
-3. **Restart Bluetooth adapter:**
-   ```bash
-   sudo systemctl restart bluetooth
-   ```
-4. **Restart HomeAssistant**
-5. **Check other Bluetooth integrations** - temporarily disable other Bluetooth devices for testing
-6. **Ensure device is powered on** and in pairing mode
+1. Ensure multicooker is in Bluetooth pairing mode (blinking indicator)
+2. Check distance - no more than 3-5 meters from Home Assistant server
+3. Restart multicooker and Home Assistant
+4. Verify Bluetooth is enabled on server
+5. Consider using ESPHome Bluetooth proxy for better stability
 
-**For users with multiple Bluetooth devices:**
-- **Consider using Bluetooth proxy** (if possible)
-- **Increase polling intervals** for all Bluetooth devices (recommended 60+ seconds)
-- **Use persistent connections** only for critical devices
-- **Temporarily disable other Bluetooth integrations** for testing
-- **Restart Bluetooth adapter** when problems occur:
-  ```bash
-  sudo systemctl restart bluetooth
-  ```
-- **Check physical device placement** - Bluetooth adapter may not handle multiple devices at distance
-
-### Error: "BleakClient.connect() called without bleak-retry-connector"
-
-**Cause:** Integration cannot use bleak-retry-connector for reliable connection.
+### "Device not found"
+**Cause:** Home Assistant cannot find the device
 
 **Solution:**
-1. **Check dependencies** - ensure bleak-retry-connector is installed:
-   ```bash
-   pip3 list | grep bleak-retry-connector
-   ```
-2. **Restart HomeAssistant** to load dependencies
-3. **Check manifest.json** - ensure dependency is specified:
-   ```json
-   "requirements": ["bleak-retry-connector>=1.0.0"]
-   ```
-4. **If problem persists** - try reinstalling the integration
+1. Check MAC address for typos
+2. Ensure multicooker is powered and in pairing mode
+3. Restart Bluetooth adapter
+4. Check for interference from other Bluetooth/WiFi devices
 
-### Error: "Device with MAC address XX:XX:XX:XX:XX:XX not found"
-
-**Cause:** HomeAssistant cannot find device by MAC address.
+### "Authentication failed"
+**Cause:** Wrong password or device not in pairing mode
 
 **Solution:**
-1. Check device MAC address
-2. Ensure device is powered on and within range
-3. Check that Bluetooth adapter is working:
-   ```bash
-   hcitool scan
-   ```
-4. Restart device and try again
+1. Ensure multicooker is in pairing mode
+2. Check password correctness (HEX format, 8 bytes)
+3. Try standard passwords: `0000000000000000`, `1111111111111111`
+4. Restart multicooker and try again
 
-### Error: "Auth failed"
-
-**Cause:** Incorrect authorization key or device not in pairing mode.
+### "No backend with an available connection slot"
+**Cause:** Bluetooth adapter is overloaded
 
 **Solution:**
-1. Ensure device is in pairing mode (usually indicator blinks)
-2. Try default key "000000"
-3. If not working, try other variants: "123456", "111111"
-4. Restart device and retry
+1. Restart Home Assistant
+2. Reduce number of connected Bluetooth devices
+3. Move closer to multicooker
+4. Consider using ESPHome Bluetooth proxy
 
-## Control Problems
+## Control Issues
 
-### Commands not executed
-
-**Cause:** Connection or protocol problems.
-
-**Solution:**
-1. Check connection status in HomeAssistant interface
-2. Enable persistent connection in integration settings
-3. Try restarting integration:
-   - Settings → Integrations → SkyCooker → Remove
-   - Add integration again
-
-### Incorrect readings
-
-**Cause:** Device doesn't support requested data.
+### Device doesn't respond to commands
+**Cause:** Connection or protocol problems
 
 **Solution:**
-1. Check that your model is supported
-2. Try restarting device
-3. Check HomeAssistant logs for errors
+1. Check connection status in logs
+2. Ensure device is powered on
+3. Try reconnecting
+4. Check if battery is low (if applicable)
 
-## Performance Problems
-
-### Frequent connection drops
-
-**Cause:** Weak Bluetooth signal or interference.
+### Incorrect temperature readings
+**Cause:** Temperature sensor not synchronized
 
 **Solution:**
-1. Reduce distance between device and HomeAssistant server
-2. Remove obstacles between devices
-3. Disable other Bluetooth devices that may cause interference
-4. Enable persistent connection in settings
+1. Restart device
+2. Wait several minutes for synchronization
+3. Check if mode is detected correctly
 
-### Slow response
-
-**Cause:** High system load or Bluetooth problems.
+### Modes don't switch
+**Cause:** Protocol or device state problems
 
 **Solution:**
-1. Check CPU and memory load on server
-2. Increase polling interval in integration settings
-3. Restart HomeAssistant
+1. Ensure device is turned off before changing mode
+2. Verify selected mode is supported by your model
+3. Try restarting device
 
-## Bluetooth Check
-
-### Check Bluetooth availability
-
-```bash
-# Check Bluetooth status
-systemctl status bluetooth
-
-# Scan devices
-hcitool scan
-
-# Check adapter
-hciconfig -a
-```
-
-### Check access rights
-
-```bash
-# Check Bluetooth rights
-ls -la /dev/ttyACM*
-
-# Add user to Bluetooth group
-sudo usermod -a -G bluetooth homeassistant
-```
-
-## Logs and Diagnostics
+## Diagnostics
 
 ### Enable debug logging
+Add to `configuration.yaml`:
 
-For detailed diagnostics, enable debug logging:
-
-#### Via configuration.yaml
-Add to your `configuration.yaml`:
 ```yaml
 logger:
   default: info
   logs:
     custom_components.skycooker: debug
-    homeassistant.components.bluetooth: debug
 ```
 
-#### Via UI (HomeAssistant 2021.6+)
-1. Go to Settings → System → Logs
-2. Click "Load Full Home Assistant Log"
-3. Click "Add Filter"
-4. Add filter for `custom_components.skycooker` with level `DEBUG`
-5. Click "Start Logging"
+### Check Bluetooth connection
+1. Ensure Bluetooth is enabled: `bluetoothctl`
+2. Check device visibility: `bluetoothctl scan on`
+3. Check connection: `bluetoothctl info [MAC]`
 
-### What debug logs show
+### Test connection
+1. Put multicooker in pairing mode
+2. Start integration
+3. Check logs for errors
+4. Restart device if necessary
 
-- **Device connection**: `🔗 Starting connection to cooker`, `✅ Successfully connected`
-- **Authentication**: `🔑 Performing authentication`, `✅ Authentication successful`
-- **Commands**: `📡 Sending command`, `📥 Received response`
-- **Status**: `📊 Requesting device status`, `✅ Status retrieved`
-- **Errors**: `❌ Connection failed`, `⚠️ Connection attempt failed`
-- **New diagnostic features**:
-  - **Raw responses**: `📥 Raw response received: 55 01 06 02 01 1e 5a 00 00 00 00 00 00 00 00 01 aa`
-  - **Detailed parsing**: `📦 Parsed RMC-M40S status: mode=2, is_on=True, temp=30/90, cook=0:0, wait=0:0, boil_time=0`
-  - **Status command**: `📡 Sending command 06, data: []` (command 0x06 for RMC-M40S)
-  - **RMC-M40S protocol**: `📦 Detailed byte analysis: data[3]: 1 (hex: 0x01), data[15]: 1 (hex: 0x01)`
+## ESPHome Bluetooth Proxy
 
-### Check HomeAssistant logs
+For improved connection stability, use ESPHome Bluetooth proxy:
 
-1. Settings → System → Logs
-2. Filter: `skycooker`
-3. Look for error messages
-4. For debug logs use filter: `custom_components.skycooker`
+1. Install ESPHome on ESP32
+2. Configure Bluetooth proxy
+3. Set ESP32 as Bluetooth proxy in Home Assistant
+4. Reconnect integration
 
-### Example useful logs
-
-#### Successful connection
-```
-🔗 Starting connection to cooker DA:D8:9F:9E:0B:4C (model: RMC-M40S)
-✅ Device found: RMC-M40S (DA:D8:9F:9E:0B:4C)
-🔌 Connection attempt 1/5...
-✅ Successfully connected to cooker (attempt 1)
-📡 Starting notifications on RX characteristic...
-✅ Subscribed to RX notifications
-🔑 Performing authentication...
-✅ Authentication successful
-📋 Getting device version...
-📋 Device version: (1, 0)
-⏰ Synchronizing device time...
-✅ Time synchronized: 2026-01-01 17:00:00 (GMT+8.00)
-✅ Authentication and setup completed successfully
-```
-
-#### Connection errors
-```
-❌ Failed to connect to cooker DA:D8:9F:9E:0B:4C after 5 attempts: [Errno 110] Operation timed out
-⚠️ Connection attempt 1 failed: [Errno 110] Operation timed out
-❌ Bluetooth connection slots exhausted for DA:D8:9F:9E:0B:4C
-❌ Auth failed. You need to enable pairing mode on the cooker.
-❌ Command failed: not connected
-❌ Failed to get status: [Errno 110] Operation timed out
-```
-
-#### Commands and responses
-```
-⚙️ Setting main mode: mode=2 (Rice/Cereals), target_temp=60, boil_time=0
-📦 Packed data for RMC-M40S: 55 01 05 02 3c 80 aa
-📡 Sending command 05, data: [02 3c 80]
-📤 Data sent successfully
-📥 Received response: 55 01 05 01 aa
-✅ Mode set successfully: mode=2 (Rice/Cereals), target_temp=60, boil_time=0
-```
-
-## Integration Status Check
-
-1. Settings → Integrations → SkyCooker
-2. Check connection status
-3. Check available entities
-4. Enable debug logs for detailed information (see section above)
-
-## Support
-
-If problems are not resolved:
-
-1. Collect HomeAssistant logs with filter `skycooker`
-2. Check that your device model is supported
-3. Create issue in repository with problem description and logs
-4. Specify device model, HomeAssistant version, and system
+**Benefits:**
+- Better connection stability
+- Less load on main server
+- Longer range
+- Multiple device support
 
 ## Frequently Asked Questions
 
-**Q: Why doesn't integration see my device?**
-A: Check that device is powered on, in pairing mode, and within Bluetooth range.
+### Q: Why doesn't integration see my device?
+A: Ensure device is in pairing mode and within Bluetooth range.
 
-**Q: Can I use multiple devices?**
-A: Yes, each device is added separately with unique MAC address.
+### Q: Can I use multiple multicookers?
+A: Yes, but ESPHome Bluetooth proxy is recommended for stable operation.
 
-**Q: Do I need to keep connection active?**
-A: Persistent connection is recommended for better performance, but increases power consumption.
+### Q: Why does connection sometimes drop?
+A: This is normal for Bluetooth devices. Integration automatically reconnects.
 
-**Q: What to do if device stops working after update?**
-A: Try removing and re-adding integration, check for integration updates.
+### Q: How to find device MAC address?
+A: MAC address can be found in Redmond app or in your device Bluetooth settings.
 
-## Language Versions
+## Support
 
-- [Русская версия](TROUBLESHOOTING.md)
-- [English version](TROUBLESHOOTING_EN.md)
+If problems persist:
+1. Collect logs with debug level enabled
+2. Describe problem and reproduction steps
+3. Create issue in repository with logs and description

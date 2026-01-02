@@ -19,7 +19,7 @@ BUTTON_PROGRAM_1 = "program_1"
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the SkyCooker entry."""
     model_code = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION].model_code
-    if model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
+    if model_code in [SkyCooker.MODELS_5]:
         async_add_entities([
             SkyButton(hass, entry, BUTTON_PROGRAM_1),
         ])

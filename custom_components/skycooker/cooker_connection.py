@@ -71,6 +71,9 @@ class CookerConnection:
         # Initialize SkyCooker instance
         SkyCooker = get_skycooker_class()
         self._skycooker = SkyCooker(model)
+        
+        # Log model information for debugging
+        _LOGGER.info(f"🔧 CookerConnection initialized for model: {model} (code: {self.model_code})")
 
     async def command(self, command, params=[]):
         _LOGGER.info(f"🔧 Command method called: command={command:02x}, params=[{', '.join([f'{c:02x}' for c in params])}]")
@@ -701,7 +704,7 @@ class CookerConnection:
         
         if not self._auth_ok:
             try:
-                _LOGGER.info(f"🔑 Performing authentication...")
+                _LOGGER.info(f"🔑 Performing authentication for model {self.model} (code: {self.model_code})...")
                 
                 # Step 1: Verify device is in pairing mode by requesting firmware version
                 version_attempts = 3
@@ -785,7 +788,7 @@ class CookerConnection:
         try:
             async with self._update_lock:
                 if self._disposed: return
-                _LOGGER.debug(f"Updating")
+                _LOGGER.debug(f"Updating (model: {self.model}, code: {self.model_code})")
                 if not self.available: force_stats = True # Update stats after unavailable state
                 await self._connect_if_need()
 
@@ -800,10 +803,14 @@ class CookerConnection:
                 if extra_action: await extra_action
 
                 # Is there scheduled boil_time?
+                _LOGGER.info(f"📊 Requesting status for model {self.model} (code: {self.model_code})...")
                 self._status = await self._skycooker.get_status()
                 if self._status is None:
                     _LOGGER.warning(f"❌ Status is None, cannot continue update")
                     return False
+                
+                _LOGGER.info(f"✅ Status received: mode={self._status.mode} ({self._skycooker.MODE_NAMES.get(self._status.mode, 'Unknown')}), is_on={self._status.is_on}, temp={self._status.current_temp}/{self._status.target_temp}")
+                
                 boil_time = self._status.boil_time
                 if self._target_boil_time != None and self._target_boil_time != boil_time:
                     try:
@@ -878,6 +885,7 @@ class CookerConnection:
 
                 if self._last_get_stats + CookerConnection.STATS_INTERVAL < monotonic() or force_stats:
                     self._last_get_stats = monotonic()
+                    _LOGGER.info(f"📊 Requesting stats...")
                     self._stats = await self._skycooker.get_stats()
                     if self._stats is None:
                         _LOGGER.warning(f"❌ Stats is None")
@@ -1214,8 +1222,8 @@ class CookerConnection:
             
             _LOGGER.debug(f"📡 Raw status response: {r.hex() if hasattr(r, 'hex') else r}")
             
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 # For RMC-M40S, try to unpack detailed status
                 try:
                     # Multicooker status format: mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes
@@ -1532,8 +1540,8 @@ class CookerConnection:
         try:
             _LOGGER.debug(f"⚙️ Setting main mode: mode={mode}, target_temp={target_temp}, boil_time={boil_time}")
             
-            # Currently only RMC-M40S (MODELS_3) is supported
-            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+            # Currently only RMC-M40S (MODELS_5) is supported
+            if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
                 # Pack data for RMC-M40S
                 data = pack("BxBxxxxxxxxxxBxx", int(mode), int(target_temp), int(0x80 + boil_time))
                 _LOGGER.debug(f"📦 Packed data for RMC-M40S: {data.hex()}")
