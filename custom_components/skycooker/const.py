@@ -1,7 +1,7 @@
 """Constants for SkyCooker integration."""
 
 # Integration version
-VERSION = "0.0.9"
+VERSION = "0.0.10"
 
 # Model codes
 MODELS_0 = 0x00
@@ -52,13 +52,48 @@ ERROR_LOW_WATER = 0x05
 ERROR_HIGH_WATER = 0x06
 ERROR_UNKNOWN = 0xFF
 
+# Domain and basic info
+DOMAIN = "skycooker"
+FRIENDLY_NAME = "SkyCooker"
+MANUFACTORER = "Redmond"
+SUGGESTED_AREA = "kitchen"
+
 # Configuration keys
 CONF_MAC = "mac"
 CONF_PASSWORD = "password"
 CONF_MODEL = "model"
 CONF_NAME = "name"
 CONF_DEVICE_NAME = "device_name"
+CONF_AUTH_KEY = "auth_key"
+CONF_PERSISTENT_CONNECTION = "persistent_connection"
+CONF_SCAN_TIMEOUT = "scan_timeout"
+CONF_WAIT_TIME = "wait_time"
+CONF_RETRIES = "retries"
 CONF_CONNECTION_TIMEOUT = "connection_timeout"
+CONF_DEVICE = "device"
+CONF_SCAN_INTERVAL = "scan_interval"
+
+# Default values
+DEFAULT_AUTH_KEY = "00000000000000000000000000000000"
+DEFAULT_DEVICE_NAME = "RMC-M40S"
+DEFAULT_PERSISTENT_CONNECTION = True
+DEFAULT_SCAN_TIMEOUT = 5
+DEFAULT_WAIT_TIME = 2
+DEFAULT_RETRIES = 3
+DEFAULT_CONNECTION_TIMEOUT = 30
+DEFAULT_SCAN_INTERVAL = 5
+
+# Data keys
+DATA_CONNECTION = "connection"
+DATA_CANCEL = "cancel"
+DATA_WORKING = "working"
+DATA_DEVICE_INFO = "device_info"
+
+# Dispatcher
+DISPATCHER_UPDATE = "update"
+
+# BLE constants
+BLE_SCAN_TIME = 3
 
 # Device classes
 DEVICE_CLASS_MULTICOOKER = "multicooker"
