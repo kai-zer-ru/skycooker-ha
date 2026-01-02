@@ -1,6 +1,10 @@
 import asyncio
+import calendar
+import datetime
 import logging
+import time
 import traceback
+from struct import pack, unpack
 from time import monotonic
 
 from bleak_retry_connector import establish_connection, BleakClientWithServiceCache
@@ -8,6 +12,7 @@ from bleak_retry_connector import establish_connection, BleakClientWithServiceCa
 from homeassistant.components import bluetooth
 
 from .const import *
+from .const import ROOM_TEMP, BOIL_TEMP
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,6 +20,9 @@ _LOGGER = logging.getLogger(__name__)
 def get_skycooker_class():
     from .skycooker import SkyCooker
     return SkyCooker
+
+# Import SkyCooker for type hints
+from .skycooker import SkyCooker
 
 
 class CookerConnection:
@@ -744,12 +752,12 @@ class CookerConnection:
                 
                 # Step 3: Get device version for logging
                 _LOGGER.info(f"📋 Getting device version...")
-                self._sw_version = await self.get_version()
+                self._sw_version = await self._skycooker.get_version()
                 _LOGGER.info(f"📋 Device version: {self._sw_version}")
                 
                 # Step 4: Synchronize device time
                 _LOGGER.info(f"⏰ Synchronizing device time...")
-                await self.sync_time()
+                await self._skycooker.sync_time()
                 _LOGGER.info(f"✅ Authentication and setup completed successfully")
                 
             except Exception as ex:
@@ -775,7 +783,7 @@ class CookerConnection:
                 if extra_action: await extra_action
 
                 # Is there scheduled boil_time?
-                self._status = await self.get_status()
+                self._status = await self._skycooker.get_status()
                 if self._status is None:
                     _LOGGER.warning(f"❌ Status is None, cannot continue update")
                     return False
@@ -794,7 +802,7 @@ class CookerConnection:
                         _LOGGER.info(f"Boil time is successfully set to {boil_time}")
                     except Exception as ex:
                         _LOGGER.error(f"Can't update boil time ({type(ex).__name__}): {str(ex)}")
-                    self._status = await self.get_status()
+                    self._status = await self._skycooker.get_status()
                     if self._status is None:
                         _LOGGER.warning(f"❌ Status is None after boil time update")
                         return False
@@ -812,7 +820,7 @@ class CookerConnection:
                         await self.turn_off()
                         _LOGGER.info("The cooker was turned off")
                         await asyncio.sleep(0.2)
-                        self._status = await self.get_status()
+                        self._status = await self._skycooker.get_status()
                         if self._status is None:
                             _LOGGER.warning(f"❌ Status is None after set mode and turn on")
                             return False
@@ -827,7 +835,7 @@ class CookerConnection:
                         await self.turn_on()
                         _LOGGER.info("The cooker was turned on")
                         await asyncio.sleep(0.2)
-                        self._status = await self.get_status()
+                        self._status = await self._skycooker.get_status()
                         if self._status is None:
                             _LOGGER.warning(f"❌ Status is None after switch mode and restart")
                             return False
@@ -845,7 +853,7 @@ class CookerConnection:
                         await self.turn_on()
                         _LOGGER.info("The cooker was turned on")
                         await asyncio.sleep(0.2)
-                        self._status = await self.get_status()
+                        self._status = await self._skycooker.get_status()
                     else:
                         _LOGGER.debug(f"There is no reason to update state")
                     # Not scheduled anymore
@@ -853,23 +861,23 @@ class CookerConnection:
 
                 if self._last_get_stats + CookerConnection.STATS_INTERVAL < monotonic() or force_stats:
                     self._last_get_stats = monotonic()
-                    self._stats = await self.get_stats()
+                    self._stats = await self._skycooker.get_stats()
                     if self._stats is None:
                         _LOGGER.warning(f"❌ Stats is None")
-                    self._light_switch_boil = await self.get_light_switch(SkyCooker.LIGHT_BOIL)
+                    self._light_switch_boil = await self._skycooker.get_light_switch(SkyCooker.LIGHT_BOIL)
                     if self._light_switch_boil is None:
                         _LOGGER.warning(f"❌ Light switch boil is None")
-                    self._light_switch_sync = await self.get_light_switch(SkyCooker.LIGHT_SYNC)
+                    self._light_switch_sync = await self._skycooker.get_light_switch(SkyCooker.LIGHT_SYNC)
                     if self._light_switch_sync is None:
                         _LOGGER.warning(f"❌ Light switch sync is None")
-                    self._lamp_auto_off_hours = await self.get_lamp_auto_off_hours()
+                    self._lamp_auto_off_hours = await self._skycooker.get_lamp_auto_off_hours()
                     if self._lamp_auto_off_hours is None:
                         _LOGGER.warning(f"❌ Lamp auto off hours is None")
-                    self._fresh_water = await self.get_fresh_water()
+                    self._fresh_water = await self._skycooker.get_fresh_water()
                     if self._fresh_water is None:
                         _LOGGER.warning(f"❌ Fresh water is None")
                     for lt in [SkyCooker.LIGHT_BOIL, SkyCooker.LIGHT_LAMP]:
-                        self._colors[lt] = await self.get_colors(lt)
+                        self._colors[lt] = await self._skycooker.get_colors(lt)
                         if self._colors[lt] is None:
                             _LOGGER.warning(f"❌ Colors for light type {lt} is None")
 
@@ -1164,6 +1172,407 @@ class CookerConnection:
     async def set_lamp_auto_off_hours(self, hours):
         return await self._skycooker.set_lamp_auto_off_hours(hours)
 
+    async def get_status(self):
+        """Get device status."""
+        try:
+            _LOGGER.debug(f"📋 Requesting device status...")
+            r = await self.command(SkyCooker.COMMAND_GET_STATUS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get status - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw status response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Currently only RMC-M40S (MODELS_3) is supported
+            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+                # For RMC-M40S, try to unpack detailed status
+                try:
+                    # Multicooker status format: mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes
+                    if len(r) >= 9:
+                        # Try to unpack with more fields for RMC-M40S
+                        mode, is_on, current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes = unpack("<B?BBBBBBB", r[:9])
+                        _LOGGER.debug(f"📦 Parsed RMC-M40S status: mode={mode}, is_on={is_on}, temp={current_temp}/{target_temp}, cook={cook_hours}:{cook_minutes}, wait={wait_hours}:{wait_minutes}")
+                    elif len(r) >= 4:
+                        # Fallback to basic format but try to extract available data
+                        mode, is_on, current_temp, target_temp = unpack("<B?BB", r[:4])
+                        cook_hours, cook_minutes, wait_hours, wait_minutes = 0, 0, 0, 0
+                        _LOGGER.debug(f"📦 Parsed basic RMC-M40S status: mode={mode}, is_on={is_on}, temp={current_temp}/{target_temp}")
+                    else:
+                        # Minimal data
+                        mode, is_on = unpack("<B?", r[:2])
+                        current_temp, target_temp, cook_hours, cook_minutes, wait_hours, wait_minutes = 0, 0, 0, 0, 0, 0
+                        _LOGGER.debug(f"📦 Parsed minimal RMC-M40S status: mode={mode}, is_on={is_on}")
+                    
+                    status = SkyCooker.Status(
+                        mode=mode,
+                        is_on=is_on,
+                        error_code=None,
+                        current_temp=current_temp,
+                        target_temp=target_temp,
+                        cook_hours=cook_hours,
+                        cook_minutes=cook_minutes,
+                        wait_hours=wait_hours,
+                        wait_minutes=wait_minutes
+                    )
+                except Exception as e:
+                    _LOGGER.error(f"❌ Error unpacking RMC-M40S status: {e}")
+                    # Fallback to minimal status
+                    status = SkyCooker.Status(
+                        mode=0,
+                        is_on=False,
+                        error_code=None,
+                        current_temp=0,
+                        target_temp=0,
+                        cook_hours=0,
+                        cook_minutes=0,
+                        wait_hours=0,
+                        wait_minutes=0
+                    )
+            else:
+                _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return None
+            
+            _LOGGER.info(f"✅ Status retrieved: mode={status.mode} ({SkyCooker.MODE_NAMES.get(status.mode, 'Unknown')}), is_on={status.is_on}, temp={status.current_temp}/{status.target_temp}, cook={status.cook_hours}:{status.cook_minutes}, wait={status.wait_hours}:{status.wait_minutes}")
+            return status
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get status: {e}")
+            # Return safe default status
+            return SkyCooker.Status(
+                mode=0,
+                is_on=False,
+                error_code=None,
+                current_temp=0,
+                target_temp=0,
+                cook_hours=0,
+                cook_minutes=0,
+                wait_hours=0,
+                wait_minutes=0
+            )
+
+    async def get_stats(self):
+        """Get device statistics."""
+        try:
+            _LOGGER.debug(f"📊 Requesting device stats...")
+            r = await self.command(SkyCooker.COMMAND_GET_STATS1)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get stats - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw stats response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse stats data
+            try:
+                ontime, energy_wh, heater_on_count, user_on_count = unpack("<IHHH", r[:10])
+                _LOGGER.debug(f"📦 Parsed stats: ontime={ontime}, energy_wh={energy_wh}, heater_on_count={heater_on_count}, user_on_count={user_on_count}")
+                
+                stats = SkyCooker.Stats(
+                    ontime=ontime,
+                    energy_wh=energy_wh,
+                    heater_on_count=heater_on_count,
+                    user_on_count=user_on_count
+                )
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking stats: {e}")
+                # Fallback to default stats
+                stats = SkyCooker.Stats(
+                    ontime=0,
+                    energy_wh=0,
+                    heater_on_count=0,
+                    user_on_count=0
+                )
+            
+            _LOGGER.info(f"✅ Stats retrieved: ontime={stats.ontime}, energy_wh={stats.energy_wh}, heater_on_count={stats.heater_on_count}, user_on_count={stats.user_on_count}")
+            return stats
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get stats: {e}")
+            return SkyCooker.Stats(
+                ontime=0,
+                energy_wh=0,
+                heater_on_count=0,
+                user_on_count=0
+            )
+
+    async def get_light_switch(self, light_type):
+        """Get light switch status."""
+        try:
+            _LOGGER.debug(f"💡 Requesting light switch status for type {light_type}...")
+            r = await self.command(SkyCooker.COMMAND_GET_LIGHT_SWITCH, [light_type])
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get light switch - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw light switch response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse light switch data
+            try:
+                light_switch = r[0]
+                _LOGGER.debug(f"📦 Parsed light switch: {light_switch}")
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking light switch: {e}")
+                light_switch = 0
+            
+            _LOGGER.info(f"✅ Light switch retrieved: {light_switch}")
+            return light_switch
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get light switch: {e}")
+            return None
+
+    async def get_lamp_auto_off_hours(self):
+        """Get lamp auto-off hours."""
+        try:
+            _LOGGER.debug(f"⏰ Requesting lamp auto-off hours...")
+            r = await self.command(SkyCooker.COMMAND_GET_AUTO_OFF_HOURS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get lamp auto-off hours - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw lamp auto-off hours response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse lamp auto-off hours data
+            try:
+                hours, = unpack("<H", r[:2])
+                _LOGGER.debug(f"📦 Parsed lamp auto-off hours: {hours}")
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking lamp auto-off hours: {e}")
+                hours = 0
+            
+            _LOGGER.info(f"✅ Lamp auto-off hours retrieved: {hours}")
+            return hours
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get lamp auto-off hours: {e}")
+            return None
+
+    async def get_fresh_water(self):
+        """Get fresh water information."""
+        try:
+            _LOGGER.debug(f"💧 Requesting fresh water information...")
+            r = await self.command(SkyCooker.COMMAND_GET_FRESH_WATER)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get fresh water - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw fresh water response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse fresh water data
+            try:
+                is_on, unknown1, water_freshness_hours = unpack("<BBB", r[:3])
+                _LOGGER.debug(f"📦 Parsed fresh water: is_on={is_on}, unknown1={unknown1}, water_freshness_hours={water_freshness_hours}")
+                
+                fresh_water = SkyCooker.FreshWaterInfo(
+                    is_on=is_on,
+                    unknown1=unknown1,
+                    water_freshness_hours=water_freshness_hours
+                )
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking fresh water: {e}")
+                # Fallback to default fresh water info
+                fresh_water = SkyCooker.FreshWaterInfo(
+                    is_on=False,
+                    unknown1=0,
+                    water_freshness_hours=0
+                )
+            
+            _LOGGER.info(f"✅ Fresh water retrieved: is_on={fresh_water.is_on}, water_freshness_hours={fresh_water.water_freshness_hours}")
+            return fresh_water
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get fresh water: {e}")
+            return SkyCooker.FreshWaterInfo(
+                is_on=False,
+                unknown1=0,
+                water_freshness_hours=0
+            )
+
+    async def get_colors(self, light_type):
+        """Get colors for light type."""
+        try:
+            _LOGGER.debug(f"🌈 Requesting colors for light type {light_type}...")
+            r = await self.command(SkyCooker.COMMAND_GET_COLORS, [light_type])
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get colors - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw colors response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse colors data
+            try:
+                r_low, g_low, b_low, brightness, r_mid, g_mid, b_mid, temp_low, temp_mid, r_high, g_high, b_high, temp_high = unpack("<BBBBBBBBBBBBB", r[:13])
+                _LOGGER.debug(f"📦 Parsed colors: r_low={r_low}, g_low={g_low}, b_low={b_low}, brightness={brightness}, r_mid={r_mid}, g_mid={g_mid}, b_mid={b_mid}, temp_low={temp_low}, temp_mid={temp_mid}, r_high={r_high}, g_high={g_high}, b_high={b_high}, temp_high={temp_high}")
+                
+                # Create a simple colors object
+                colors = type('Colors', (), {
+                    'r_low': r_low, 'g_low': g_low, 'b_low': b_low,
+                    'brightness': brightness,
+                    'r_mid': r_mid, 'g_mid': g_mid, 'b_mid': b_mid,
+                    'temp_low': temp_low, 'temp_mid': temp_mid,
+                    'r_high': r_high, 'g_high': g_high, 'b_high': b_high,
+                    'temp_high': temp_high
+                })()
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking colors: {e}")
+                # Fallback to default colors
+                colors = type('Colors', (), {
+                    'r_low': 0, 'g_low': 0, 'b_low': 0,
+                    'brightness': 0,
+                    'r_mid': 0, 'g_mid': 0, 'b_mid': 0,
+                    'temp_low': 0, 'temp_mid': 0,
+                    'r_high': 0, 'g_high': 0, 'b_high': 0,
+                    'temp_high': 0
+                })()
+            
+            _LOGGER.info(f"✅ Colors retrieved for light type {light_type}")
+            return colors
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get colors: {e}")
+            return None
+
+    async def get_version(self):
+        """Get device version."""
+        try:
+            _LOGGER.debug(f"📋 Requesting device version...")
+            r = await self.command(SkyCooker.COMMAND_GET_VERSION)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get version - no response received")
+                return None
+            
+            _LOGGER.debug(f"📡 Raw version response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse version data
+            try:
+                major, minor = unpack("BB", r[:2])
+                ver = f"{major}.{minor}"
+                _LOGGER.debug(f"📦 Parsed version: {ver}")
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking version: {e}")
+                ver = "0.0"
+            
+            _LOGGER.info(f"✅ Version retrieved: {ver}")
+            return (major, minor)
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get version: {e}")
+            return None
+
+    async def turn_on(self):
+        """Turn on the cooker."""
+        try:
+            _LOGGER.debug(f"⚡ Turning on cooker...")
+            r = await self.command(SkyCooker.COMMAND_TURN_ON)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to turn on - no response received")
+                return False
+            if r[0] != 1:
+                _LOGGER.error(f"❌ Failed to turn on - response: {r}")
+                return False
+            _LOGGER.info(f"✅ Cooker turned on successfully")
+            return True
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to turn on: {e}")
+            return False
+
+    async def turn_off(self):
+        """Turn off the cooker."""
+        try:
+            _LOGGER.debug(f"🛑 Turning off cooker...")
+            r = await self.command(SkyCooker.COMMAND_TURN_OFF)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to turn off - no response received")
+                return False
+            if r[0] != 1:
+                _LOGGER.error(f"❌ Failed to turn off - response: {r}")
+                return False
+            _LOGGER.info(f"✅ Cooker turned off successfully")
+            return True
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to turn off: {e}")
+            return False
+
+    async def set_main_mode(self, mode, target_temp=0, boil_time=0):
+        """Set main mode of the cooker."""
+        try:
+            _LOGGER.debug(f"⚙️ Setting main mode: mode={mode}, target_temp={target_temp}, boil_time={boil_time}")
+            
+            # Currently only RMC-M40S (MODELS_3) is supported
+            if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
+                # Pack data for RMC-M40S
+                data = pack("BxBxxxxxxxxxxBxx", int(mode), int(target_temp), int(0x80 + boil_time))
+                _LOGGER.debug(f"📦 Packed data for RMC-M40S: {data.hex()}")
+            else:
+                _LOGGER.warning(f"⚠️ set_main_mode is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S is currently supported")
+                return False
+            
+            # Send command
+            r = await self.command(SkyCooker.COMMAND_SET_MAIN_MODE, data)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to set mode - no response received")
+                return False
+            if r[0] != 1:
+                _LOGGER.error(f"❌ Failed to set mode - response: {r}")
+                return False
+            
+            _LOGGER.info(f"✅ Mode set successfully: mode={mode} ({SkyCooker.MODE_NAMES.get(mode, 'Unknown')}), target_temp={target_temp}, boil_time={boil_time}")
+            return True
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to set mode: {e}")
+            return False
+
+    async def commit(self):
+        """Commit settings."""
+        try:
+            _LOGGER.debug(f"💾 Committing settings...")
+            r = await self.command(SkyCooker.COMMAND_COMMIT_SETTINGS)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to commit settings - no response received")
+                return False
+            if r[0] != 1:
+                _LOGGER.error(f"❌ Failed to commit settings - response: {r}")
+                return False
+            _LOGGER.info(f"✅ Settings committed successfully")
+            return True
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to commit settings: {e}")
+            return False
+
+    async def sync_time(self):
+        """Synchronize device time."""
+        try:
+            _LOGGER.debug(f"⏰ Synchronizing device time...")
+            t = time.localtime()
+            offset = calendar.timegm(t) - calendar.timegm(time.gmtime(time.mktime(t)))
+            now = int(time.time())
+            data = pack("<ii", now, offset)
+            _LOGGER.debug(f"📦 Packed time data: timestamp={now}, offset={offset}")
+            
+            # Use shorter timeout for time sync to avoid blocking
+            original_timeout = CookerConnection.BLE_RECV_TIMEOUT
+            CookerConnection.BLE_RECV_TIMEOUT = 3.0  # Reduce timeout to 3 seconds
+            
+            try:
+                r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
+                if r is None:
+                    _LOGGER.error(f"❌ Failed to sync time - no response received")
+                    return False
+                if r[0] != 0:
+                    _LOGGER.error(f"❌ Failed to sync time - response: {r}")
+                    return False
+                
+                _LOGGER.info(f"✅ Time synchronized: {datetime.datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')} (GMT{offset/60/60:+.2f})")
+                return True
+            finally:
+                # Restore original timeout
+                CookerConnection.BLE_RECV_TIMEOUT = original_timeout
+        except Exception as e:
+            _LOGGER.warning(f"⚠️ Time synchronization failed (non-critical): {e}")
+            # Don't raise exception for time sync failure - it's not critical
+            return False
+    
     def get_troubleshooting_tips(self):
         """Get troubleshooting tips based on common issues."""
         tips = []
