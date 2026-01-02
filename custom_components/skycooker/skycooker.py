@@ -147,7 +147,7 @@ class SkyCooker():
 
 
     def __init__(self, model):
-        _LOGGER.info(f"🔧 Initializing SkyCooker with model: {model} (v0.0.5)")
+        _LOGGER.info(f"🔧 Initializing SkyCooker with model: {model} (v0.0.6)")
         self.model = model
         self.model_code = self.get_model_code(model)
         if not self.model_code:
@@ -218,7 +218,17 @@ class SkyCooker():
             _LOGGER.info(f"🧪 About to call command method with command 0x{SkyCooker.COMMAND_GET_VERSION:02x}")
             # Try version command first - it's usually the most basic
             _LOGGER.info(f"🧪 Sending version command (0x{SkyCooker.COMMAND_GET_VERSION:02x}) for basic test")
-            r = await self.command(SkyCooker.COMMAND_GET_VERSION)
+            try:
+                r = await self.command(SkyCooker.COMMAND_GET_VERSION)
+                if r is not None:
+                    _LOGGER.info(f"✅ Basic connection test successful, got response: {r.hex() if hasattr(r, 'hex') else r}")
+                    return True
+                else:
+                    _LOGGER.warning(f"⚠️ Basic connection test failed - no response")
+                    return False
+            except Exception as e:
+                _LOGGER.error(f"❌ Basic connection test failed with exception: {e}")
+                return False
             if r is not None:
                 _LOGGER.info(f"✅ Basic connection test successful, got response: {r.hex() if hasattr(r, 'hex') else r}")
                 return True
