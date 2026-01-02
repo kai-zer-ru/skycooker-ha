@@ -1,7 +1,7 @@
 """Constants for SkyCooker integration."""
 
 # Integration version
-VERSION = "0.0.8"
+VERSION = "0.0.9"
 
 # Model codes
 MODELS_0 = 0x00
@@ -76,6 +76,7 @@ ENTITY_CATEGORY_SYSTEM = "system"
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_DELAY = 1.0
+CONF_CONNECTION_TIMEOUT = "connection_timeout"
 
 # Configuration keys
 CONF_AUTH_KEY = "auth_key"

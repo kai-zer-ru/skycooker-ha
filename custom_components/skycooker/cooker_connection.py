@@ -10,6 +10,7 @@ from time import monotonic
 from bleak_retry_connector import establish_connection, BleakClientWithServiceCache
 
 from homeassistant.components import bluetooth
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import *
 from .const import ROOM_TEMP, BOIL_TEMP, VERSION
@@ -145,6 +146,21 @@ class CookerConnection:
             _LOGGER.error(f"❌ Command {command:02x} failed: no valid response received")
             raise IOError("No valid response received")
         except Exception as e:
+            # Проверяем, является ли это ошибкой Bluetooth shutdown
+            if "Bluetooth is already shutdown" in str(e) or "bluetooth is already shutdown" in str(e).lower():
+                _LOGGER.error(f"❌ Bluetooth adapter is shutdown during command execution")
+                _LOGGER.error("This usually happens when the Bluetooth adapter is disabled or unavailable.")
+                _LOGGER.error("💡 Troubleshooting tips:")
+                _LOGGER.error("1. Check if Bluetooth is enabled on your Home Assistant server")
+                _LOGGER.error("2. Verify that the Bluetooth adapter is properly connected")
+                _LOGGER.error("3. Restart your Home Assistant to reinitialize Bluetooth")
+                _LOGGER.error("4. Check system logs for Bluetooth adapter issues")
+                _LOGGER.error("5. Consider using ESPHome Bluetooth proxy as a workaround")
+                _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
+                # Останавливаем соединение и помечаем как disposed
+                await self.stop()
+                raise HomeAssistantError(f"Bluetooth adapter is shutdown: {e}")
+            
             _LOGGER.error(f"❌ Command failed: {e}")
             raise
 
@@ -238,6 +254,21 @@ class CookerConnection:
                     _LOGGER.error("4. Wait 30 seconds and try again - slots may become available")
                     _LOGGER.error("5. Add ESPHome Bluetooth proxy for better reliability")
                     _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
+                
+                # Проверяем, является ли это ошибкой Bluetooth shutdown
+                if "Bluetooth is already shutdown" in str(e) or "bluetooth is already shutdown" in str(e).lower():
+                    _LOGGER.error(f"❌ Bluetooth adapter is shutdown for {self._mac}")
+                    _LOGGER.error("This usually happens when the Bluetooth adapter is disabled or unavailable.")
+                    _LOGGER.error("💡 Troubleshooting tips:")
+                    _LOGGER.error("1. Check if Bluetooth is enabled on your Home Assistant server")
+                    _LOGGER.error("2. Verify that the Bluetooth adapter is properly connected")
+                    _LOGGER.error("3. Restart your Home Assistant to reinitialize Bluetooth")
+                    _LOGGER.error("4. Check system logs for Bluetooth adapter issues")
+                    _LOGGER.error("5. Consider using ESPHome Bluetooth proxy as a workaround")
+                    _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
+                    # Останавливаем соединение и помечаем как disposed
+                    await self.stop()
+                    raise HomeAssistantError(f"Bluetooth adapter is shutdown: {e}")
                     
                 if attempt < max_retries - 1:
                     _LOGGER.info(f"⏳ Retrying in {retry_delay:.1f} seconds...")
@@ -919,6 +950,21 @@ class CookerConnection:
                 return True
 
         except Exception as ex:
+            # Проверяем, является ли это ошибкой Bluetooth shutdown
+            if "Bluetooth is already shutdown" in str(ex) or "bluetooth is already shutdown" in str(ex).lower():
+                _LOGGER.error(f"❌ Bluetooth adapter is shutdown during update")
+                _LOGGER.error("This usually happens when the Bluetooth adapter is disabled or unavailable.")
+                _LOGGER.error("💡 Troubleshooting tips:")
+                _LOGGER.error("1. Check if Bluetooth is enabled on your Home Assistant server")
+                _LOGGER.error("2. Verify that the Bluetooth adapter is properly connected")
+                _LOGGER.error("3. Restart your Home Assistant to reinitialize Bluetooth")
+                _LOGGER.error("4. Check system logs for Bluetooth adapter issues")
+                _LOGGER.error("5. Consider using ESPHome Bluetooth proxy as a workaround")
+                _LOGGER.error("See: https://esphome.github.io/bluetooth-proxies/")
+                # Останавливаем соединение и помечаем как disposed
+                await self.stop()
+                raise HomeAssistantError(f"Bluetooth adapter is shutdown: {ex}")
+            
             await self.disconnect()
             if self._target_state != None and self._last_set_target + CookerConnection.TARGET_TTL < monotonic():
                 _LOGGER.warning(f"Can't set mode to {self._target_state} for {CookerConnection.TARGET_TTL} seconds, stop trying")
