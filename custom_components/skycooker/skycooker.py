@@ -227,6 +227,10 @@ class SkyCooker():
                     0x06,  # Alternative status command
                     0x02,  # Alternative command
                     0x07,  # Another alternative
+                    0x08,  # Another alternative
+                    0x03,  # Turn on command
+                    0x04,  # Turn off command
+                    0x05,  # Set main mode command
                 ]
                 
                 for i, cmd in enumerate(commands_to_try):
@@ -242,6 +246,11 @@ class SkyCooker():
                         _LOGGER.debug(f"⚠️ Command 0x{cmd:02x} failed: {e}")
                 
                 _LOGGER.error(f"❌ All commands failed for RMC-M40S")
+                _LOGGER.error(f"💡 Troubleshooting tips:")
+                _LOGGER.error(f"  1. Ensure device is in Bluetooth pairing mode (blinking indicator)")
+                _LOGGER.error(f"  2. Check distance - device should be within 3-5 meters")
+                _LOGGER.error(f"  3. Try restarting the device and HomeAssistant")
+                _LOGGER.error(f"  4. Consider using ESPHome Bluetooth proxy for better stability")
                 return False
             else:
                 # For other models, use standard version command
