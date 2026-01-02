@@ -57,6 +57,8 @@ CONF_MAC = "mac"
 CONF_PASSWORD = "password"
 CONF_MODEL = "model"
 CONF_NAME = "name"
+CONF_DEVICE_NAME = "device_name"
+CONF_CONNECTION_TIMEOUT = "connection_timeout"
 
 # Device classes
 DEVICE_CLASS_MULTICOOKER = "multicooker"
@@ -76,7 +78,6 @@ ENTITY_CATEGORY_SYSTEM = "system"
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_DELAY = 1.0
-CONF_CONNECTION_TIMEOUT = "connection_timeout"
 
 # Configuration keys
 CONF_AUTH_KEY = "auth_key"
