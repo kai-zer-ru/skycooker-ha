@@ -108,6 +108,10 @@ class CookerConnection:
     def _rx_callback(self, sender, data):
         self._last_data = data
 
+    async def connect(self):
+        """Public method to connect to the cooker."""
+        await self._connect()
+    
     async def _connect(self):
         _LOGGER.info(f"🔗 Starting connection to cooker {self._mac} (model: {self.model})")
         if self._disposed:

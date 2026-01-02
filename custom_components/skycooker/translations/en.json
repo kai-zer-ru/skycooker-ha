@@ -1,6 +1,10 @@
 {
   "config": {
     "step": {
+      "scan": {
+        "title": "Select Redmond Device",
+        "description": "Select your device from the list of available Bluetooth devices."
+      },
       "user": {
         "title": "SkyCooker Configuration",
         "description": "Please enter your SkyCooker device details.",
@@ -12,6 +16,22 @@
           "adapter": "Bluetooth Adapter"
         }
       },
+      "select_device": {
+        "title": "Select SkyCooker Device",
+        "description": "Found {count} SkyCooker device(s). Please select one:\n{devices}",
+        "data": {
+          "address": "Device"
+        }
+      },
+      "configure": {
+        "title": "Configure {device_name}",
+        "description": "Configure settings for {device_name} ({device_address})",
+        "data": {
+          "friendly_name": "Device Name",
+          "auth_key": "Authorization Key",
+          "persistent": "Keep Connection Active"
+        }
+      },
       "connect": {
         "title": "Connecting to device",
         "description": "Connecting to device {mac} ({model}). Please wait..."
@@ -19,23 +39,62 @@
       "auth_retry": {
         "title": "Authentication retry",
         "description": "Trying different authentication keys for device {mac} ({model})."
+      },
+      "init": {
+        "title": "Configure Parameters",
+        "description": "Configure integration parameters."
+      },
+      "options": {
+        "title": "SkyCooker Options",
+        "description": "Configure SkyCooker integration options."
       }
     },
     "abort": {
+      "unknown_model": "Device model is not supported.",
       "already_configured": "Device is already configured",
-      "no_devices": "No SkyCooker devices found.\n\n💡 Check:\n1. Device is powered on and in pairing mode\n2. Bluetooth adapter is working\n3. Device is within range (3-5 meters)\n4. Try restarting the device"
+      "no_bluetooth": "Bluetooth integration is not working.",
+      "cooker_not_found": "No Redmond devices found.\n\n💡 Check:\n1. Device is powered on and in pairing mode\n2. Bluetooth adapter is working\n3. Device is within range (3-5 meters)\n4. Try restarting the device",
+      "unknown": "Unknown error.",
+      "cant_connect": "Unable to connect to device. Check that the device is powered on and in pairing mode.",
+      "cant_auth": "Unable to authenticate. Check that the device is in pairing mode."
     },
     "error": {
+      "unknown_model": "Device model is not supported.",
+      "already_configured": "Device is already configured.",
+      "no_bluetooth": "Bluetooth integration is not working.",
+      "cooker_not_found": "No Redmond devices found.\n\n💡 Check:\n1. Device is powered on and in pairing mode\n2. Bluetooth adapter is working\n3. Device is within range (3-5 meters)\n4. Try restarting the device",
+      "unknown": "Unknown error.",
+      "cant_connect": "Unable to connect to device. Check that the device is powered on and in pairing mode.",
+      "cant_auth": "Unable to authenticate. Check that the device is in pairing mode.",
       "cannot_connect": "Unable to connect to device",
       "invalid_auth": "Invalid authorization key",
-      "unknown": "Unknown error occurred"
+      "unknown_error": "Unknown error occurred"
     }
   },
   "options": {
     "step": {
-      "init": {
+      "user": {
+        "title": "SkyCooker Configuration",
+        "description": "Please enter your SkyCooker device details.",
+        "data": {
+          "name": "Device Name",
+          "mac": "MAC Address",
+          "key": "Authorization Key",
+          "persistent": "Keep Connection Active",
+          "adapter": "Bluetooth Adapter"
+        }
+      },
+      "options": {
         "title": "SkyCooker Options",
         "description": "Configure SkyCooker integration options.",
+        "data": {
+          "scan_interval": "Scan Interval (seconds)",
+          "persistent": "Keep Connection Active"
+        }
+      },
+      "init": {
+        "title": "Configure Parameters",
+        "description": "Configure integration parameters.",
         "data": {
           "scan_interval": "Scan Interval (seconds)",
           "persistent": "Keep Connection Active"

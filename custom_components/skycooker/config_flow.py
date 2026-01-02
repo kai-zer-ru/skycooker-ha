@@ -36,30 +36,30 @@ from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
 
-# Шаг 1: Поиск устройства
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_DEVICE_NAME, default=DEFAULT_DEVICE_NAME): str,
-        vol.Required(CONF_ADDRESS): str,
-        vol.Optional(CONF_AUTH_KEY, default=DEFAULT_AUTH_KEY): str,
-        vol.Optional(CONF_FRIENDLY_NAME): str,
-    }
-)
+# Автоматически обнаруженные устройства
+STEP_DEVICE_SCHEMA = vol.Schema({})
 
-# Шаг 2: Настройка параметров подключения
-STEP_OPTIONS_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Optional(
-            CONF_CONNECTION_TIMEOUT, default=DEFAULT_CONNECTION_TIMEOUT
-        ): int,
-        vol.Optional(CONF_SCAN_TIMEOUT, default=DEFAULT_SCAN_TIMEOUT): int,
-        vol.Optional(CONF_WAIT_TIME, default=DEFAULT_WAIT_TIME): int,
-        vol.Optional(CONF_RETRIES, default=DEFAULT_RETRIES): int,
-        vol.Optional(
-            CONF_PERSISTENT_CONNECTION, default=DEFAULT_PERSISTENT_CONNECTION
-        ): bool,
-    }
-)
+# Шаг с выбором устройства
+STEP_SELECT_DEVICE_SCHEMA = vol.Schema({
+    vol.Required(CONF_ADDRESS): vol.In({}),
+})
+
+# Шаг с предустановленными данными
+STEP_CONFIG_SCHEMA = vol.Schema({
+    vol.Required(CONF_FRIENDLY_NAME, default="SkyCooker"): str,
+    vol.Required(CONF_AUTH_KEY, default=DEFAULT_AUTH_KEY): str,
+    vol.Required(CONF_PERSISTENT_CONNECTION, default=DEFAULT_PERSISTENT_CONNECTION): bool,
+})
+
+# Шаг настройки параметров подключения
+STEP_OPTIONS_SCHEMA = vol.Schema({
+    vol.Optional(
+        CONF_CONNECTION_TIMEOUT, default=DEFAULT_CONNECTION_TIMEOUT
+    ): int,
+    vol.Optional(CONF_SCAN_TIMEOUT, default=DEFAULT_SCAN_TIMEOUT): int,
+    vol.Optional(CONF_WAIT_TIME, default=DEFAULT_WAIT_TIME): int,
+    vol.Optional(CONF_RETRIES, default=DEFAULT_RETRIES): int,
+})
 
 
 class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -71,146 +71,199 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self.discovered_devices: dict[str, BluetoothServiceInfoBleak] = {}
-        self.device_data: dict[str, Any] = {}
+        self.selected_device: str | None = None
+        self.device_info: dict[str, Any] = {}
         _LOGGER.debug("Init SkyCookerConfigFlow")
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
-        _LOGGER.debug("Init SkyCookerConfigFlow 2")
-        errors: dict[str, str] = {}
+        """Handle the initial step - device discovery."""
+        _LOGGER.debug("Starting device discovery")
+        
+        # Сканируем Bluetooth устройства
+        devices = await self._discover_devices()
+        
+        if not devices:
+            _LOGGER.warning("No SkyCooker devices found")
+            return self.async_abort(reason="cooker_not_found")
 
+        if len(devices) == 1:
+            # Автоматически выбираем единственное устройство
+            device_address = list(devices.keys())[0]
+            device_info = devices[device_address]
+            _LOGGER.info(f"Auto-selected device: {device_address}")
+            return await self.async_step_configure(
+                {CONF_ADDRESS: device_address, **device_info}
+            )
+
+        # Несколько устройств - предлагаем выбор
+        device_options = {
+            addr: f"{info.name or 'Unknown'} ({addr})"
+            for addr, info in devices.items()
+        }
+        
         if user_input is not None:
-            _LOGGER.debug("Init SkyCookerConfigFlow 3")
-            # Сохраняем данные пользователя
-            self.device_data.update(user_input)
+            self.selected_device = user_input[CONF_ADDRESS]
+            device_info = devices[self.selected_device]
+            _LOGGER.info(f"User selected device: {self.selected_device}")
+            return await self.async_step_configure(
+                {CONF_ADDRESS: self.selected_device, **device_info}
+            )
 
-            # Проверяем, что устройство доступно
+        # Показываем форму выбора устройства
+        schema = vol.Schema({
+            vol.Required(CONF_ADDRESS): vol.In(device_options),
+        })
+        
+        return self.async_show_form(
+            step_id="select_device",
+            data_schema=schema,
+            description_placeholders={
+                "count": len(devices),
+                "devices": "\n".join([f"• {name}" for name in device_options.values()])
+            }
+        )
+
+    async def async_step_select_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle device selection step."""
+        return await self.async_step_user(user_input)
+
+    async def async_step_configure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle configuration step with pre-filled data."""
+        _LOGGER.debug("Configure step with device: %s", user_input.get(CONF_ADDRESS))
+        
+        self.device_info = user_input
+        device_name = user_input.get("name", "SkyCooker")
+        device_address = user_input[CONF_ADDRESS]
+        
+        if user_input is not None:
+            # Проверяем соединение с предустановленными параметрами
             try:
-                _LOGGER.debug("Init SkyCookerConfigFlow 4")
-                # Создаем временное соединение для проверки
                 cooker = CookerConnection(
-                    mac=user_input[CONF_ADDRESS],
+                    mac=device_address,
                     key=user_input.get(CONF_AUTH_KEY, DEFAULT_AUTH_KEY),
-                    persistent=False,  # Временно отключаем постоянное соединение
+                    persistent=user_input.get(CONF_PERSISTENT_CONNECTION, DEFAULT_PERSISTENT_CONNECTION),
                     adapter=None,
                     hass=self.hass,
-                    model=user_input.get(CONF_DEVICE_NAME, DEFAULT_DEVICE_NAME)
+                    model=DEFAULT_DEVICE_NAME
                 )
 
-                _LOGGER.debug("Init SkyCookerConfigFlow 5")
-                # Проверяем соединение
                 if await cooker.connect():
-                    _LOGGER.debug("Init SkyCookerConfigFlow 6")
                     await cooker.disconnect()
-                    _LOGGER.debug("Init SkyCookerConfigFlow 7")
-                    # Сохраняем данные и переходим к следующему шагу
-                    self.hass.data.setdefault(DOMAIN, {})
-                    self.hass.data[DOMAIN]["temp_config"] = self.device_data
-                    _LOGGER.debug("Init SkyCookerConfigFlow 8")
-                    return await self.async_step_options()
+                    _LOGGER.info("Successfully connected to device during configuration")
+                    
+                    # Сохраняем данные и переходим к опциям
+                    config_data = {
+                        CONF_ADDRESS: device_address,
+                        CONF_FRIENDLY_NAME: user_input[CONF_FRIENDLY_NAME],
+                        CONF_AUTH_KEY: user_input[CONF_AUTH_KEY],
+                        CONF_PERSISTENT_CONNECTION: user_input[CONF_PERSISTENT_CONNECTION],
+                        CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
+                    }
+                    
+                    return await self.async_step_options(config_data)
                 else:
-                    _LOGGER.debug("Init SkyCookerConfigFlow 9")
-                    errors["base"] = "cannot_connect"
+                    _LOGGER.warning("Cannot connect to device during configuration")
+                    return self.async_abort(reason="cannot_connect")
+                    
             except Exception as exc:
-                _LOGGER.debug("Init SkyCookerConfigFlow 10")
-                _LOGGER.error("Error connecting to SkyCooker: %s", exc)
-                errors["base"] = "cannot_connect"
+                _LOGGER.error("Error during device configuration: %s", exc)
+                return self.async_abort(reason="cannot_connect")
 
-        # Если это первый вызов или есть ошибки, показываем форму
+        # Создаем схему с предустановленными значениями
+        schema = vol.Schema({
+            vol.Required(
+                CONF_FRIENDLY_NAME,
+                default=f"SkyCooker {device_address[-5:]}"
+            ): str,
+            vol.Required(
+                CONF_AUTH_KEY,
+                default=DEFAULT_AUTH_KEY
+            ): str,
+            vol.Required(
+                CONF_PERSISTENT_CONNECTION,
+                default=DEFAULT_PERSISTENT_CONNECTION
+            ): bool,
+        })
+
         return self.async_show_form(
-            step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
-            errors=errors,
+            step_id="configure",
+            data_schema=schema,
+            description_placeholders={
+                "device_name": device_name,
+                "device_address": device_address
+            }
         )
 
     async def async_step_options(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the options step."""
-        errors: dict[str, str] = {}
-
+        _LOGGER.debug("Options step")
+        
         if user_input is not None:
-            # Соединяем данные из обоих шагов
-            config_data = {**self.device_data, **user_input}
+            # Добавляем параметры подключения к данным
+            config_data = {
+                **user_input,
+                CONF_CONNECTION_TIMEOUT: DEFAULT_CONNECTION_TIMEOUT,
+                CONF_SCAN_TIMEOUT: DEFAULT_SCAN_TIMEOUT,
+                CONF_WAIT_TIME: DEFAULT_WAIT_TIME,
+                CONF_RETRIES: DEFAULT_RETRIES,
+            }
+            
+            # Создаем запись конфигурации
+            return self.async_create_entry(
+                title=config_data[CONF_FRIENDLY_NAME],
+                data=config_data,
+            )
 
-            try:
-                # Проверяем соединение с новыми параметрами
-                cooker = CookerConnection(
-                    mac=config_data[CONF_ADDRESS],
-                    key=config_data.get(CONF_AUTH_KEY, DEFAULT_AUTH_KEY),
-                    persistent=config_data[CONF_PERSISTENT_CONNECTION],
-                    adapter=None,
-                    hass=self.hass,
-                    model=config_data.get(CONF_DEVICE_NAME, DEFAULT_DEVICE_NAME)
-                )
-
-                if await cooker.connect():
-                    await cooker.disconnect()
-
-                    # Создаем запись конфигурации
-                    return self.async_create_entry(
-                        title=config_data.get(
-                            CONF_FRIENDLY_NAME,
-                            f"SkyCooker {config_data[CONF_ADDRESS]}",
-                        ),
-                        data=config_data,
-                    )
-                else:
-                    errors["base"] = "cannot_connect"
-            except Exception as exc:
-                _LOGGER.error("Error connecting to SkyCooker with options: %s", exc)
-                errors["base"] = "cannot_connect"
+        schema = vol.Schema({
+            vol.Optional(
+                CONF_CONNECTION_TIMEOUT, default=DEFAULT_CONNECTION_TIMEOUT
+            ): int,
+            vol.Optional(CONF_SCAN_TIMEOUT, default=DEFAULT_SCAN_TIMEOUT): int,
+            vol.Optional(CONF_WAIT_TIME, default=DEFAULT_WAIT_TIME): int,
+            vol.Optional(CONF_RETRIES, default=DEFAULT_RETRIES): int,
+        })
 
         return self.async_show_form(
             step_id="options",
-            data_schema=STEP_OPTIONS_DATA_SCHEMA,
-            errors=errors,
+            data_schema=schema,
+            description_placeholders={
+                "device_name": self.device_info.get("name", "SkyCooker"),
+                "device_address": self.device_info.get(CONF_ADDRESS, "")
+            }
         )
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the initial step."""
-        _LOGGER.debug("Init SkyCookerConfigFlow")
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            # Сохраняем данные пользователя
-            self.device_data.update(user_input)
-
-            # Проверяем, что устройство доступно
-            try:
-                # Создаем временное соединение для проверки
-                cooker = CookerConnection(
-                    mac=user_input[CONF_ADDRESS],
-                    key=user_input.get(CONF_AUTH_KEY, DEFAULT_AUTH_KEY),
-                    persistent=False,  # Временно отключаем постоянное соединение
-                    adapter=None,
-                    hass=self.hass,
-                    model=user_input.get(CONF_DEVICE_NAME, DEFAULT_DEVICE_NAME)
-                )
-
-                # Проверяем соединение
-                if await cooker.connect():
-                    await cooker.disconnect()
-                    # Сохраняем данные и переходим к следующему шагу
-                    self.hass.data.setdefault(DOMAIN, {})
-                    self.hass.data[DOMAIN]["temp_config"] = self.device_data
-                    return await self.async_step_options()
-                else:
-                    errors["base"] = "cannot_connect"
-            except Exception as exc:
-                _LOGGER.error("Error connecting to SkyCooker: %s", exc)
-                errors["base"] = "cannot_connect"
-
-        # Если это первый вызов или есть ошибки, показываем форму
-        return self.async_show_form(
-            step_id="init",
-            data_schema=STEP_USER_DATA_SCHEMA,
-            errors=errors,
-        )
+    async def _discover_devices(self) -> dict[str, BluetoothServiceInfoBleak]:
+        """Discover SkyCooker devices via Bluetooth."""
+        _LOGGER.debug("Scanning for SkyCooker devices...")
+        
+        discovered_devices = {}
+        try:
+            # Получаем список обнаруженных Bluetooth устройств
+            for discovery_info in async_discovered_service_info(self.hass):
+                device_name = discovery_info.name or ""
+                device_address = discovery_info.address
+                
+                # Фильтруем устройства по имени (если есть) или по наличию нужных характеристик
+                if (device_name.lower().startswith("rmc-") or
+                    device_name.lower().startswith("skycooker") or
+                    device_name.lower().startswith("redmond")):
+                    
+                    _LOGGER.debug(f"Found potential SkyCooker device: {device_name} ({device_address})")
+                    discovered_devices[device_address] = discovery_info
+                    
+        except Exception as e:
+            _LOGGER.error("Error during device discovery: %s", e)
+            
+        _LOGGER.info(f"Found {len(discovered_devices)} SkyCooker device(s)")
+        return discovered_devices
 
     @staticmethod
     def async_get_options_flow(
@@ -234,42 +287,31 @@ class SkyCookerOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        options_schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_CONNECTION_TIMEOUT,
-                    default=self.config_entry.options.get(
-                        CONF_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT
-                    ),
-                ): int,
-                vol.Optional(
-                    CONF_SCAN_TIMEOUT,
-                    default=self.config_entry.options.get(
-                        CONF_SCAN_TIMEOUT, DEFAULT_SCAN_TIMEOUT
-                    ),
-                ): int,
-                vol.Optional(
-                    CONF_WAIT_TIME,
-                    default=self.config_entry.options.get(
-                        CONF_WAIT_TIME, DEFAULT_WAIT_TIME
-                    ),
-                ): int,
-                vol.Optional(
-                    CONF_RETRIES,
-                    default=self.config_entry.options.get(
-                        CONF_RETRIES, DEFAULT_RETRIES
-                    ),
-                ): int,
-                vol.Optional(
-                    CONF_PERSISTENT_CONNECTION,
-                    default=self.config_entry.options.get(
-                        CONF_PERSISTENT_CONNECTION, DEFAULT_PERSISTENT_CONNECTION
-                    ),
-                ): bool,
-            }
-        )
+        current_options = self.config_entry.options
+        schema_dict = {
+            vol.Optional(
+                CONF_CONNECTION_TIMEOUT,
+                default=current_options.get(CONF_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT)
+            ): int,
+            vol.Optional(
+                CONF_SCAN_TIMEOUT,
+                default=current_options.get(CONF_SCAN_TIMEOUT, DEFAULT_SCAN_TIMEOUT)
+            ): int,
+            vol.Optional(
+                CONF_WAIT_TIME,
+                default=current_options.get(CONF_WAIT_TIME, DEFAULT_WAIT_TIME)
+            ): int,
+            vol.Optional(
+                CONF_RETRIES,
+                default=current_options.get(CONF_RETRIES, DEFAULT_RETRIES)
+            ): int,
+            vol.Optional(
+                CONF_PERSISTENT_CONNECTION,
+                default=current_options.get(CONF_PERSISTENT_CONNECTION, DEFAULT_PERSISTENT_CONNECTION)
+            ): bool,
+        }
 
         return self.async_show_form(
             step_id="init",
-            data_schema=options_schema,
+            data_schema=vol.Schema(schema_dict),
         )
