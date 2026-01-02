@@ -219,8 +219,8 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="connect",
             data_schema=vol.Schema({}),
             description_placeholders={
-                "device_name": self.device_info.get(CONF_FRIENDLY_NAME, DEFAULT_DEVICE_NAME),
-                "device_address": self.device_info.get(CONF_MAC, ""),
+                "mac": self.device_info.get(CONF_MAC, ""),
+                "model": DEFAULT_DEVICE_NAME,
                 "instruction": "Переведите устройство в режим сопряжения (Bluetooth pairing) и нажмите кнопку «Подключить»"
             }
         )
@@ -313,7 +313,7 @@ class SkyCookerOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        super().__init__(config_entry)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
