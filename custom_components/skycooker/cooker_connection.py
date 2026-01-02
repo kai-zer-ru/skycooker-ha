@@ -73,6 +73,7 @@ class CookerConnection:
         self._skycooker = SkyCooker(model)
 
     async def command(self, command, params=[]):
+        _LOGGER.info(f"🔧 Command method called: command={command:02x}, params=[{', '.join([f'{c:02x}' for c in params])}]")
         if self._disposed:
             _LOGGER.error(f"❌ Command failed: connection disposed")
             raise DisposedError()
