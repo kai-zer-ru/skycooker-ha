@@ -339,32 +339,6 @@ class SkyCooker():
                 _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
                 _LOGGER.warning(f"⚠️ Only RMC-M40S (MODELS_5) is currently supported")
                 return None
-                
-                if r is None or len(r) == 0:
-                    _LOGGER.warning(f"⚠️ No response received for status command")
-                    return SkyCooker.Status(
-                        mode=0,
-                        is_on=False,
-                        error_code=None,
-                        current_temp=0,
-                        target_temp=0,
-                        cook_hours=0,
-                        cook_minutes=0,
-                        wait_hours=0,
-                        wait_minutes=0,
-                        boil_time=0
-                    )
-                
-                # Log the raw response for debugging
-                _LOGGER.info(f"📡 Raw status response: {r.hex() if hasattr(r, 'hex') else r}")
-                _LOGGER.info(f"📡 Response length: {len(r)} bytes")
-                _LOGGER.info(f"📡 Response bytes: {[hex(b) for b in r]}")
-                
-                return self._parse_rmc_m40s_status(r)
-            else:
-                _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
-                _LOGGER.warning(f"⚠️ Only RMC-M40S (MODELS_5) is currently supported")
-                return None
             
         except Exception as e:
             _LOGGER.error(f"❌ Failed to get status: {e}")
