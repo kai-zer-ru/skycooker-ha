@@ -10,11 +10,12 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.const import CONF_ADDRESS, CONF_FRIENDLY_NAME
+from homeassistant.const import CONF_FRIENDLY_NAME, CONF_MAC
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
+    CONF_ADDRESS,
     CONF_AUTH_KEY,
     CONF_CONNECTION_TIMEOUT,
     CONF_DEVICE_NAME,
@@ -96,7 +97,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             # Автоматически заполняем все данные
             config_data = {
-                CONF_ADDRESS: device_address,
+                CONF_MAC: device_address,
                 CONF_FRIENDLY_NAME: f"SkyCooker {device_address[-5:]}",  # Автоматическое имя
                 CONF_AUTH_KEY: DEFAULT_AUTH_KEY,  # Автоматический ключ
                 CONF_PERSISTENT_CONNECTION: DEFAULT_PERSISTENT_CONNECTION,  # Автоматическая настройка
@@ -112,13 +113,13 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
         
         if user_input is not None:
-            self.selected_device = user_input[CONF_ADDRESS]
+            self.selected_device = user_input[CONF_MAC]
             device_info = devices[self.selected_device]
             _LOGGER.info(f"User selected device: {self.selected_device}")
             
             # Автоматически заполняем все данные
             config_data = {
-                CONF_ADDRESS: self.selected_device,
+                CONF_MAC: self.selected_device,
                 CONF_FRIENDLY_NAME: f"SkyCooker {self.selected_device[-5:]}",  # Автоматическое имя
                 CONF_AUTH_KEY: DEFAULT_AUTH_KEY,  # Автоматический ключ
                 CONF_PERSISTENT_CONNECTION: DEFAULT_PERSISTENT_CONNECTION,  # Автоматическая настройка
@@ -129,7 +130,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Показываем форму выбора устройства
         schema = vol.Schema({
-            vol.Required(CONF_ADDRESS): vol.In(device_options),
+            vol.Required(CONF_MAC): vol.In(device_options),
         })
         
         return self.async_show_form(
