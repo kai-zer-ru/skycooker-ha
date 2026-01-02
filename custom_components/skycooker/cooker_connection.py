@@ -82,6 +82,13 @@ class CookerConnection:
                 _LOGGER.error(f"❌ Command failed: not connected")
                 raise IOError("not connected")
         
+        if self._disposed:
+            _LOGGER.error(f"❌ Command failed: connection disposed")
+            raise DisposedError()
+        if not self._client or not self._client.is_connected:
+            _LOGGER.error(f"❌ Command failed: not connected")
+            raise IOError("not connected")
+        
         await self._connect_if_need()
         self._iter = (self._iter + 1) % 256
         _LOGGER.info(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
