@@ -15,7 +15,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
-    CONF_ADDRESS,
     CONF_AUTH_KEY,
     CONF_CONNECTION_TIMEOUT,
     CONF_DEVICE_NAME,
@@ -42,7 +41,7 @@ STEP_DEVICE_SCHEMA = vol.Schema({})
 
 # Шаг с выбором устройства
 STEP_SELECT_DEVICE_SCHEMA = vol.Schema({
-    vol.Required(CONF_ADDRESS): vol.In({}),
+    vol.Required(CONF_MAC): vol.In({}),
 })
 
 # Шаг с предустановленными данными
@@ -192,7 +191,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=schema,
             description_placeholders={
                 "device_name": self.device_info.get("name", "SkyCooker"),
-                "device_address": self.device_info.get(CONF_ADDRESS, "")
+                "device_address": self.device_info.get(CONF_MAC, "")
             }
         )
 

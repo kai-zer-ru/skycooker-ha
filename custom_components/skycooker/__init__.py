@@ -5,7 +5,7 @@ from datetime import timedelta
 import homeassistant.helpers.event as ev
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (ATTR_SW_VERSION, CONF_DEVICE,
-                                 CONF_FRIENDLY_NAME, CONF_ADDRESS, CONF_PASSWORD,
+                                 CONF_FRIENDLY_NAME, CONF_MAC, CONF_PASSWORD,
                                  CONF_SCAN_INTERVAL, Platform)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import dispatcher_send
@@ -32,7 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     if entry.entry_id not in hass.data: hass.data[DOMAIN][entry.entry_id] = {}
 
     cooker = CookerConnection(
-        mac=entry.data[CONF_ADDRESS],
+        mac=entry.data[CONF_MAC],
         key=entry.data[CONF_PASSWORD],
         persistent=entry.data[CONF_PERSISTENT_CONNECTION],
         adapter=entry.data.get(CONF_DEVICE, None),
@@ -68,10 +68,10 @@ def device_info(entry):
         model=entry.data.get(CONF_FRIENDLY_NAME, None),
         sw_version=entry.data.get(ATTR_SW_VERSION, None),
         identifiers={
-            (DOMAIN, entry.data[CONF_ADDRESS])
+            (DOMAIN, entry.data[CONF_MAC])
         },
         connections={
-            ("mac", entry.data[CONF_ADDRESS])
+            ("mac", entry.data[CONF_MAC])
         }
     )
 

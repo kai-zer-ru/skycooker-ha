@@ -7,7 +7,6 @@ import pytest
 from bleak_retry_connector import BleakClientWithServiceCache
 
 from custom_components.skycooker.const import (
-    CONF_ADDRESS,
     CONF_PERSISTENT_CONNECTION,
     DEFAULT_PERSISTENT_CONNECTION,
     DOMAIN,

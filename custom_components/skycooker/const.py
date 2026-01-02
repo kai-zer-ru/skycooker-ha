@@ -6,7 +6,6 @@ MANUFACTORER = "Redmond"
 SUGGESTED_AREA = "kitchen"
 
 # Configuration constants
-CONF_ADDRESS = "address"
 CONF_AUTH_KEY = "auth_key"
 CONF_DEVICE_NAME = "device_name"
 CONF_PERSISTENT_CONNECTION = "persistent_connection"
