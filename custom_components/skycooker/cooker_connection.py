@@ -12,7 +12,7 @@ from bleak_retry_connector import establish_connection, BleakClientWithServiceCa
 from homeassistant.components import bluetooth
 
 from .const import *
-from .const import ROOM_TEMP, BOIL_TEMP
+from .const import ROOM_TEMP, BOIL_TEMP, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -87,6 +87,11 @@ class TestSkyCooker:
         with pytest.raises(SkyCookerError, match="Failed to get version - no response"):
             await cooker.get_version()
 
+    def test_version_constant(self):
+        """Тест константы версии."""
+        from custom_components.skycooker.const import VERSION
+        assert VERSION == "0.0.8"
+
     @pytest.mark.asyncio
     async def test_turn_on_success(self):
         """Тест успешного включения."""

@@ -7,6 +7,8 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from struct import pack, unpack
 
+from .const import VERSION
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -148,7 +150,7 @@ class SkyCooker():
 
 
     def __init__(self, model):
-        _LOGGER.info(f"🔧 Initializing SkyCooker with model: {model} (v0.0.8)")
+        _LOGGER.info(f"🔧 Initializing SkyCooker with model: {model} (v{VERSION})")
         self.model = model
         self.model_code = self.get_model_code(model)
         if not self.model_code:
@@ -211,6 +213,33 @@ class SkyCooker():
         except Exception as e:
             _LOGGER.error(f"❌ Failed to get version: {e}")
             raise
+
+    async def get_version(self):
+        """Get device version."""
+        try:
+            _LOGGER.debug(f"📋 Requesting device version...")
+            r = await self.command(SkyCooker.COMMAND_GET_VERSION)
+            if r is None:
+                _LOGGER.error(f"❌ Failed to get version - no response received")
+                raise SkyCookerError("Failed to get version - no response")
+            
+            _LOGGER.debug(f"📡 Raw version response: {r.hex() if hasattr(r, 'hex') else r}")
+            
+            # Parse version data
+            try:
+                major, minor = unpack("BB", r[:2])
+                ver = f"{major}.{minor}"
+                _LOGGER.debug(f"📦 Parsed version: {ver}")
+            except Exception as e:
+                _LOGGER.error(f"❌ Error unpacking version: {e}")
+                raise SkyCookerError(f"Error unpacking version: {e}")
+            
+            _LOGGER.info(f"✅ Version retrieved: {ver}")
+            return (major, minor)
+            
+        except Exception as e:
+            _LOGGER.error(f"❌ Failed to get version: {e}")
+            raise SkyCookerError(f"Failed to get version: {e}")
 
     async def test_connection(self):
         """Test basic connection with simple command."""
