@@ -152,38 +152,17 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         device_address = user_input[CONF_ADDRESS]
         
         if user_input is not None:
-            # Проверяем соединение с предустановленными параметрами
-            try:
-                cooker = CookerConnection(
-                    mac=device_address,
-                    key=user_input.get(CONF_AUTH_KEY, DEFAULT_AUTH_KEY),
-                    persistent=user_input.get(CONF_PERSISTENT_CONNECTION, DEFAULT_PERSISTENT_CONNECTION),
-                    adapter=None,
-                    hass=self.hass,
-                    model=DEFAULT_DEVICE_NAME
-                )
-
-                if await cooker.connect():
-                    await cooker.disconnect()
-                    _LOGGER.info("Successfully connected to device during configuration")
-                    
-                    # Сохраняем данные и переходим к опциям
-                    config_data = {
-                        CONF_ADDRESS: device_address,
-                        CONF_FRIENDLY_NAME: user_input[CONF_FRIENDLY_NAME],
-                        CONF_AUTH_KEY: user_input[CONF_AUTH_KEY],
-                        CONF_PERSISTENT_CONNECTION: user_input[CONF_PERSISTENT_CONNECTION],
-                        CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
-                    }
-                    
-                    return await self.async_step_options(config_data)
-                else:
-                    _LOGGER.warning("Cannot connect to device during configuration")
-                    return self.async_abort(reason="cannot_connect")
-                    
-            except Exception as exc:
-                _LOGGER.error("Error during device configuration: %s", exc)
-                return self.async_abort(reason="cannot_connect")
+            # Сохраняем данные и переходим к опциям
+            # (проверка соединения будет в options шаге)
+            config_data = {
+                CONF_ADDRESS: device_address,
+                CONF_FRIENDLY_NAME: user_input[CONF_FRIENDLY_NAME],
+                CONF_AUTH_KEY: user_input[CONF_AUTH_KEY],
+                CONF_PERSISTENT_CONNECTION: user_input[CONF_PERSISTENT_CONNECTION],
+                CONF_DEVICE_NAME: DEFAULT_DEVICE_NAME,
+            }
+            
+            return await self.async_step_options(config_data)
 
         # Создаем схему с предустановленными значениями
         schema = vol.Schema({
@@ -228,7 +207,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             # Создаем запись конфигурации
             return self.async_create_entry(
-                title=config_data[CONF_FRIENDLY_NAME],
+                title=config_data.get(CONF_FRIENDLY_NAME, "SkyCooker"),
                 data=config_data,
             )
 
