@@ -215,6 +215,7 @@ class SkyCooker():
         """Test basic connection with simple command."""
         _LOGGER.info(f"🧪 Testing basic connection (model code: {self.model_code})")
         try:
+            _LOGGER.info(f"🧪 About to call command method with command 0x{SkyCooker.COMMAND_GET_VERSION:02x}")
             # Try version command first - it's usually the most basic
             _LOGGER.info(f"🧪 Sending version command (0x{SkyCooker.COMMAND_GET_VERSION:02x}) for basic test")
             r = await self.command(SkyCooker.COMMAND_GET_VERSION)
