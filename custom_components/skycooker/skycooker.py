@@ -147,7 +147,7 @@ class SkyCooker():
 
 
     def __init__(self, model):
-        _LOGGER.info(f"🔧 Initializing SkyCooker with model: {model}")
+        _LOGGER.info(f"🔧 Initializing SkyCooker with model: {model} (v2.0)")
         self.model = model
         self.model_code = self.get_model_code(model)
         if not self.model_code:
