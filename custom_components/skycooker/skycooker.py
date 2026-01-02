@@ -216,9 +216,10 @@ class SkyCooker():
         _LOGGER.info(f"🧪 Testing basic connection (model code: {self.model_code})")
         try:
             # Try version command first - it's usually the most basic
+            _LOGGER.info(f"🧪 Sending version command (0x{SkyCooker.COMMAND_GET_VERSION:02x}) for basic test")
             r = await self.command(SkyCooker.COMMAND_GET_VERSION)
             if r is not None:
-                _LOGGER.info(f"✅ Basic connection test successful")
+                _LOGGER.info(f"✅ Basic connection test successful, got response: {r.hex() if hasattr(r, 'hex') else r}")
                 return True
             else:
                 _LOGGER.warning(f"⚠️ Basic connection test failed - no response")
