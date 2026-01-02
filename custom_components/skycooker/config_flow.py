@@ -308,7 +308,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return SkyCookerOptionsFlowHandler(config_entry)
 
 
-class SkyCookerOptionsFlowHandler(config_entries.OptionsFlow):
+class SkyCookerOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
     """Handle SkyCooker options."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
