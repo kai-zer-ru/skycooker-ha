@@ -141,7 +141,7 @@ class SkyCooker():
     COMMAND_DEL_SCHEDULE_RECORD  = 0x74
     COMMAND_AUTH = 0xFF
 
-    Status = namedtuple("Status", ["mode","is_on", "error_code", "current_temp", "target_temp", "cook_hours", "cook_minutes", "wait_hours", "wait_minutes"])
+    Status = namedtuple("Status", ["mode","is_on", "error_code", "current_temp", "target_temp", "cook_hours", "cook_minutes", "wait_hours", "wait_minutes", "boil_time"])
     Stats = namedtuple("Stats", ["ontime", "energy_wh", "heater_on_count", "user_on_count"])
     FreshWaterInfo = namedtuple("FreshWaterInfo", ["is_on", "unknown1", "water_freshness_hours"])
 
@@ -313,7 +313,8 @@ class SkyCooker():
                         cook_hours=cook_hours,
                         cook_minutes=cook_minutes,
                         wait_hours=wait_hours,
-                        wait_minutes=wait_minutes
+                        wait_minutes=wait_minutes,
+                        boil_time=0  # Default boil_time for now
                     )
                 except Exception as e:
                     _LOGGER.error(f"❌ Error unpacking RMC-M40S status: {e}")
@@ -327,7 +328,8 @@ class SkyCooker():
                         cook_hours=0,
                         cook_minutes=0,
                         wait_hours=0,
-                        wait_minutes=0
+                        wait_minutes=0,
+                        boil_time=0
                     )
             else:
                 _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
@@ -349,7 +351,8 @@ class SkyCooker():
                 cook_hours=0,
                 cook_minutes=0,
                 wait_hours=0,
-                wait_minutes=0
+                wait_minutes=0,
+                boil_time=0
             )
 
     async def sync_time(self):

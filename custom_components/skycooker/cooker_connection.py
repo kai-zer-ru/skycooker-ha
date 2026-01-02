@@ -1212,7 +1212,8 @@ class CookerConnection:
                         cook_hours=cook_hours,
                         cook_minutes=cook_minutes,
                         wait_hours=wait_hours,
-                        wait_minutes=wait_minutes
+                        wait_minutes=wait_minutes,
+                        boil_time=0  # Default boil_time for now
                     )
                 except Exception as e:
                     _LOGGER.error(f"❌ Error unpacking RMC-M40S status: {e}")
@@ -1226,7 +1227,8 @@ class CookerConnection:
                         cook_hours=0,
                         cook_minutes=0,
                         wait_hours=0,
-                        wait_minutes=0
+                        wait_minutes=0,
+                        boil_time=0
                     )
             else:
                 _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
@@ -1248,7 +1250,8 @@ class CookerConnection:
                 cook_hours=0,
                 cook_minutes=0,
                 wait_hours=0,
-                wait_minutes=0
+                wait_minutes=0,
+                boil_time=0
             )
 
     async def get_stats(self):
