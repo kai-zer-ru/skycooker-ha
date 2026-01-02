@@ -486,6 +486,22 @@ class CookerConnection:
         if not self._auth_ok:
             try:
                 _LOGGER.info(f"🔑 Performing authentication...")
+                # Verify device is in pairing mode by requesting firmware version
+                try:
+                    await asyncio.wait_for(
+                        self._skycooker.get_version(),
+                        timeout=2.0,
+                    )
+                except (asyncio.TimeoutError, Exception) as exc:
+                    _LOGGER.error(
+                        f"❌ Device did not respond to version request – "
+                        f"ensure it is in Bluetooth pairing mode: {exc}"
+                    )
+                    raise AuthError(
+                        "Device not responding – please put the cooker into "
+                        "pairing mode (blinking indicator) and retry."
+                    )
+                # End new block
                 self._last_auth_ok = self._auth_ok = await self.auth()
                 if not self._auth_ok:
                     _LOGGER.error(f"❌ Authentication failed. You need to enable pairing mode on the cooker.")

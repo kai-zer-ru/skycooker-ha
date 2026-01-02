@@ -221,7 +221,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "mac": self.device_info.get(CONF_MAC, ""),
                 "model": DEFAULT_DEVICE_NAME,
-                "instruction": "Переведите устройство в режим сопряжения (Bluetooth pairing) и нажмите кнопку «Подключить»"
+                "instruction": "Переведите устройство в режим сопряжения (Bluetooth pairing) и нажмите кнопку «Подключить». Если устройство не отвечает, проверьте, что индикатор парирования мигает."
             }
         )
 
