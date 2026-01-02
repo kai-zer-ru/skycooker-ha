@@ -253,8 +253,9 @@ class SkyCooker():
         try:
             # Currently only RMC-M40S (MODELS_3) is supported
             if self.model_code == SkyCooker.MODELS_3:  # RMC-M40S
-                # Pack data for RMC-M40S
-                data = pack("BxBxxxxxxxxxxBxx", int(mode), int(target_temp), int(0x80 + boil_time))
+                # Pack data for RMC-M40S - corrected format based on protocol analysis
+                # Format: mode (1 byte), padding (1 byte), target_temp (1 byte), padding (13 bytes), boil_time (1 byte), padding (2 bytes)
+                data = pack("BBB13xBB", int(mode), 0, int(target_temp), int(0x80 + boil_time))
                 _LOGGER.debug(f"📦 Packed data for RMC-M40S: {data.hex()}")
             else:
                 _LOGGER.warning(f"⚠️ set_main_mode is not supported by this model (code: {self.model_code})")
@@ -363,7 +364,8 @@ class SkyCooker():
                 t = time.localtime()
                 offset = calendar.timegm(t) - calendar.timegm(time.gmtime(time.mktime(t)))
                 now = int(time.time())
-                data = pack("<ii", now, offset)
+                # Corrected format for time sync - use little-endian 32-bit integers
+                data = pack("<II", now, offset)
                 _LOGGER.debug(f"📦 Packed time data: timestamp={now}, offset={offset}")
                 
                 # Use shorter timeout for time sync to avoid blocking
@@ -394,7 +396,8 @@ class SkyCooker():
     async def get_time(self):
         if self.model_code in [SkyCooker.MODELS_3]: # RK-G2xxS, RK-M13xS, RK-M21xS, RK-M223S but not sure
             r = await self.command(SkyCooker.COMMAND_GET_TIME)
-            t, offset = unpack("<ii", r)
+            # Corrected format for time response - use unsigned integers
+            t, offset = unpack("<II", r)
             _LOGGER.info(f"time={t} ({datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')}), offset={offset} (GMT{offset/60/60:+.2f})")
             return t, offset
         else:
@@ -416,7 +419,8 @@ class SkyCooker():
             if r is None:
                 _LOGGER.error(f"❌ Failed to get wait hours - no response received")
                 return None
-            hours, = unpack("<H", r)
+            # Corrected format for auto-off hours response
+            hours, = unpack("<H", r[:2])
             _LOGGER.info(f"Wait hours={hours}")
             return hours
         else:
@@ -428,7 +432,8 @@ class SkyCooker():
             if r is None:
                 _LOGGER.error(f"❌ Failed to get wait minutes - no response received")
                 return None
-            minutes, = unpack("<H", r)
+            # Corrected format for auto-off minutes response
+            minutes, = unpack("<H", r[:2])
             _LOGGER.info(f"Wait minutes={minutes}")
             return minutes
         else:
@@ -440,7 +445,8 @@ class SkyCooker():
             if r is None:
                 _LOGGER.error(f"❌ Failed to get cook hours - no response received")
                 return None
-            hours, = unpack("<H", r)
+            # Corrected format for cook hours response
+            hours, = unpack("<H", r[:2])
             _LOGGER.info(f"Cook hours={hours}")
             return hours
         else:
@@ -452,7 +458,8 @@ class SkyCooker():
             if r is None:
                 _LOGGER.error(f"❌ Failed to get cook minutes - no response received")
                 return None
-            minutes, = unpack("<H", r)
+            # Corrected format for cook minutes response
+            minutes, = unpack("<H", r[:2])
             _LOGGER.info(f"Cook minutes={minutes}")
             return minutes
         else:
@@ -464,7 +471,8 @@ class SkyCooker():
             if r is None:
                 _LOGGER.error(f"❌ Failed to get current program - no response received")
                 return None
-            program, = unpack("<H", r)
+            # Corrected format for current program response
+            program, = unpack("<H", r[:2])
             _LOGGER.info(f"Current program={program}")
             return program
         else:
