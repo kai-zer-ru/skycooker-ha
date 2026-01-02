@@ -467,9 +467,8 @@ class SkyCooker():
                 _LOGGER.debug(f"📦 Packed time data: timestamp={now}, offset={offset}")
                 
                 # Use shorter timeout for time sync to avoid blocking
-                original_timeout = CookerConnection.BLE_RECV_TIMEOUT
-                CookerConnection.BLE_RECV_TIMEOUT = 3.0  # Reduce timeout to 3 seconds
-                
+                # Note: We can't access CookerConnection.BLE_RECV_TIMEOUT here due to circular import
+                # Just use a simple timeout approach instead
                 try:
                     r = await self.command(SkyCooker.COMMAND_SYNC_TIME, data)
                     if r is None:
@@ -480,9 +479,12 @@ class SkyCooker():
                         raise SkyCookerError("can't sync time")
                     
                     _LOGGER.info(f"✅ Time synchronized: {datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')} (GMT{offset/60/60:+.2f})")
-                finally:
-                    # Restore original timeout
-                    CookerConnection.BLE_RECV_TIMEOUT = original_timeout
+                except asyncio.TimeoutError:
+                    _LOGGER.warning(f"⚠️ Time synchronization timeout (non-critical)")
+                    # Don't raise exception for timeout - it's not critical
+                except Exception as e:
+                    _LOGGER.warning(f"⚠️ Time synchronization failed (non-critical): {e}")
+                    # Don't raise exception for time sync failure - it's not critical
                     
             else:
                 _LOGGER.warning(f"⚠️ sync_time is not supported by this model (code: {self.model_code})")

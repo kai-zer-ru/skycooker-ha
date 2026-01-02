@@ -387,5 +387,145 @@ TEST_CONFIG_DATA = {
 }
 
 
+class TestRMCM40SSupport:
+    """Test RMC-M40S specific functionality and protocol."""
+
+    def test_rmc_m40s_model_detection(self):
+        """Test RMC-M40S model detection."""
+        cooker = SkyCooker("RMC-M40S")
+        assert cooker.model == "RMC-M40S"
+        assert cooker.model_code == 5  # MODELS_5
+
+    def test_rmc_m42s_model_detection(self):
+        """Test RMC-M42S model detection."""
+        cooker = SkyCooker("RMC-M42S")
+        assert cooker.model == "RMC-M42S"
+        assert cooker.model_code == 5  # MODELS_5
+
+    def test_rmc_m4xs_variant_detection(self):
+        """Test RMC-M4xS variant detection."""
+        cooker = SkyCooker("RMC-M41S")
+        assert cooker.model == "RMC-M41S"
+        assert cooker.model_code == 5  # MODELS_5
+
+    def test_rmc_m40s_status_parsing(self):
+        """Test RMC-M40S status response parsing."""
+        cooker = SkyCooker("RMC-M40S")
+        
+        # Mock RMC-M40S status response based on ESPHome-Ready4Sky protocol
+        # Format: data[3] - режим готовки (нужно прибавить 1), data[14] - статус
+        response_data = bytes([
+            0x55, 0x01, 0x06,  # Header
+            0x01,  # data[3] - режим готовки (1 + 1 = 2 = Rice/Cereals)
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  # Padding
+            0x00,  # Additional padding
+            0x00,  # Additional padding
+            0x02,  # data[14] - статус (0x02 > 0x01 = включено)
+            0x00, 0x00,  # Additional data
+            0xAA
+        ])
+        
+        status = cooker._parse_rmc_m40s_status(response_data)
+        
+        assert status.mode == 2  # Rice/Cereals
+        assert status.is_on is True  # 0x02 > 0x01
+        assert status.current_temp == 0
+        assert status.target_temp == 0
+        assert status.cook_hours == 0
+        assert status.cook_minutes == 0
+        assert status.wait_hours == 0
+        assert status.wait_minutes == 0
+        assert status.boil_time == 0
+
+    def test_rmc_m40s_status_parsing_off(self):
+        """Test RMC-M40S status response parsing when device is off."""
+        cooker = SkyCooker("RMC-M40S")
+        
+        # Mock RMC-M40S status response for device off
+        response_data = bytes([
+            0x55, 0x01, 0x06,  # Header
+            0x00,  # data[3] - режим готовки (0 + 1 = 1 = Multi-chef)
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  # Padding
+            0x00,  # data[11] - статус (0x00 = выключено)
+            0x00, 0x00, 0x00, 0x00,  # Additional data
+            0xAA
+        ])
+        
+        status = cooker._parse_rmc_m40s_status(response_data)
+        
+        assert status.mode == 1  # Multi-chef
+        assert status.is_on is False
+        assert status.current_temp == 0
+        assert status.target_temp == 0
+
+    def test_rmc_m40s_status_parsing_with_temperature(self):
+        """Test RMC-M40S status response parsing with temperature data."""
+        cooker = SkyCooker("RMC-M40S")
+        
+        # Mock RMC-M40S status response with temperature data
+        response_data = bytes([
+            0x55, 0x01, 0x06,  # Header
+            0x02,  # data[3] - режим готовки (2 + 1 = 3 = Languor)
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  # Padding
+            0x00,  # Additional padding
+            0x00,  # Additional padding
+            0x03,  # data[14] - статус (0x03 > 0x01 = включено)
+            0x00, 0x00,  # Additional padding
+            0x3C,  # current_temp = 60°C
+            0x46,  # target_temp = 70°C
+            0x01,  # cook_hours = 1
+            0x30,  # cook_minutes = 48
+            0x00,  # wait_hours = 0
+            0x00,  # wait_minutes = 0
+            0x05,  # boil_time = 5
+            0xAA
+        ])
+        
+        status = cooker._parse_rmc_m40s_status(response_data)
+        
+        assert status.mode == 3  # Languor
+        assert status.is_on is True  # 0x03 > 0x01
+        assert status.current_temp == 60
+        assert status.target_temp == 70
+        assert status.cook_hours == 1
+        assert status.cook_minutes == 48
+        assert status.wait_hours == 0
+        assert status.wait_minutes == 0
+        assert status.boil_time == 5
+
+    def test_rmc_m40s_status_parsing_short_response(self):
+        """Test RMC-M40S status response parsing with short response."""
+        cooker = SkyCooker("RMC-M40S")
+        
+        # Mock short response
+        response_data = bytes([0x55, 0x01, 0x06, 0x01, 0x00])
+        
+        status = cooker._parse_rmc_m40s_status(response_data)
+        
+        # Should return default status for short response
+        assert status.mode == 0
+        assert status.is_on is False
+        assert status.current_temp == 0
+        assert status.target_temp == 0
+
+    def test_rmc_m40s_mode_names(self):
+        """Test RMC-M40S mode names."""
+        cooker = SkyCooker("RMC-M40S")
+        
+        # Test some key modes
+        assert cooker.MODE_NAMES[cooker.MODE_STANDBY] == "Standby"
+        assert cooker.MODE_NAMES[cooker.MODE_MULTI_CHEF] == "Multi-chef"
+        assert cooker.MODE_NAMES[cooker.MODE_RICE_CEREALS] == "Rice/Cereals"
+        assert cooker.MODE_NAMES[cooker.MODE_LANGUOR] == "Languor"
+        assert cooker.MODE_NAMES[cooker.MODE_PILAF] == "Pilaf"
+        assert cooker.MODE_NAMES[cooker.MODE_FRYING] == "Frying"
+        assert cooker.MODE_NAMES[cooker.MODE_STEWING] == "Stewing"
+        assert cooker.MODE_NAMES[cooker.MODE_BAKING] == "Baking"
+        assert cooker.MODE_NAMES[cooker.MODE_STEAMING] == "Steaming"
+        assert cooker.MODE_NAMES[cooker.MODE_YOGURT] == "Yogurt"
+        assert cooker.MODE_NAMES[cooker.MODE_DOUGH] == "Dough"
+        assert cooker.MODE_NAMES[cooker.MODE_KEEP_WARM] == "Keep Warm"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
