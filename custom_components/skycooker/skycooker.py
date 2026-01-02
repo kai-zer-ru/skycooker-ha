@@ -304,9 +304,41 @@ class SkyCooker():
         try:
             # For RMC-M40S, use specific protocol based on ESPHome-Ready4Sky
             if self.model_code == SkyCooker.MODELS_5:  # RMC-M40S
-                # Use command 0x06 for RMC-M40S status
-                _LOGGER.debug(f"📡 Using command 0x06 for RMC-M40S status")
-                r = await self.command(SkyCooker.COMMAND_GET_STATUS)
+                # Try multiple commands to find the correct one for RMC-M40S
+                commands_to_try = [
+                    SkyCooker.COMMAND_GET_STATUS,  # 0x06 - original
+                    0x01,  # Alternative command 1
+                    0x02,  # Alternative command 2
+                    0x07,  # Alternative command 3
+                    0x08,  # Alternative command 4
+                ]
+                
+                for cmd in commands_to_try:
+                    _LOGGER.info(f"📡 Trying command 0x{cmd:02x} for RMC-M40S status")
+                    r = await self.command(cmd)
+                    if r is not None and len(r) > 0:
+                        _LOGGER.info(f"✅ Got response from command 0x{cmd:02x}: {r.hex() if hasattr(r, 'hex') else r}")
+                        return self._parse_rmc_m40s_status(r)
+                    else:
+                        _LOGGER.debug(f"❌ No response from command 0x{cmd:02x}")
+                
+                _LOGGER.error(f"❌ No response from any status command")
+                return SkyCooker.Status(
+                    mode=0,
+                    is_on=False,
+                    error_code=None,
+                    current_temp=0,
+                    target_temp=0,
+                    cook_hours=0,
+                    cook_minutes=0,
+                    wait_hours=0,
+                    wait_minutes=0,
+                    boil_time=0
+                )
+            else:
+                _LOGGER.warning(f"⚠️ get_status is not supported by this model (code: {self.model_code})")
+                _LOGGER.warning(f"⚠️ Only RMC-M40S (MODELS_5) is currently supported")
+                return None
                 
                 if r is None or len(r) == 0:
                     _LOGGER.warning(f"⚠️ No response received for status command")
