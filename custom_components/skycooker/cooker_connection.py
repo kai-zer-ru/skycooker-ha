@@ -74,12 +74,13 @@ class CookerConnection:
 
     async def command(self, command, params=[]):
         _LOGGER.info(f"🔧 Command method called: command={command:02x}, params=[{', '.join([f'{c:02x}' for c in params])}]")
-        if self._disposed:
-            _LOGGER.error(f"❌ Command failed: connection disposed")
-            raise DisposedError()
-        if not self._client or not self._client.is_connected:
-            _LOGGER.error(f"❌ Command failed: not connected")
-            raise IOError("not connected")
+        try:
+            if self._disposed:
+                _LOGGER.error(f"❌ Command failed: connection disposed")
+                raise DisposedError()
+            if not self._client or not self._client.is_connected:
+                _LOGGER.error(f"❌ Command failed: not connected")
+                raise IOError("not connected")
         
         self._iter = (self._iter + 1) % 256
         _LOGGER.info(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
