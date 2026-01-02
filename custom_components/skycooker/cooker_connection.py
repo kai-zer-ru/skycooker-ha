@@ -84,63 +84,66 @@ class CookerConnection:
         
             await self._connect_if_need()
             self._iter = (self._iter + 1) % 256
-        _LOGGER.info(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
-        _LOGGER.info(f"📡 Full command packet: 55 {self._iter:02x} {command:02x} [{' '.join([f'{c:02x}' for c in params])}] AA")
-        data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
-        self._last_data = None
-        
-        try:
-            await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
-            _LOGGER.debug(f"📤 Data sent successfully")
-        except Exception as e:
-            _LOGGER.error(f"❌ Failed to send command: {e}")
-            raise IOError(f"Failed to send command: {e}")
-        
-        # Улучшенная логика ожидания ответа с более гибким таймаутом
-        timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
-        response_attempts = 0
-        max_response_attempts = 100  # Максимум 5 секунд при 0.05с интервале
-        
-        while response_attempts < max_response_attempts:
-            await asyncio.sleep(0.05)
-            response_attempts += 1
+            _LOGGER.info(f"📡 Sending command {command:02x}, data: [{' '.join([f'{c:02x}' for c in params])}]")
+            _LOGGER.info(f"📡 Full command packet: 55 {self._iter:02x} {command:02x} [{' '.join([f'{c:02x}' for c in params])}] AA")
+            data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
+            self._last_data = None
             
-            if self._last_data:
-                r = self._last_data
-                _LOGGER.info(f"📥 Raw response received: {r.hex() if hasattr(r, 'hex') else r}")
+            try:
+                await self._client.write_gatt_char(CookerConnection.UUID_TX, data)
+                _LOGGER.debug(f"📤 Data sent successfully")
+            except Exception as e:
+                _LOGGER.error(f"❌ Failed to send command: {e}")
+                raise IOError(f"Failed to send command: {e}")
+            
+            # Улучшенная логика ожидания ответа с более гибким таймаутом
+            timeout_time = monotonic() + CookerConnection.BLE_RECV_TIMEOUT
+            response_attempts = 0
+            max_response_attempts = 100  # Максимум 5 секунд при 0.05с интервале
+            
+            while response_attempts < max_response_attempts:
+                await asyncio.sleep(0.05)
+                response_attempts += 1
                 
-                # Проверяем длину ответа
-                if len(r) < 4:
-                    _LOGGER.warning(f"⚠️ Response too short: {len(r)} bytes")
-                    self._last_data = None
-                    continue
-                
-                # Проверяем магические байты
-                if r[0] != 0x55 or r[-1] != 0xAA:
-                    _LOGGER.error(f"❌ Invalid response magic: {r.hex() if hasattr(r, 'hex') else r}")
-                    raise IOError("Invalid response magic")
-                
-                # Проверяем итерацию
-                if r[1] == self._iter:
-                    # Проверяем команду
-                    if r[2] != command:
-                        _LOGGER.error(f"❌ Invalid response command: expected {command:02x}, got {r[2]:02x}")
-                        raise IOError("Invalid response command")
+                if self._last_data:
+                    r = self._last_data
+                    _LOGGER.info(f"📥 Raw response received: {r.hex() if hasattr(r, 'hex') else r}")
                     
-                    clean = bytes(r[3:-1])
-                    _LOGGER.info(f"✅ Command {command:02x} completed successfully")
-                    _LOGGER.info(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
-                    return clean
-                else:
-                    _LOGGER.debug(f"🔄 Response iteration mismatch (expected {self._iter}, got {r[1]}), waiting for correct response")
-                    self._last_data = None
+                    # Проверяем длину ответа
+                    if len(r) < 4:
+                        _LOGGER.warning(f"⚠️ Response too short: {len(r)} bytes")
+                        self._last_data = None
+                        continue
+                    
+                    # Проверяем магические байты
+                    if r[0] != 0x55 or r[-1] != 0xAA:
+                        _LOGGER.error(f"❌ Invalid response magic: {r.hex() if hasattr(r, 'hex') else r}")
+                        raise IOError("Invalid response magic")
+                    
+                    # Проверяем итерацию
+                    if r[1] == self._iter:
+                        # Проверяем команду
+                        if r[2] != command:
+                            _LOGGER.error(f"❌ Invalid response command: expected {command:02x}, got {r[2]:02x}")
+                            raise IOError("Invalid response command")
+                        
+                        clean = bytes(r[3:-1])
+                        _LOGGER.info(f"✅ Command {command:02x} completed successfully")
+                        _LOGGER.info(f"📥 Received response: {' '.join([f'{c:02x}' for c in clean])}")
+                        return clean
+                    else:
+                        _LOGGER.debug(f"🔄 Response iteration mismatch (expected {self._iter}, got {r[1]}), waiting for correct response")
+                        self._last_data = None
+                
+                if monotonic() >= timeout_time:
+                    _LOGGER.error(f"❌ Command timeout after {CookerConnection.BLE_RECV_TIMEOUT}s")
+                    raise IOError("Receive timeout")
             
-            if monotonic() >= timeout_time:
-                _LOGGER.error(f"❌ Command timeout after {CookerConnection.BLE_RECV_TIMEOUT}s")
-                raise IOError("Receive timeout")
-        
-        _LOGGER.error(f"❌ Command {command:02x} failed: no valid response received")
-        raise IOError("No valid response received")
+            _LOGGER.error(f"❌ Command {command:02x} failed: no valid response received")
+            raise IOError("No valid response received")
+        except Exception as e:
+            _LOGGER.error(f"❌ Command failed: {e}")
+            raise
 
     def _rx_callback(self, sender, data):
         self._last_data = data
