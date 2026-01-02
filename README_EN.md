@@ -1,5 +1,10 @@
 # SkyCooker Integration for Home Assistant
 
+⚠️ **IMPORTANT: The integration is under active development!** ⚠️
+
+**It is not recommended to install this integration in a working HomeAssistant system.**
+Use only for testing and development.
+
 Integration for managing Redmond RMC series multicookers via Bluetooth.
 
 ## Supported Models
@@ -7,13 +12,21 @@ Integration for managing Redmond RMC series multicookers via Bluetooth.
 - **RMC-M40S** (primary support)
 - **RMC-M42S** (experimental support)
 
+## Development Status
+
+- ✅ Basic connection and authentication
+- ✅ Power on/off control
+- ⚠️ Program control (requires improvements)
+- ⚠️ Status monitoring (limited support)
+- ⚠️ RMC-M40S support (requires testing)
+
 ## Requirements
 
 - Home Assistant 2025.12.5+
 - Bluetooth adapter
 - Redmond RMC-M40S multicooker in Bluetooth pairing mode
 
-## Installation
+## Installation (for development only!)
 
 1. Download integration to `custom_components/skycooker` folder
 2. Restart Home Assistant
@@ -81,6 +94,18 @@ Password should be in HEX format, 8 bytes length. You can:
 1. Ensure multicooker is in pairing mode
 2. Check password correctness
 3. Try restarting multicooker
+
+## Testing
+
+For testing the integration:
+
+```bash
+# Run tests
+python -m pytest tests/test_skycooker.py -v
+
+# Run with detailed logging
+python -m pytest tests/test_skycooker.py -v -s --log-cli-level=DEBUG
+```
 
 ## Logging
 
