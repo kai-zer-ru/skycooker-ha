@@ -98,7 +98,8 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ADDRESS: device_address,
                     "name": device_info.name,
                     "address": device_info.address,
-                    "rssi": device_info.rssi
+                    "rssi": device_info.rssi,
+                    CONF_FRIENDLY_NAME: f"SkyCooker {device_address[-5:]}"
                 }
             )
 
@@ -117,7 +118,8 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ADDRESS: self.selected_device,
                     "name": device_info.name,
                     "address": device_info.address,
-                    "rssi": device_info.rssi
+                    "rssi": device_info.rssi,
+                    CONF_FRIENDLY_NAME: f"SkyCooker {self.selected_device[-5:]}"
                 }
             )
 
