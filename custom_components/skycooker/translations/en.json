@@ -1,0 +1,63 @@
+{
+  "title": "SkyCoocker",
+  "config": {
+    "step": {
+      "scan": {
+        "title": "Scan for multicooker",
+        "description": "Select your Redmond multicooker from the list of discovered devices."
+      },
+      "connect": {
+        "title": "Connecting",
+        "description": "Please wait while connecting to the multicooker..."
+      },
+      "init": {
+        "title": "Setup",
+        "description": "Configure connection settings."
+      }
+    },
+    "error": {
+      "no_bluetooth": "Bluetooth not available",
+      "device_not_found": "Multicooker not found",
+      "unknown_model": "Unknown multicooker model",
+      "already_configured": "Multicooker already configured",
+      "cant_connect": "Connection failed",
+      "cant_auth": "Authentication failed"
+    },
+    "data": {
+      "persistent_connection": "Persistent connection",
+      "scan_interval": "Scan interval (seconds)"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": "Status",
+      "temperature": "Temperature",
+      "remaining_time": "Remaining time",
+      "total_time": "Total time",
+      "auto_warm_time": "Auto warm time",
+      "success_rate": "Success rate",
+      "delayed_launch_time": "Time until delayed launch"
+    },
+    "switch": {
+      "power": "Power"
+    },
+    "select": {
+      "mode": "Mode"
+    },
+    "button": {
+      "start": "Start",
+      "stop": "Stop"
+    }
+  },
+  "state": {
+    "status": {
+      "off": "Off",
+      "wait": "Waiting",
+      "delayed_launch": "Delayed launch",
+      "warming": "Warming",
+      "cooking": "Cooking",
+      "auto_warm": "Auto warm",
+      "full_off": "Fully off"
+    }
+  }
+}

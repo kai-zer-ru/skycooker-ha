@@ -1,0 +1,50 @@
+# Exclude test files from HACS
+**/tests/
+
+# Exclude other_source directory
+**/other_source/
+
+# Exclude scripts directory
+**/scripts/
+
+# Exclude git files
+.git/
+.gitignore
+
+# Exclude IDE files
+.vscode/
+.idea/
+
+# Exclude build files
+build/
+dist/
+
+# Exclude node modules
+node_modules/
+
+# Exclude coverage
+.coverage
+htmlcov/
+
+# Exclude pytest cache
+.pytest_cache/
+
+# Exclude Python cache
+__pycache__/
+*.py[cod]
+
+# Exclude environment files
+.venv/
+venv/
+ENV/
+.env
+.env.local
+
+# Exclude macOS files
+.DS_Store
+
+# Exclude swap files
+*.swp
+*.swo
+*.bak
+*.tmp

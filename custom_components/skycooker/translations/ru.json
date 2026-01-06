@@ -1,0 +1,63 @@
+{
+  "title": "SkyCoocker",
+  "config": {
+    "step": {
+      "scan": {
+        "title": "Поиск мультиварки",
+        "description": "Выберите вашу мультиварку Redmond из списка найденных устройств."
+      },
+      "connect": {
+        "title": "Подключение",
+        "description": "Пожалуйста, подождите, идет подключение к мультиварке..."
+      },
+      "init": {
+        "title": "Настройка",
+        "description": "Настройте параметры подключения."
+      }
+    },
+    "error": {
+      "no_bluetooth": "Bluetooth не доступен",
+      "device_not_found": "Мультиварка не найдена",
+      "unknown_model": "Неизвестная модель мультиварки",
+      "already_configured": "Мультиварка уже настроена",
+      "cant_connect": "Не удалось подключиться",
+      "cant_auth": "Ошибка аутентификации"
+    },
+    "data": {
+      "persistent_connection": "Постоянное подключение",
+      "scan_interval": "Интервал опроса (секунды)"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": "Статус",
+      "temperature": "Температура",
+      "remaining_time": "Оставшееся время",
+      "total_time": "Общее время",
+      "auto_warm_time": "Время автоподогрева",
+      "success_rate": "Процент успеха",
+      "delayed_launch_time": "Время до отложенного запуска"
+    },
+    "switch": {
+      "power": "Питание"
+    },
+    "select": {
+      "mode": "Режим"
+    },
+    "button": {
+      "start": "Запуск",
+      "stop": "Стоп"
+    }
+  },
+  "state": {
+    "status": {
+      "off": "Выключена",
+      "wait": "Ожидание",
+      "delayed_launch": "Отложенный запуск",
+      "warming": "Разогрев",
+      "cooking": "Готовка",
+      "auto_warm": "Автоподогрев",
+      "full_off": "Полностью выключена"
+    }
+  }
+}
