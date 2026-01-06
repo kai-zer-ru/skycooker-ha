@@ -16,5 +16,6 @@
   "domain": "skycooker",
   "country": ["RU", "UA", "KZ", "BY"],
   "repository": "https://github.com/kai-zer-ru/skycooker-ha",
-  "documentation": "https://github.com/kai-zer-ru/skycooker-ha/blob/master/README.md"
+  "documentation": "https://github.com/kai-zer-ru/skycooker-ha/blob/master/README.md",
+  "description": "Integration for Skycooker multicookers"
 }
