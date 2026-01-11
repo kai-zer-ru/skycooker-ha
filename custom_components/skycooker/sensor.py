@@ -1,4 +1,5 @@
 """SkyCooker sensors."""
+
 from homeassistant.components.sensor import (SensorDeviceClass, SensorEntity,
                                               SensorStateClass)
 from homeassistant.const import (CONF_FRIENDLY_NAME, PERCENTAGE, UnitOfTemperature,
@@ -8,16 +9,13 @@ from homeassistant.helpers.entity import EntityCategory
 
 from .const import *
 
-
-
-
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the SkyCooker sensors."""
     entities = [
         SkyCookerSensor(hass, entry, SENSOR_TYPE_STATUS),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_TEMPERATURE),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_REMAINING_TIME),
-        SkyCookerSensor(hass, entry, SENSOR_TYPE_TOTAL_TIME),
+        SkyCookerSensor(hass, entry, SENSOR_TYPE_COOKING_TIME),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_AUTO_WARM_TIME),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_SUCCESS_RATE),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_DELAYED_LAUNCH_TIME),
@@ -95,8 +93,8 @@ class SkyCookerSensor(SensorEntity):
             return f"{base_name} {'Температура' if is_russian else 'Temperature'}"
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
             return f"{base_name} {'Оставшееся время' if is_russian else 'Remaining time'}"
-        elif self.sensor_type == SENSOR_TYPE_TOTAL_TIME:
-            return f"{base_name} {'Общее время' if is_russian else 'Total time'}"
+        elif self.sensor_type == SENSOR_TYPE_COOKING_TIME:
+            return f"{base_name} {'Время приготовления' if is_russian else 'Cooking time'}"
         elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
             return f"{base_name} {'Время автоподогрева' if is_russian else 'Auto warm time'}"
         elif self.sensor_type == SENSOR_TYPE_SUCCESS_RATE:
@@ -119,7 +117,7 @@ class SkyCookerSensor(SensorEntity):
             return "mdi:thermometer"
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
             return "mdi:timer"
-        elif self.sensor_type == SENSOR_TYPE_TOTAL_TIME:
+        elif self.sensor_type == SENSOR_TYPE_COOKING_TIME:
             return "mdi:clock"
         elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
             return "mdi:clock-start"
@@ -156,8 +154,10 @@ class SkyCookerSensor(SensorEntity):
             return self.skycooker.target_temp is not None
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
             return self.skycooker.remaining_time is not None
-        elif self.sensor_type == SENSOR_TYPE_TOTAL_TIME:
-            return self.skycooker.total_time is not None
+        elif self.sensor_type == SENSOR_TYPE_COOKING_TIME:
+            # Проверяем наличие target_main_hours и target_main_minutes
+            return (hasattr(self.skycooker, 'target_main_hours') and
+                    hasattr(self.skycooker, 'target_main_minutes'))
         elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
             return self.skycooker.auto_warm_enabled is not None
         elif self.sensor_type == SENSOR_TYPE_CURRENT_MODE:
@@ -179,9 +179,9 @@ class SkyCookerSensor(SensorEntity):
         """Return device class."""
         if self.sensor_type == SENSOR_TYPE_TEMPERATURE:
             return SensorDeviceClass.TEMPERATURE
-        elif self.sensor_type in [SENSOR_TYPE_REMAINING_TIME, SENSOR_TYPE_TOTAL_TIME, 
+        elif self.sensor_type in [SENSOR_TYPE_REMAINING_TIME, SENSOR_TYPE_COOKING_TIME,
                                   SENSOR_TYPE_AUTO_WARM_TIME, SENSOR_TYPE_DELAYED_LAUNCH_TIME]:
-            return SensorDeviceClass.DURATION
+            return None
         return None
 
     @property
@@ -189,11 +189,11 @@ class SkyCookerSensor(SensorEntity):
         """Return state class."""
         if self.sensor_type == SENSOR_TYPE_TEMPERATURE:
             return SensorStateClass.MEASUREMENT
-        elif self.sensor_type in [SENSOR_TYPE_REMAINING_TIME, SENSOR_TYPE_TOTAL_TIME, 
-                                  SENSOR_TYPE_AUTO_WARM_TIME, SENSOR_TYPE_DELAYED_LAUNCH_TIME]:
-            return SensorStateClass.MEASUREMENT
         elif self.sensor_type == SENSOR_TYPE_SUCCESS_RATE:
             return SensorStateClass.MEASUREMENT
+        elif self.sensor_type in [SENSOR_TYPE_REMAINING_TIME, SENSOR_TYPE_COOKING_TIME,
+                                  SENSOR_TYPE_AUTO_WARM_TIME, SENSOR_TYPE_DELAYED_LAUNCH_TIME]:
+            return None
         return None
 
     @property
@@ -201,12 +201,13 @@ class SkyCookerSensor(SensorEntity):
         """Return unit of measurement."""
         if self.sensor_type == SENSOR_TYPE_TEMPERATURE:
             return UnitOfTemperature.CELSIUS
-        elif self.sensor_type in [SENSOR_TYPE_REMAINING_TIME, SENSOR_TYPE_TOTAL_TIME, 
+        elif self.sensor_type in [SENSOR_TYPE_REMAINING_TIME, SENSOR_TYPE_COOKING_TIME,
                                   SENSOR_TYPE_AUTO_WARM_TIME, SENSOR_TYPE_DELAYED_LAUNCH_TIME]:
-            return UnitOfTime.MINUTES
+            return None
         elif self.sensor_type == SENSOR_TYPE_SUCCESS_RATE:
             return PERCENTAGE
         return None
+
 
     @property
     def native_value(self):
@@ -227,25 +228,88 @@ class SkyCookerSensor(SensorEntity):
                 return 0
             return self.skycooker.target_temp if self.skycooker.target_temp is not None else 0
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
-            return self.skycooker.remaining_time if self.skycooker.remaining_time is not None else 0
-        elif self.sensor_type == SENSOR_TYPE_TOTAL_TIME:
-            return self.skycooker.total_time if self.skycooker.total_time is not None else 0
-        elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
             status_code = self.skycooker.status_code
-            if status_code is not None:
-                return self.skycooker.remaining_time if status_code == STATUS_AUTO_WARM else 0
-            return 0
+            if status_code == STATUS_DELAYED_LAUNCH:
+                # Для отложенного запуска: target_main + target_additional
+                boil_hours = self.skycooker.target_main_hours if hasattr(self.skycooker, 'target_main_hours') and self.skycooker.target_main_hours is not None else 0
+                boil_minutes = self.skycooker.target_main_minutes if hasattr(self.skycooker, 'target_main_minutes') and self.skycooker.target_main_minutes is not None else 0
+                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                total_hours = boil_hours + additional_hours
+                total_minutes = boil_minutes + additional_minutes
+                # Нормализуем минуты
+                if total_minutes >= 60:
+                    total_hours += 1
+                    total_minutes -= 60
+            elif status_code in [STATUS_WARMING, STATUS_COOKING]:
+                # Для разогрева и готовки: только target_additional
+                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                total_hours = additional_hours
+                total_minutes = additional_minutes
+            else:
+                total_hours = 0
+                total_minutes = 0
+                   
+            if total_hours > 0 or total_minutes > 0:
+                if self.hass.config.language == "ru":
+                    return f"{total_hours} ч. {total_minutes} м."
+                else:
+                    return f"{total_hours} h. {total_minutes} m."
+            else:
+                if self.hass.config.language == "ru":
+                    return "0 ч. 0 м."
+                else:
+                    return "0 h. 0 m."
+        elif self.sensor_type == SENSOR_TYPE_COOKING_TIME:
+            # Время приготовления: не должно меняться со временем, только при смене статуса
+            status_code = self.skycooker.status_code
+            if status_code in [STATUS_DELAYED_LAUNCH, STATUS_WARMING, STATUS_COOKING]:
+                boil_hours = self.skycooker.target_main_hours if hasattr(self.skycooker, 'target_main_hours') and self.skycooker.target_main_hours is not None else 0
+                boil_minutes = self.skycooker.target_main_minutes if hasattr(self.skycooker, 'target_main_minutes') and self.skycooker.target_main_minutes is not None else 0
+                if self.hass.config.language == "ru":
+                    return f"{boil_hours} ч. {boil_minutes} м."
+                else:
+                    return f"{boil_hours} h. {boil_minutes} m."
+            else:
+                if self.hass.config.language == "ru":
+                    return "0 ч. 0 м."
+                else:
+                    return "0 h. 0 m."
+        elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
+            # Время автоподогрева: только при статусе STATUS_AUTO_WARM
+            status_code = self.skycooker.status_code
+            if status_code == STATUS_AUTO_WARM:
+                # Используем target_additional_hours и target_additional_minutes
+                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                if self.hass.config.language == "ru":
+                    return f"{additional_hours} ч. {additional_minutes} м."
+                else:
+                    return f"{additional_hours} h. {additional_minutes} m."
+            else:
+                if self.hass.config.language == "ru":
+                    return "0 ч. 0 м."
+                else:
+                    return "0 h. 0 m."
         elif self.sensor_type == SENSOR_TYPE_SUCCESS_RATE:
             return self.skycooker.success_rate if self.skycooker.success_rate is not None else 0
         elif self.sensor_type == SENSOR_TYPE_DELAYED_LAUNCH_TIME:
-            # Возвращаем время отложенного запуска, если оно установлено, независимо от текущего статуса
-            if self.skycooker.status_code is not None:
-                # Проверяем, есть ли установленное время отложенного запуска
-                delayed_time = self.skycooker.delayed_start_time
-                # Если delayed_time не является callable (mock-объект) и не равен None, возвращаем его
-                if delayed_time is not None and not callable(delayed_time):
-                    return delayed_time
-            return 0
+            # Время до отложенного старта: только при статусе STATUS_DELAYED_LAUNCH
+            status_code = self.skycooker.status_code
+            if status_code == STATUS_DELAYED_LAUNCH:
+                # Используем target_additional_hours и target_additional_minutes
+                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                if self.hass.config.language == "ru":
+                    return f"{additional_hours} ч. {additional_minutes} м."
+                else:
+                    return f"{additional_hours} h. {additional_minutes} m."
+            else:
+                if self.hass.config.language == "ru":
+                    return "0 ч. 0 м."
+                else:
+                    return "0 h. 0 m."
         elif self.sensor_type == SENSOR_TYPE_CURRENT_MODE:
             status_code = self.skycooker.status_code
             if status_code == STATUS_OFF:
@@ -280,5 +344,5 @@ class SkyCookerSensor(SensorEntity):
             if self.skycooker.status and self.skycooker.status.subprog is not None:
                 return str(self.skycooker.status.subprog)
             return "0"
-          
+           
         return None

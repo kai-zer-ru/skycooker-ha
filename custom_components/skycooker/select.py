@@ -162,31 +162,31 @@ class SkyCookerSelect(SelectEntity):
             return None
         elif self.select_type == SELECT_TYPE_COOKING_TIME_HOURS:
             # Возвращаем текущие часы из пользовательских настроек или статуса
-            if self.skycooker.target_boil_hours is not None:
-                return str(self.skycooker.target_boil_hours)
+            if self.skycooker.target_main_hours is not None:
+                return str(self.skycooker.target_main_hours)
             elif self.skycooker.status:
-                return str(self.skycooker.status.target_boil_hours)
+                return str(self.skycooker.status.target_main_hours)
             return None
         elif self.select_type == SELECT_TYPE_COOKING_TIME_MINUTES:
             # Возвращаем текущие минуты из пользовательских настроек или статуса
-            if self.skycooker.target_boil_minutes is not None:
-                return str(self.skycooker.target_boil_minutes)
+            if self.skycooker.target_main_minutes is not None:
+                return str(self.skycooker.target_main_minutes)
             elif self.skycooker.status:
-                return str(self.skycooker.status.target_boil_minutes)
+                return str(self.skycooker.status.target_main_minutes)
             return None
         elif self.select_type == SELECT_TYPE_DELAYED_START_HOURS:
             # Возвращаем текущие часы отложенного запуска из пользовательских настроек или статуса
-            if getattr(self.skycooker, '_target_delayed_start_hours', None) is not None:
-                return str(self.skycooker._target_delayed_start_hours)
+            if getattr(self.skycooker, '_target_additional_hours', None) is not None:
+                return str(self.skycooker._target_additional_hours)
             elif self.skycooker.status:
-                return str(self.skycooker.status.target_delayed_start_hours)
+                return str(self.skycooker.status.target_additional_hours)
             return None
         elif self.select_type == SELECT_TYPE_DELAYED_START_MINUTES:
             # Возвращаем текущие минуты отложенного запуска из пользовательских настроек или статуса
-            if getattr(self.skycooker, '_target_delayed_start_minutes', None) is not None:
-                return str(self.skycooker._target_delayed_start_minutes)
+            if getattr(self.skycooker, '_target_additional_minutes', None) is not None:
+                return str(self.skycooker._target_additional_minutes)
             elif self.skycooker.status:
-                return str(self.skycooker.status.target_delayed_start_minutes)
+                return str(self.skycooker.status.target_additional_minutes)
             return None
         return None
 
@@ -270,21 +270,21 @@ class SkyCookerSelect(SelectEntity):
                 if not hasattr(self.skycooker, '_target_temperature') or self.skycooker._target_temperature is None:
                     self.skycooker._target_temperature = mode_data[0]
                   
-                # Update target_boil_hours и target_boil_minutes with mode data only if user hasn't set custom values
+                # Update target_main_hours и target_main_minutes with mode data only if user hasn't set custom values
                 # If user has already set custom cooking time, respect their choice
                 # Check if user has explicitly set custom cooking time (not just default values)
-                if (not hasattr(self.skycooker, '_target_boil_hours') or 
-                    not hasattr(self.skycooker, '_target_boil_minutes')):
+                if (not hasattr(self.skycooker, '_target_main_hours') or
+                    not hasattr(self.skycooker, '_target_main_minutes')):
                     # If attributes don't exist, create them with mode data
-                    self.skycooker._target_boil_hours = mode_data[1]
-                    self.skycooker._target_boil_minutes = mode_data[2]
+                    self.skycooker._target_main_hours = mode_data[1]
+                    self.skycooker._target_main_minutes = mode_data[2]
                 else:
                     # If attributes exist, check if they have been explicitly set by user
                     # Default values are 0 for hours and 10 for minutes
                     # If values match defaults, update with mode data
-                    if (self.skycooker._target_boil_hours == 0 and self.skycooker._target_boil_minutes == 10):
-                        self.skycooker._target_boil_hours = mode_data[1]
-                        self.skycooker._target_boil_minutes = mode_data[2]
+                    if (self.skycooker._target_main_hours == 0 and self.skycooker._target_main_minutes == 10):
+                        self.skycooker._target_main_hours = mode_data[1]
+                        self.skycooker._target_main_minutes = mode_data[2]
 
             # Устанавливаем целевой режим без отправки команд на устройство
             self.skycooker._target_mode = mode_id
@@ -296,30 +296,30 @@ class SkyCookerSelect(SelectEntity):
             self.skycooker._target_temperature = int(option)
         elif self.select_type == SELECT_TYPE_COOKING_TIME_HOURS:
             # Обновляем часы в целевом времени приготовления
-            self.skycooker.target_boil_hours = int(option)
+            self.skycooker.target_main_hours = int(option)
         elif self.select_type == SELECT_TYPE_COOKING_TIME_MINUTES:
             # Обновляем минуты в целевом времени приготовления
-            self.skycooker.target_boil_minutes = int(option)
+            self.skycooker.target_main_minutes = int(option)
         elif self.select_type == SELECT_TYPE_DELAYED_START_HOURS:
             # Устанавливаем часы отложенного запуска
-            self.skycooker._target_delayed_start_hours = int(option)
+            self.skycooker._target_additional_hours = int(option)
         elif self.select_type == SELECT_TYPE_DELAYED_START_MINUTES:
             # Устанавливаем минуты отложенного запуска
-            self.skycooker._target_delayed_start_minutes = int(option)
+            self.skycooker._target_additional_minutes = int(option)
         elif self.select_type == SELECT_TYPE_SUBPROGRAM:
             # Устанавливаем целевую подпрограмму
             self.skycooker._target_subprogram = int(option)
-        if self.select_type == SELECT_TYPE_DELAYED_START_HOURS and getattr(self.skycooker, '_target_delayed_start_hours', None) is None:
-            self.skycooker._target_delayed_start_hours = 0
-        if self.select_type == SELECT_TYPE_DELAYED_START_MINUTES and getattr(self.skycooker, '_target_delayed_start_minutes', None) is None:
-            self.skycooker._target_delayed_start_minutes = 0
+        if self.select_type == SELECT_TYPE_DELAYED_START_HOURS and getattr(self.skycooker, '_target_additional_hours', None) is None:
+            self.skycooker._target_additional_hours = 0
+        if self.select_type == SELECT_TYPE_DELAYED_START_MINUTES and getattr(self.skycooker, '_target_additional_minutes', None) is None:
+            self.skycooker._target_additional_minutes = 0
 
         # Планируем обновление для обновления состояния сущности
         self.async_schedule_update_ha_state(True)
 
         # Логируем новые значения для отладки
         _LOGGER.debug(f"Updated {self.select_type}: {option}")
-        _LOGGER.debug(f"Current target_boil_hours: {self.skycooker.target_boil_hours}")
-        _LOGGER.debug(f"Current target_boil_minutes: {self.skycooker.target_boil_minutes}")
-        _LOGGER.debug(f"Current target_delayed_start_hours: {getattr(self.skycooker, '_target_delayed_start_hours', None)}")
-        _LOGGER.debug(f"Current target_delayed_start_minutes: {getattr(self.skycooker, '_target_delayed_start_minutes', None)}")
+        _LOGGER.debug(f"Current target_main_hours: {self.skycooker.target_main_hours}")
+        _LOGGER.debug(f"Current target_main_minutes: {self.skycooker.target_main_minutes}")
+        _LOGGER.debug(f"Current target_additional_hours: {getattr(self.skycooker, '_target_additional_hours', None)}")
+        _LOGGER.debug(f"Current target_additional_minutes: {getattr(self.skycooker, '_target_additional_minutes', None)}")
