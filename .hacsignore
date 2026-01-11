@@ -1,50 +1,59 @@
-# Exclude test files from HACS
-**/tests/
+# HACS ignore file for SkyCoocker integration
+# Files and directories listed here will be ignored by HACS during installation
 
-# Exclude other_source directory
-**/other_source/
+# Ignore development and testing files
+.tests/
+tests/
 
-# Exclude scripts directory
-**/scripts/
+# Ignore documentation images (they're not needed for the integration to work)
+.images/
 
-# Exclude git files
-.git/
-.gitignore
+# Ignore GitHub specific files
+github/
+.github/
 
-# Exclude IDE files
+# Ignore IDE/config files
 .vscode/
 .idea/
 
-# Exclude build files
+# Ignore Python virtual environment
+venv/
+.env/
+
+# Ignore build and distribution directories
 build/
 dist/
 
-# Exclude node modules
-node_modules/
+# Ignore coverage and report files
+coverage/
+report/
 
-# Exclude coverage
-.coverage
-htmlcov/
-
-# Exclude pytest cache
-.pytest_cache/
-
-# Exclude Python cache
-__pycache__/
-*.py[cod]
-
-# Exclude environment files
-.venv/
-venv/
-ENV/
-.env
-.env.local
-
-# Exclude macOS files
+# Ignore macOS specific files
 .DS_Store
 
-# Exclude swap files
+# Ignore editor temporary files
 *.swp
 *.swo
 *.bak
-*.tmp
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore node_modules (if any)
+node_modules/
+
+# Ignore environment files
+.env
+.env.*
+
+# Ignore local configuration files
+*.local
+
+# Ignore HACS specific files (to avoid conflicts)
+.hacs/
+
+# Ignore any backup files
+*~

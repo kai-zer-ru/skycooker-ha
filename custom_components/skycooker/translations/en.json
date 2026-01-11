@@ -1,5 +1,5 @@
 {
-  "title": "SkyCoocker",
+  "title": "SkyCooker",
   "config": {
     "step": {
       "scan": {
@@ -12,7 +12,11 @@
       },
       "init": {
         "title": "Setup",
-        "description": "Configure connection settings."
+        "description": "Configure connection settings.",
+        "data": {
+          "persistent_connection": "Persistent connection (faster but exclusive, e.g. you can't use the official app while this integration is in work)",
+          "scan_interval": "Scan interval in seconds (small values recommended only for persistent connection)"
+        }
       }
     },
     "error": {

@@ -1,5 +1,5 @@
 {
-  "name": "SkyCoocker",
+  "name": "SkyCooker",
   "render_readme": true,
   "render_issue": true,
   "render_license": true,
@@ -17,5 +17,6 @@
   "country": ["RU", "UA", "KZ", "BY"],
   "repository": "https://github.com/kai-zer-ru/skycooker-ha",
   "documentation": "https://github.com/kai-zer-ru/skycooker-ha/blob/master/README.md",
-  "description": "Integration for Skycooker multicookers"
+  "description": "Integration for Skycooker multicookers",
+  "frontend": []
 }
