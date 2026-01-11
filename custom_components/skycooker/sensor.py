@@ -153,13 +153,21 @@ class SkyCookerSensor(SensorEntity):
         elif self.sensor_type == SENSOR_TYPE_TEMPERATURE:
             return self.skycooker.target_temp is not None
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
-            return self.skycooker.remaining_time is not None
+            # Проверяем наличие статуса и времени для расчета оставшегося времени
+            return (self.skycooker.status_code is not None and
+                    hasattr(self.skycooker, 'target_main_hours') and
+                    hasattr(self.skycooker, 'target_main_minutes') and
+                    hasattr(self.skycooker, 'target_additional_hours') and
+                    hasattr(self.skycooker, 'target_additional_minutes'))
         elif self.sensor_type == SENSOR_TYPE_COOKING_TIME:
             # Проверяем наличие target_main_hours и target_main_minutes
             return (hasattr(self.skycooker, 'target_main_hours') and
                     hasattr(self.skycooker, 'target_main_minutes'))
         elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
-            return self.skycooker.auto_warm_enabled is not None
+            # Проверяем наличие статуса для автоподогрева
+            return (self.skycooker.status_code is not None and
+                    hasattr(self.skycooker, 'target_additional_hours') and
+                    hasattr(self.skycooker, 'target_additional_minutes'))
         elif self.sensor_type == SENSOR_TYPE_CURRENT_MODE:
             # For current mode, we should return True if we have a status code
             # even if current_mode is None, as we can show "Standby Mode" or "Режим ожидания"
@@ -231,10 +239,24 @@ class SkyCookerSensor(SensorEntity):
             status_code = self.skycooker.status_code
             if status_code == STATUS_DELAYED_LAUNCH:
                 # Для отложенного запуска: target_main + target_additional
-                boil_hours = self.skycooker.target_main_hours if hasattr(self.skycooker, 'target_main_hours') and self.skycooker.target_main_hours is not None else 0
-                boil_minutes = self.skycooker.target_main_minutes if hasattr(self.skycooker, 'target_main_minutes') and self.skycooker.target_main_minutes is not None else 0
-                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
-                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                # Используем значения из статуса устройства, если они доступны
+                from .skycooker import SkyCooker
+                if (self.skycooker.status and
+                    isinstance(self.skycooker.status, SkyCooker.Status) and
+                    hasattr(self.skycooker.status, 'target_main_hours') and
+                    hasattr(self.skycooker.status, 'target_main_minutes') and
+                    hasattr(self.skycooker.status, 'target_additional_hours') and
+                    hasattr(self.skycooker.status, 'target_additional_minutes')):
+                    boil_hours = self.skycooker.status.target_main_hours
+                    boil_minutes = self.skycooker.status.target_main_minutes
+                    additional_hours = self.skycooker.status.target_additional_hours
+                    additional_minutes = self.skycooker.status.target_additional_minutes
+                else:
+                    # Если значения из статуса недоступны, используем значения из соединения
+                    boil_hours = self.skycooker.target_main_hours if hasattr(self.skycooker, 'target_main_hours') and self.skycooker.target_main_hours is not None else 0
+                    boil_minutes = self.skycooker.target_main_minutes if hasattr(self.skycooker, 'target_main_minutes') and self.skycooker.target_main_minutes is not None else 0
+                    additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                    additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
                 total_hours = boil_hours + additional_hours
                 total_minutes = boil_minutes + additional_minutes
                 # Нормализуем минуты
@@ -243,8 +265,18 @@ class SkyCookerSensor(SensorEntity):
                     total_minutes -= 60
             elif status_code in [STATUS_WARMING, STATUS_COOKING]:
                 # Для разогрева и готовки: только target_additional
-                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
-                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                # Используем значения из статуса устройства, если они доступны
+                from .skycooker import SkyCooker
+                if (self.skycooker.status and
+                    isinstance(self.skycooker.status, SkyCooker.Status) and
+                    hasattr(self.skycooker.status, 'target_additional_hours') and
+                    hasattr(self.skycooker.status, 'target_additional_minutes')):
+                    additional_hours = self.skycooker.status.target_additional_hours
+                    additional_minutes = self.skycooker.status.target_additional_minutes
+                else:
+                    # Если значения из статуса недоступны, используем значения из соединения
+                    additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                    additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
                 total_hours = additional_hours
                 total_minutes = additional_minutes
             else:
@@ -265,8 +297,19 @@ class SkyCookerSensor(SensorEntity):
             # Время приготовления: не должно меняться со временем, только при смене статуса
             status_code = self.skycooker.status_code
             if status_code in [STATUS_DELAYED_LAUNCH, STATUS_WARMING, STATUS_COOKING]:
-                boil_hours = self.skycooker.target_main_hours if hasattr(self.skycooker, 'target_main_hours') and self.skycooker.target_main_hours is not None else 0
-                boil_minutes = self.skycooker.target_main_minutes if hasattr(self.skycooker, 'target_main_minutes') and self.skycooker.target_main_minutes is not None else 0
+                # Используем значения из статуса устройства, если они доступны
+                # Проверяем, что status является реальным объектом Status, а не MagicMock
+                from .skycooker import SkyCooker
+                if (self.skycooker.status and
+                    isinstance(self.skycooker.status, SkyCooker.Status) and
+                    hasattr(self.skycooker.status, 'target_main_hours') and
+                    hasattr(self.skycooker.status, 'target_main_minutes')):
+                    boil_hours = self.skycooker.status.target_main_hours
+                    boil_minutes = self.skycooker.status.target_main_minutes
+                else:
+                    # Если значения из статуса недоступны, используем значения из соединения
+                    boil_hours = self.skycooker.target_main_hours if hasattr(self.skycooker, 'target_main_hours') and self.skycooker.target_main_hours is not None else 0
+                    boil_minutes = self.skycooker.target_main_minutes if hasattr(self.skycooker, 'target_main_minutes') and self.skycooker.target_main_minutes is not None else 0
                 if self.hass.config.language == "ru":
                     return f"{boil_hours} ч. {boil_minutes} м."
                 else:
@@ -281,8 +324,18 @@ class SkyCookerSensor(SensorEntity):
             status_code = self.skycooker.status_code
             if status_code == STATUS_AUTO_WARM:
                 # Используем target_additional_hours и target_additional_minutes
-                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
-                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                # Используем значения из статуса устройства, если они доступны
+                from .skycooker import SkyCooker
+                if (self.skycooker.status and
+                    isinstance(self.skycooker.status, SkyCooker.Status) and
+                    hasattr(self.skycooker.status, 'target_additional_hours') and
+                    hasattr(self.skycooker.status, 'target_additional_minutes')):
+                    additional_hours = self.skycooker.status.target_additional_hours
+                    additional_minutes = self.skycooker.status.target_additional_minutes
+                else:
+                    # Если значения из статуса недоступны, используем значения из соединения
+                    additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                    additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
                 if self.hass.config.language == "ru":
                     return f"{additional_hours} ч. {additional_minutes} м."
                 else:
@@ -299,8 +352,18 @@ class SkyCookerSensor(SensorEntity):
             status_code = self.skycooker.status_code
             if status_code == STATUS_DELAYED_LAUNCH:
                 # Используем target_additional_hours и target_additional_minutes
-                additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
-                additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
+                # Используем значения из статуса устройства, если они доступны
+                from .skycooker import SkyCooker
+                if (self.skycooker.status and
+                    isinstance(self.skycooker.status, SkyCooker.Status) and
+                    hasattr(self.skycooker.status, 'target_additional_hours') and
+                    hasattr(self.skycooker.status, 'target_additional_minutes')):
+                    additional_hours = self.skycooker.status.target_additional_hours
+                    additional_minutes = self.skycooker.status.target_additional_minutes
+                else:
+                    # Если значения из статуса недоступны, используем значения из соединения
+                    additional_hours = self.skycooker.target_additional_hours if hasattr(self.skycooker, 'target_additional_hours') and self.skycooker.target_additional_hours is not None else 0
+                    additional_minutes = self.skycooker.target_additional_minutes if hasattr(self.skycooker, 'target_additional_minutes') and self.skycooker.target_additional_minutes is not None else 0
                 if self.hass.config.language == "ru":
                     return f"{additional_hours} ч. {additional_minutes} м."
                 else:

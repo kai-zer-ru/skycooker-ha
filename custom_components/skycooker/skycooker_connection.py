@@ -471,67 +471,9 @@ class SkyCookerConnection(SkyCooker):
         return self._sw_version if self._sw_version else "0.0"
 
     @property
-    def sound_enabled(self):
-        if not self._status: return None
-        return self._status.sound_enabled
-
-    @property
     def status_code(self):
         if not self._status: return None
         return self._status.status if self._status.is_on else STATUS_OFF
-
-    @property
-    def remaining_time(self):
-        if not self._status: return None
-        # If device is off, return 0
-        if self._status.status == STATUS_OFF:
-            return 0
-        if self._status.status == STATUS_DELAYED_LAUNCH:
-            # Return remaining time based on target_main_hours and target_main_minutes
-            return (self._status.target_additional_hours * 60 + self._status.target_additional_minutes) + (self._status.target_main_hours * 60 + self._status.target_main_minutes)
-        return self._status.target_main_hours * 60 + self._status.target_main_minutes
-
-    @property
-    def total_time(self):
-        if not self._status: return None
-        # For total time, we need to calculate based on status
-        # If device is off, return 0
-        if self._status.status == STATUS_OFF:
-            return 0
-        # If delayed start is active, include delayed start time in total time
-        if self._status.status == STATUS_DELAYED_LAUNCH:
-            return (self._status.target_additional_hours * 60 + self._status.target_additional_minutes) + (self._status.target_main_hours * 60 + self._status.target_main_minutes)
-        # Otherwise, return only cooking time
-        return self._status.target_main_hours * 60 + self._status.target_main_minutes
-
-    @property
-    def delayed_start_time(self):
-        if not self._status: return None
-        # For delayed start time, we need to calculate based on status
-        # Return delayed start time only if delayed start is active (STATUS_DELAYED_LAUNCH)
-        # Check if delayed start time is set in the status and device is in delayed launch mode
-        if hasattr(self._status, 'target_additional_hours') and hasattr(self._status, 'target_additional_minutes'):
-            if self._status.target_additional_hours is not None and self._status.target_additional_minutes is not None:
-                # Return delayed start time only if device is in delayed launch mode
-                if self._status.status == STATUS_DELAYED_LAUNCH:
-                    return (self._status.target_additional_hours * 60 + self._status.target_additional_minutes)
-        return 0
-
-    @property
-    def auto_warm_time(self):
-        if not self._status: return None
-        # For auto warm time, we need to calculate based on status
-        # For now, return target_main_minutes and target_main_minutes if in auto warm mode, else 0
-        return (self._status.target_additional_hours * 60 + self._status.target_additional_minutes) if self._status.status == STATUS_AUTO_WARM else 0
-
-    @property
-    def auto_warm_enabled(self):
-        # Возвращаем значение флага, установленного пользователем, если оно есть
-        if hasattr(self, '_auto_warm_enabled'):
-            return self._auto_warm_enabled
-        # Иначе возвращаем значение из статуса устройства
-        if not self._status: return None
-        return self._status.status == STATUS_AUTO_WARM
 
     async def set_boil_time(self, target_main_hours, target_main_minutes):
         target_main_hours = int(target_main_hours)
