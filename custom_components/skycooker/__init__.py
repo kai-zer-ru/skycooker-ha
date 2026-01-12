@@ -24,7 +24,7 @@ PLATFORMS = [
 ]
 
 async def async_setup(hass, config):
-    """Set up the SkyCooker component."""
+    """Настройка компонента SkyCooker."""
     # Проверка минимальной версии HomeAssistant
     from homeassistant.const import __version__ as HA_VERSION
     from packaging import version
@@ -36,17 +36,17 @@ async def async_setup(hass, config):
         return False
     
     hass.data.setdefault(DOMAIN, {})
-    _LOGGER.debug("✅ SkyCooker интеграция загружена. Версия HA: %s", HA_VERSION)
+    _LOGGER.debug("✅ Интеграция SkyCooker загружена. Версия HA: %s", HA_VERSION)
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up SkyCooker integration from a config entry."""
+    """Настройка интеграции SkyCooker из конфигурационного входа."""
     entry.async_on_unload(entry.add_update_listener(entry_update_listener))
 
     if DOMAIN not in hass.data: hass.data[DOMAIN] = {}
     if entry.entry_id not in hass.data: hass.data[DOMAIN][entry.entry_id] = {}
 
-    # Check if model is supported
+    # Проверка поддержки модели
     model_name = entry.data.get(CONF_FRIENDLY_NAME, "")
     if model_name not in MODELS:
         _LOGGER.error(f"🚨 Модель {model_name} не поддерживается. Поддерживаемые модели: {list(MODELS.keys())}")
@@ -62,6 +62,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             model=model_name
         )
         hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = skycooker
+        
+        # Подключение и получение версии ПО во время начальной настройки
+        await skycooker.update()
+        _LOGGER.debug(f"📋 Версия ПО устройства: {skycooker.sw_version}")
     except Exception as e:
         if "не найдено" in str(e).lower() or "not found" in str(e).lower():
             _LOGGER.error(f"🚨 Устройство {entry.data[CONF_MAC]} не найдено. Проверьте, что устройство включено и находится в зоне действия Bluetooth.")
@@ -92,12 +96,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 def device_info(entry, hass):
-    # Get the SkyCooker connection to access the software version
+    # Получение соединения SkyCooker для доступа к версии ПО
     skycooker = None
     if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
         skycooker = hass.data[DOMAIN][entry.entry_id].get(DATA_CONNECTION)
     
-    # Get the software version from the connection if available
+    # Получение версии ПО из соединения, если доступно
     sw_version = None
     if skycooker and skycooker.sw_version:
         sw_version = skycooker.sw_version
@@ -117,7 +121,7 @@ def device_info(entry, hass):
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Unload a config entry."""
+    """Выгрузка конфигурационного входа."""
     _LOGGER.debug("🔄 Выгрузка")
     hass.data[DOMAIN][DATA_WORKING] = False
     for component in PLATFORMS:
@@ -132,7 +136,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def entry_update_listener(hass, entry):
-    """Handle options update."""
+    """Обработка обновления опций."""
     skycooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
     skycooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
     _LOGGER.debug("⚙️  Опции обновлены")

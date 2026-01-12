@@ -1,4 +1,4 @@
-# Constants for SkyCooker integration
+# Константы для интеграции SkyCooker
 DOMAIN = "skycooker"
 
 MODEL_0 = 0
@@ -10,7 +10,7 @@ MODEL_5 = 5
 MODEL_6 = 6
 MODEL_7 = 7
 
-# List of supported models
+# Список поддерживаемых моделей
 SUPPORTED_MODELS = {
     "RMC-M40S": {"supported": True, "type": MODEL_3},
     "RMC-M42S": {"supported": True, "type": MODEL_3},
@@ -69,7 +69,7 @@ MODELS = {
     "RMC-CBF390S": MODEL_2,
 }
 
-# Mode data for each model
+# Данные режимов для каждой модели
 MODE_DATA = {
     MODEL_0: [
         [0, 0, 0, 0],
@@ -100,7 +100,7 @@ MODE_DATA = {
         [100, 0, 30, 15], [101, 0, 30, 7], [100, 1, 0, 7], [165, 0, 18, 5],
         [100, 1, 0, 7], [100, 0, 35, 7], [100, 0, 8, 4], [98, 3, 0, 7],
         [100, 0, 40, 7], [140, 1, 0, 7], [100, 0, 25, 7], [110, 1, 0, 7],
-        [40, 8, 0, 6], [145, 0, 20, 7], [140, 3, 0, 7],
+        [40, 8, 0, 6], [145, 0, 20, 7], [140, 3, 0, 7], [0, 0, 0, 0], 
         [0, 0, 0, 0], [62, 2, 30, 6]
     ],
     MODEL_4: [
@@ -133,7 +133,7 @@ MODE_DATA = {
     ],
 }
 
-# Constants for mode names
+# Константы для названий режимов
 MODE_STANDBY = [
     "Standby Mode",
     "Режим ожидания",
@@ -284,7 +284,7 @@ MODE_NONE = [
     "Нет"
 ]
 
-# Mode names for each model
+# Названия режимов для каждой модели
 MODE_NAMES = {
     MODEL_0: [
         MODE_STANDBY,
@@ -348,7 +348,7 @@ MODE_NAMES = {
     ],
 }
 
-# Product data for each model
+# Данные продуктов для каждой модели
 PRODUCT_DATA = {
     MODEL_0: [
         [4, 18, 12, 15, 0], [5, 40, 35, 60, 0], [11, 30, 25, 40, 0]
@@ -363,7 +363,7 @@ PRODUCT_DATA = {
     ],
 }
 
-# Cooking modes
+# Режимы приготовления
 
 # Product names for each model
 PRODUCT_NAMES = {
@@ -393,7 +393,7 @@ PRODUCT_NAMES = {
     ],
 }
 
-# Status codes
+# Коды статусов
 STATUS_OFF = 0x00
 STATUS_WAIT = 0x01
 STATUS_DELAYED_LAUNCH = 0x02
@@ -422,25 +422,25 @@ STATUS_CODES = [
 ]
 
 
-# Config flow constants
+# Константы для потока настройки
 CONF_PERSISTENT_CONNECTION = "persistent_connection"
 CONF_MODEL = "model"
 
-# Default values
+# Значения по умолчанию
 DEFAULT_SCAN_INTERVAL = 30
 DEFAULT_PERSISTENT_CONNECTION = True
 
-# Friendly names
+# Дружественные имена
 FRIENDLY_NAME = "SkyCooker"
 SKYCOOKER_NAME = "SkyCooker"
 MANUFACTORER = "Redmond"
 
-# Button types
+# Типы кнопок
 BUTTON_TYPE_START = "start"
 BUTTON_TYPE_STOP = "stop"
 BUTTON_TYPE_START_DELAYED = "start_delayed"
 
-# Select types
+# Типы селектов
 SELECT_TYPE_MODE = "mode"
 SELECT_TYPE_SUBPROGRAM = "subprogram"
 SELECT_TYPE_TEMPERATURE = "temperature"
@@ -449,7 +449,7 @@ SELECT_TYPE_COOKING_TIME_MINUTES = "cooking_time_minutes"
 SELECT_TYPE_DELAYED_START_HOURS = "delayed_start_hours"
 SELECT_TYPE_DELAYED_START_MINUTES = "delayed_start_minutes"
 
-# Sensor types
+# Типы сенсоров
 SENSOR_TYPE_STATUS = "status"
 SENSOR_TYPE_TEMPERATURE = "temperature"
 SENSOR_TYPE_REMAINING_TIME = "remaining_time"
@@ -460,10 +460,10 @@ SENSOR_TYPE_DELAYED_LAUNCH_TIME = "delayed_launch_time"
 SENSOR_TYPE_CURRENT_MODE = "current_mode"
 SENSOR_TYPE_SUBPROGRAM = "subprogram"
 
-# Switch types
+# Типы переключателей
 SWITCH_TYPE_AUTO_WARM = "auto_warm"
 
-# BLE settings
+# Настройки BLE
 UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
 UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
@@ -473,16 +473,16 @@ TRIES_INTERVAL = 0.5
 STATS_INTERVAL = 15
 TARGET_TTL = 30
 
-# Data keys
+# Ключи данных
 DATA_CONNECTION = "connection"
 DATA_CANCEL = "cancel"
 DATA_WORKING = "working"
 DATA_DEVICE_INFO = "device_info"
 
-# Dispatcher
+# Диспетчер
 DISPATCHER_UPDATE = "update"
 
-# Commands
+# Команды
 COMMAND_GET_VERSION = 0x01
 COMMAND_TURN_ON = 0x03
 COMMAND_TURN_OFF = 0x04
@@ -493,7 +493,7 @@ COMMAND_SYNC_TIME = 0x6E
 COMMAND_GET_TIME = 0x6F
 COMMAND_AUTH = 0xFF
 
-# Bit flags for mode settings (uint8_t)
+# Битовые флаги для настроек режима (uint8_t)
 # Битовые флаги для настроек режима
 BIT_FLAG_SUBMODE_ENABLE = 0x80        # B[7] - включение подрежима
 BIT_FLAG_AUTOPOWER_ENABLE = 0x40      # B[6] - включение автопита
