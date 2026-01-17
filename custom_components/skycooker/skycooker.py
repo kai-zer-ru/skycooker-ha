@@ -1,16 +1,13 @@
 #!/usr/local/bin/python3
 # coding: utf-8
 
-import calendar
 import logging
-import time
 from abc import ABC, abstractmethod
-from collections import namedtuple
-from datetime import datetime
 from struct import pack, unpack
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Union, List
 
 from .const import *
+from .programs import is_subprogram_supported
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,45 +19,37 @@ class SkyCookerError(Exception):
 
 class SkyCooker(ABC):
     """Абстрактный базовый класс для устройств SkyCooker."""
-    
-    Status = namedtuple(
-        "Status", [
-            "mode", "subprog", "target_temp", "auto_warm", "is_on",
-            "sound_enabled", "parental_control", "error_code",
-            "target_main_hours", "target_main_minutes",
-            "target_additional_hours", "target_additional_minutes", "status"
-        ]
-    )
 
-    def __init__(self, model: str):
+    def __init__(self, hass, model_name: str):
         """Инициализация SkyCooker с заданной моделью.
         
         Args:
-            model: Название модели устройства SkyCooker.
+            model_name: Название модели устройства SkyCooker.
             
         Raises:
             SkyCookerError: Если модель неизвестна.
         """
-        _LOGGER.debug(f"SkyCooker model: {model}")
-        self.model = model
-        self.model_code = self.get_model_code(model)
-        if not self.model_code:
+        _LOGGER.debug(f"SkyCooker model: {model_name}")
+        self.hass = hass
+        self.model_name = model_name
+        self.model_id = self.get_model_id(model_name)
+        if not self.model_id:
             raise SkyCookerError("Unknown SkyCooker model")
 
     @staticmethod
-    def get_model_code(model: str) -> Optional[int]:
+    def get_model_id(model_name: str) -> Optional[int]:
         """Получение кода модели для заданного названия модели.
         
         Args:
-            model: Название модели.
+            model_name: Название модели.
             
         Returns:
             Код модели, если найден, иначе None.
         """
-        if model in MODELS:
-            return MODELS[model]
-        if model.endswith("-E"):
-            return MODELS.get(model[:-2], None)
+        if model_name in MODELS:
+            return MODELS[model_name]
+        if model_name.endswith("-E"):
+            return MODELS.get(model_name[:-2], None)
         return None
 
     @abstractmethod
@@ -124,28 +113,28 @@ class SkyCooker(ABC):
             raise SkyCookerError("can't turn off")
         _LOGGER.debug("Turned off")
 
-    async def select_mode(self, mode: int, subprog: int = 0) -> None:
-        """Выбор режима и подпрограммы для устройства SkyCooker.
+    async def select_program(self, program_id: int, subprog: int = 0) -> None:
+        """Выбор программы и подпрограммы для устройства SkyCooker.
         
         Args:
-            mode: Режим для выбора.
+            program_id: Программа для выбора.
             subprog: Подпрограмма для выбора (по умолчанию 0).
             
         Raises:
-            SkyCookerError: Если выбор режима не удался.
+            SkyCookerError: Если выбор программ не удался.
         """
         # Для MODEL_3 отправляем только mode (1 байт), для остальных - mode и subprog (2 байта)
-        if self.model_code == MODEL_3:
-            data = pack("B", int(mode))
-            _LOGGER.debug(f"📤 Отправка команды SELECT_MODE (0x09) для MODEL_3 с данными: {data.hex().upper()}")
-            _LOGGER.debug(f"   Параметры: mode={mode}")
-        else:
-            data = pack("BB", int(mode), int(subprog))
+        if is_subprogram_supported(self.model_id):
+            data = pack("BB", int(program_id), int(subprog))
             _LOGGER.debug(f"📤 Отправка команды SELECT_MODE (0x09) с данными: {data.hex().upper()}")
-            _LOGGER.debug(f"   Параметры: mode={mode}, subprog={subprog}")
+            _LOGGER.debug(f"   Параметры: mode={program_id}, subprog={subprog}")
+        else:
+            data = pack("B", int(program_id))
+            _LOGGER.debug(f"📤 Отправка команды SELECT_MODE (0x09) для MODEL_3 с данными: {data.hex().upper()}")
+            _LOGGER.debug(f"   Параметры: mode={program_id}")
 
         try:
-            r = await self.command(COMMAND_SELECT_MODE, list(data))
+            r = await self.command(COMMAND_SELECT_PROGRAM, list(data))
             _LOGGER.debug(f"📥 Получен ответ на SELECT_MODE: {r.hex().upper() if r else 'None'}")
             if r and len(r) > 0:
                 _LOGGER.debug(f"   Первый байт ответа: {r[0]} (ожидалось 1 для успеха)")
@@ -153,16 +142,16 @@ class SkyCooker(ABC):
             if r and r[0] != 1 and len(r) != 1:
                 _LOGGER.error(f"❌ Ошибка выбора режима: устройство вернуло код ошибки {r[0]}")
                 raise SkyCookerError(f"Ошибка выбора режима: код {r[0]}")
-            _LOGGER.debug(f"✅ Режим успешно выбран: mode={mode}")
+            _LOGGER.debug(f"✅ Режим успешно выбран: mode={program_id}")
         except Exception as e:
             _LOGGER.error(f"❌ Исключение при выборе режима: {e}")
             raise SkyCookerError(f"Исключение при выборе режима: {e}")
 
-    async def set_main_mode(
+    async def set_main_program(
         self,
-        mode: int,
-        subprog: int = 0,
-        target_temp: int = 0,
+        program_id: int,
+        subprogram_id: int = 0,
+        target_temperature: int = 0,
         target_main_hours: int = 0,
         target_main_minutes: int = 0,
         target_additional_hours: int = 0,
@@ -170,48 +159,48 @@ class SkyCooker(ABC):
         auto_warm: int = 0,
         bit_flags: int = 0
     ) -> None:
-        """Установка основного режима и параметров для устройства SkyCooker.
+        """Установка основного программы и параметров для устройства SkyCooker.
         
         Args:
-            mode: Режим для установки.
-            subprog: Подпрограмма для установки (по умолчанию 0).
-            target_temp: Целевая температура (по умолчанию 0).
+            program_id: программа для установки.
+            subprogram_id: Подпрограмма для установки (по умолчанию 0).
+            target_temperature: Целевая температура (по умолчанию 0).
             target_main_hours: Целевые часы (по умолчанию 0).
             target_main_minutes: Целевые минуты (по умолчанию 0).
             target_additional_hours: Целевые дополнительные часы (по умолчанию 0).
             target_additional_minutes: Целевые дополнительные минуты (по умолчанию 0).
             auto_warm: Настройка автоподогрева (по умолчанию 0).
-            bit_flags: Битовые флаги для настроек режима (по умолчанию 0).
+            bit_flags: Битовые флаги для настроек программ (по умолчанию 0).
             
         Raises:
-            SkyCookerError: Если установка режима не удалась.
+            SkyCookerError: Если установка программы не удалась.
         """
-        # В текущей реализации битовые флаги берутся из MODE_DATA
+        # В текущей реализации битовые флаги берутся из MODE_DATA_NEW
         # Для MODEL_3 битовые флаги не добавляются
         # В будущем, когда будет понятно, как использовать битовые флаги, этот код будет обновлен
         # Параметр auto_warm используется для передачи флага автоподогрева
-        if self.model_code == MODEL_3:
-            # Для MODEL_3 используем auto_warm как флаг автоподогрева
-            data = pack(
-                "BBBBBBBB",
-                int(mode), int(subprog), int(target_temp), int(target_main_hours),
-                int(target_main_minutes), int(target_additional_hours),
-                int(target_additional_minutes), int(auto_warm)
-            )
-        else:
-            mode_data = MODE_DATA.get(self.model_code, [])
-            if mode < len(mode_data) and bit_flags == 0:
-                bit_flags = mode_data[mode][3]
+        if is_subprogram_supported(self.model_id):
+            program_data = PROGRAM_DATA.get(self.model_id, [])
+            if program_id < len(program_data) and bit_flags == 0:
+                bit_flags = program_data[program_id]["byte_flag"]
             data = pack(
                 "BBBBBBBBB",
-                int(mode), int(subprog), int(target_temp), int(target_main_hours),
+                int(program_id), int(subprogram_id), int(target_temperature), int(target_main_hours),
                 int(target_main_minutes), int(target_additional_hours),
                 int(target_additional_minutes), int(auto_warm), int(bit_flags)
             )
-
+        else:
+            subprogram_id = 0
+            # Для MODEL_3 используем auto_warm как флаг автоподогрева
+            data = pack(
+                "BBBBBBBB",
+                int(program_id), int(subprogram_id), int(target_temperature), int(target_main_hours),
+                int(target_main_minutes), int(target_additional_hours),
+                int(target_additional_minutes), int(auto_warm)
+            )
         _LOGGER.debug(f"📤 Отправка команды SET_MAIN_MODE (0x05) с данными: {data.hex().upper()}")
         _LOGGER.debug(
-            f"   Параметры: mode={mode}, subprog={subprog}, target_temp={target_temp}, "
+            f"   Параметры: mode={program_id}, subprog={subprogram_id}, target_temp={target_temperature}, "
             f"target_main_hours={target_main_hours}, target_main_minutes={target_main_minutes}, "
             f"target_additional_hours={target_additional_hours}, target_additional_minutes={target_additional_minutes}, "
             f"auto_warm={auto_warm}, bit_flags={bit_flags}"
@@ -226,103 +215,8 @@ class SkyCooker(ABC):
             if r and r[0] != 1 and len(r) != 1:
                 _LOGGER.error(f"❌ Ошибка установки режима: устройство вернуло код ошибки {r[0]}")
                 raise SkyCookerError(f"Ошибка установки режима: код {r[0]}")
-            _LOGGER.debug(f"✅ Режим успешно установлен: mode={mode}")
+            _LOGGER.debug(f"✅ Режим успешно установлен: mode={program_id}")
         except Exception as e:
             _LOGGER.error(f"❌ Исключение при установке режима: {e}")
             raise SkyCookerError(f"Исключение при установке режима: {e}")
 
-    async def get_status(self) -> Status:
-        """Получение текущего статуса устройства SkyCooker.
-        
-        Returns:
-            Текущий статус в виде именованного кортежа Status.
-            
-        Raises:
-            SkyCookerError: Если данные статуса некорректны или не могут быть разобраны.
-        """
-        r = await self.command(COMMAND_GET_STATUS)
-        _LOGGER.debug(f"Raw status data: {r.hex().upper()}, length: {len(r)}")
-        if len(r) < 16:
-            _LOGGER.error(f"❌ Ошибка: получено {len(r)} байт вместо ожидаемых 16")
-            raise SkyCookerError(f"Некорректный размер данных статуса: {len(r)} байт")
-        try:
-            # Parse the 16-byte status response according to the new format
-            # Format: mode(1), subprog(1), target_temp(1), target_main_hours(1), target_main_minutes(1),
-            #         target_additional_hours(1), target_additional_minutes(1), auto_warm(1), status(1), ...
-            mode = r[0]
-            subprog = r[1]
-            target_temp = r[2]
-            target_main_hours = r[3]
-            target_main_minutes = r[4]
-            target_additional_hours = r[5]
-            target_additional_minutes = r[6]
-            auto_warm = r[7]
-            status = r[8]
-            is_on = r[8] != 0
-            sound_enabled = r[9] != 0
-            
-            status = SkyCooker.Status(
-                mode=mode,
-                subprog=subprog,
-                target_temp=target_temp,
-                auto_warm=auto_warm,
-                is_on=is_on,
-                sound_enabled=sound_enabled,
-                parental_control=False,
-                error_code=0,
-                target_main_hours=target_main_hours,
-                target_main_minutes=target_main_minutes,
-                target_additional_hours=target_additional_hours,
-                target_additional_minutes=target_additional_minutes,
-                status=status,
-            )
-        except Exception as e:
-            _LOGGER.error(f"❌ Ошибка распаковки статуса: {e}")
-            raise SkyCookerError(f"Ошибка распаковки статуса: {e}")
-          
-        _LOGGER.debug(
-            f"Status: mode={status.mode}, subprog={status.subprog}, is_on={status.is_on}, "
-            f"target_temp={status.target_temp}, "
-            f"auto_warm={status.auto_warm}, sound_enabled={status.sound_enabled}, "
-            f"target_main_hours={status.target_main_hours}, target_main_minutes={status.target_main_minutes}, "
-            f"target_additional_hours={status.target_additional_hours}, target_additional_minutes={status.target_additional_minutes}"
-        )
-        return status
-
-    async def sync_time(self) -> None:
-        """Синхронизация времени с устройством SkyCooker.
-        
-        Этот метод пытается синхронизировать время устройства с текущим системным временем.
-        Если синхронизация не удается, выводится предупреждение, но исключение не выбрасывается.
-        """
-        try:
-            t = time.localtime()
-            offset = calendar.timegm(t) - calendar.timegm(time.gmtime(time.mktime(t)))
-            now = int(time.time())
-            data = pack("<ii", now, offset)
-            _LOGGER.debug(f"🕒 Синхронизация времени: time={now}, offset={offset}")
-            r = await self.command(COMMAND_SYNC_TIME, data)
-            if r[0] != 0:
-                _LOGGER.warning(f"⚠️  Не удалось синхронизировать время. Код ответа: {r[0]}")
-                return
-            _LOGGER.debug(
-                f"✅ Время синхронизировано: {now} "
-                f"({datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')}), "
-                f"offset={offset} (GMT{offset/60/60:+.2f})"
-            )
-        except Exception as e:
-            _LOGGER.warning(f"⚠️  Ошибка синхронизации времени: {e}")
-
-    async def get_time(self) -> Tuple[int, int]:
-        """Получение текущего времени с устройства SkyCooker.
-        
-        Returns:
-            Кортеж, содержащий временную метку и смещение часового пояса.
-        """
-        r = await self.command(COMMAND_GET_TIME)
-        t, offset = unpack("<ii", r)
-        _LOGGER.debug(
-            f"time={t} ({datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')}), "
-            f"offset={offset} (GMT{offset/60/60:+.2f})"
-        )
-        return t, offset

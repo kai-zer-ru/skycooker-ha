@@ -8,29 +8,47 @@
       },
       "connect": {
         "title": "Connecting",
-        "description": "Please wait while connecting to the multicooker..."
+        "description": "Switch your multicooker to pairing mode..."
       },
       "init": {
         "title": "Setup",
         "description": "Configure connection settings.",
         "data": {
-          "persistent_connection": "Persistent connection (faster but exclusive, e.g. you can't use the official app while this integration is in work)",
-          "scan_interval": "Scan interval in seconds (small values recommended only for persistent connection)"
+            "persistent_connection": "Persistent connection (faster but exclusive, e.g. you can't use the official app while this integration is in work)",
+            "scan_interval": "Scan interval in seconds (small values recommended only for persistent connection)",
+            "favorite_programs": "Favorite programs (select up to 5 programs to display as favorites)"
         }
       }
     },
-    "error": {
-      "no_bluetooth": "Bluetooth not available",
-      "device_not_found": "Multicooker not found",
+    "abort": {
       "unknown_model": "Unknown multicooker model",
       "already_configured": "Multicooker already configured",
+      "invalid_input": "Invalid input",
+      "no_bluetooth": "Bluetooth not available",
+      "device_not_found": "Multicooker not found",
+      "scan_failed": "Scan failed",
+      "invalid_config": "Invalid configuration",
+      "connection_failed": "Connection failed",
+      "config_save_failed": "Failed to save configuration",
+      "init_failed": "Initialization failed"
+    },
+    "error": {
       "cant_connect": "Connection failed",
       "cant_auth": "Authentication failed"
-    },
-    "data": {
-      "persistent_connection": "Persistent connection",
-      "scan_interval": "Scan interval (seconds)"
     }
+  },
+  "options": {
+      "step": {
+          "init": {
+              "title": "SkyCooker Options",
+              "description": "Configure connection settings.",
+              "data": {
+                  "persistent_connection": "Persistent connection. Faster but exclusive, e.g. you can't use the official app while this integration is in work.",
+                  "scan_interval": "Scan interval in seconds. Small values recommended only for persistent connection.",
+                  "favorite_programs": "Favorite programs (select up to 5 programs to display in favorites)"
+              }
+          }
+      }
   },
   "entity": {
     "sensor": {
@@ -63,5 +81,54 @@
       "auto_warm": "Auto warm",
       "full_off": "Fully off"
     }
+  },
+  "status_codes": {
+    "off": "Off",
+    "wait": "Waiting",
+    "delayed_launch": "Delayed Launch",
+    "warming": "Warming",
+    "cooking": "Cooking",
+    "auto_warm": "Auto Warm",
+    "full_off": "Fully off"
+  },
+  "program_names": {
+    "standby": "Standby Mode",
+    "multi_chef": "Multi-chef",
+    "rice_cereals": "Rice/Cereals",
+    "languor": "Languor",
+    "pilaf": "Pilaf",
+    "frying": "Frying",
+    "stewing": "Stewing",
+    "pasta": "Pasta",
+    "milk_porridge": "Milk porridge",
+    "soup": "Soup",
+    "yogurt": "Yogurt",
+    "baking": "Baking",
+    "steam": "Steam",
+    "cooking_legumes": "Cooking/Legumes",
+    "wildfowl": "Wildfowl",
+    "pizza": "Pizza",
+    "bread": "Bread",
+    "baby_food": "Baby food",
+    "sous_vide": "Sous-vide",
+    "deep_frying": "Deep frying",
+    "desserts": "Desserts",
+    "express": "Express",
+    "galantine": "Galantine",
+    "yogurt_dough": "Yogurt/Dough",
+    "cheesecake": "Cheesecake",
+    "sous": "Sous",
+    "warming_up": "Warming up",
+    "warming": "Warming",
+    "cooking": "Cooking",
+    "none": "None"
+  },
+  "product_names": {
+    "no_choice": "No choice",
+    "vegetables": "Vegetables",
+    "fish": "Fish",
+    "meat": "Meat",
+    "bird": "Bird",
+    "desserts": "Desserts"
   }
 }

@@ -1,7 +1,6 @@
 """Config flow for SkyCooker integration."""
 
 import logging
-import traceback
 from typing import Optional, Dict, Any, List
 
 import voluptuous as vol
@@ -13,12 +12,17 @@ from homeassistant.const import (CONF_DEVICE, CONF_FRIENDLY_NAME, CONF_MAC,
                                    CONF_PASSWORD, CONF_SCAN_INTERVAL)
 from homeassistant.core import callback
 
-from .const import *
+from .const import (
+    DOMAIN, CONF_PERSISTENT_CONNECTION, CONF_MODEL, CONF_FAVORITE_PROGRAMS,
+    DEFAULT_SCAN_INTERVAL, DEFAULT_PERSISTENT_CONNECTION, MAX_FAVORITE_PROGRAMS,
+    SKYCOOKER_NAME, MODEL_3
+)
+from .programs import get_program_options
+
 from .skycooker_connection import SkyCookerConnection
 from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
-
 
 class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Поток настройки для интеграции SkyCooker."""
@@ -72,7 +76,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         Args:
             user_input: Необязательные данные ввода пользователя.
-            
+        
         Returns:
             Результат шага сканирования.
         """
@@ -83,47 +87,50 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         Args:
             user_input: Необязательные данные ввода пользователя.
-            
+        
         Returns:
             Форма для отображения или результат следующего шага.
         """
         errors: Dict[str, str] = {}
         if user_input is not None:
-            spl = user_input[CONF_MAC].split(' ', maxsplit=1)
-            mac = spl[0]
-            name = spl[1][1:-1] if len(spl) >= 2 else None
-            if not SkyCooker.get_model_code(name):
-                return self.async_abort(reason='unknown_model')
-            if not await self.init_mac(mac):
-                return self.async_abort(reason='already_configured')
-            if name:
-                self.config[CONF_FRIENDLY_NAME] = name
-            return await self.async_step_connect()
-
-        try:
             try:
-                scanner = bluetooth.async_get_scanner(self.hass)
-                for device in scanner.discovered_devices:
-                    _LOGGER.debug(f"Device found: {device.address} - {device.name}")
+                spl = user_input[CONF_MAC].split(' ', maxsplit=1)
+                mac = spl[0]
+                name = spl[1][1:-1] if len(spl) >= 2 else None
+                if not SkyCooker.get_model_id(name):
+                    return self.async_abort(reason='unknown_model')
+                if not await self.init_mac(mac):
+                    return self.async_abort(reason='already_configured')
+                if name:
+                    self.config[CONF_FRIENDLY_NAME] = name
+                    self.config[CONF_MODEL] = SkyCooker.get_model_id(name)
+                return await self.async_step_connect()
             except Exception as e:
-                _LOGGER.error(f"Интеграция Bluetooth не работает: {e}")
+                _LOGGER.error(f"Ошибка при обработке ввода пользователя: {e}")
+                return self.async_abort(reason='invalid_input')
+       
+        try:
+            scanner = bluetooth.async_get_scanner(self.hass)
+            if not scanner:
+                _LOGGER.error("Сканер Bluetooth не инициализирован")
                 return self.async_abort(reason='no_bluetooth')
-            
+           
             devices_filtered: List[Any] = [
                 device for device in scanner.discovered_devices
                 if device.name and (device.name.startswith("RMC-") or device.name.startswith("RFS-"))
             ]
             if len(devices_filtered) == 0:
-                return self.async_abort(reason='skycooker_not_found')
+                _LOGGER.error("Устройство не найдено")
+                return self.async_abort(reason='device_not_found')
             
             mac_list: List[str] = [f"{r.address} ({r.name})" for r in devices_filtered]
             schema = vol.Schema({
                 vol.Required(CONF_MAC): vol.In(mac_list)
             })
         except Exception as e:
-            _LOGGER.error(f"Ошибка во время сканирования: {traceback.format_exc()}")
-            return self.async_abort(reason='unknown')
-        
+            _LOGGER.error(f"Ошибка во время сканирования: {e}")
+            return self.async_abort(reason='scan_failed')
+       
         return self.async_show_form(
             step_id="scan",
             errors=errors,
@@ -135,36 +142,48 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         Args:
             user_input: Необязательные данные ввода пользователя.
-            
+        
         Returns:
             Форма для отображения или результат следующего шага.
         """
         errors: Dict[str, str] = {}
         if user_input is not None:
-            skycooker = SkyCookerConnection(
-                mac=self.config[CONF_MAC],
-                key=self.config[CONF_PASSWORD],
-                persistent=True,
-                adapter=self.config.get(CONF_DEVICE, None),
-                hass=self.hass,
-                model=self.config.get(CONF_FRIENDLY_NAME, None)
-            )
-            tries = 3
-            while tries > 0 and not skycooker.last_connect_ok:
-                await skycooker.update()
-                tries -= 1
-              
-            connect_ok = skycooker.last_connect_ok
-            auth_ok = skycooker.last_auth_ok
-            await skycooker.stop()
-          
-            if not connect_ok:
-                errors["base"] = "не_удается_подключиться"
-            elif not auth_ok:
-                errors["base"] = "не_удается_аутентифицироваться"
-            else:
-                return await self.async_step_init()
-
+            try:
+                # Проверка наличия необходимых параметров
+                if not self.config.get(CONF_MAC):
+                    _LOGGER.error("Отсутствует MAC-адрес для подключения")
+                    return self.async_abort(reason='invalid_config')
+                if not self.config.get(CONF_PASSWORD):
+                    _LOGGER.error("Отсутствует пароль для подключения")
+                    return self.async_abort(reason='invalid_config')
+                
+                skycooker = SkyCookerConnection(
+                    mac=self.config[CONF_MAC],
+                    key=self.config[CONF_PASSWORD],
+                    persistent=True,
+                    adapter=self.config.get(CONF_DEVICE, None),
+                    hass=self.hass,
+                    model_name=self.config.get(CONF_FRIENDLY_NAME, None)
+                )
+                tries = 3
+                while tries > 0 and not skycooker.last_connect_ok:
+                    await skycooker.update()
+                    tries -= 1
+                 
+                connect_ok = getattr(skycooker, 'last_connect_ok', False)
+                auth_ok = getattr(skycooker, 'last_auth_ok', False)
+                await skycooker.stop()
+                
+                if not connect_ok:
+                    errors["base"] = "cant_connect"
+                elif not auth_ok:
+                    errors["base"] = "cant_auth"
+                else:
+                    return await self.async_step_init()
+            except Exception as e:
+                _LOGGER.error(f"Ошибка при подключении: {e}")
+                return self.async_abort(reason='connection_failed')
+    
         return self.async_show_form(
             step_id="connect",
             errors=errors,
@@ -176,35 +195,103 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         Args:
             user_input: Необязательные данные ввода пользователя.
-            
+        
         Returns:
             Форма для отображения или результат создания входа.
         """
         errors: Dict[str, str] = {}
+        
+        # Получение модели устройства
+        model = self.config.get(CONF_MODEL, MODEL_3)
+       
+        # Получение списка доступных программ для модели, исключая PROGRAM_STANDBY и PROGRAM_NONE
+        available_programs = get_program_options(self.hass, model, False)
+        
         if user_input is not None:
-            self.config[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
-            self.config[CONF_PERSISTENT_CONNECTION] = user_input[CONF_PERSISTENT_CONNECTION]
-            fname = f"{self.config.get(CONF_FRIENDLY_NAME, SKYCOOKER_NAME)} ({self.config[CONF_MAC]})"
-            if self.entry:
-                self.hass.config_entries.async_update_entry(self.entry, data=self.config)
-            _LOGGER.debug(f"Конфигурация сохранена")
-            return self.async_create_entry(
-                title=fname, data=self.config if not self.entry else {}
+            try:
+                # Проверка наличия необходимых параметров
+                if not self.config.get(CONF_MAC):
+                    _LOGGER.error("Отсутствует MAC-адрес в конфигурации")
+                    return self.async_abort(reason='invalid_config')
+                if not self.config.get(CONF_PASSWORD):
+                    _LOGGER.error("Отсутствует пароль в конфигурации")
+                    return self.async_abort(reason='invalid_config')
+                  
+                # Проверка и обработка CONF_SCAN_INTERVAL
+                try:
+                    scan_interval = user_input[CONF_SCAN_INTERVAL]
+                    if isinstance(scan_interval, str):
+                        scan_interval = int(scan_interval)
+                    self.config[CONF_SCAN_INTERVAL] = scan_interval
+                except (ValueError, KeyError) as e:
+                    _LOGGER.error(f"Некорректное значение CONF_SCAN_INTERVAL: {e}")
+                    return self.async_abort(reason='invalid_input')
+                  
+                # Проверка и обработка CONF_PERSISTENT_CONNECTION
+                try:
+                    persistent_connection = user_input[CONF_PERSISTENT_CONNECTION]
+                    if isinstance(persistent_connection, str):
+                        persistent_connection = persistent_connection.lower() == 'true'
+                    self.config[CONF_PERSISTENT_CONNECTION] = persistent_connection
+                except (ValueError, KeyError) as e:
+                    _LOGGER.error(f"Некорректное значение CONF_PERSISTENT_CONNECTION: {e}")
+                    return self.async_abort(reason='invalid_input')
+                  
+                # Сохранение избранных программ
+                if CONF_FAVORITE_PROGRAMS in user_input:
+                    favorite_programs = user_input[CONF_FAVORITE_PROGRAMS]
+                    # Ограничение до MAX_FAVORITE_PROGRAMS
+                    if len(favorite_programs) > MAX_FAVORITE_PROGRAMS:
+                        favorite_programs = favorite_programs[:MAX_FAVORITE_PROGRAMS]
+                    self.config[CONF_FAVORITE_PROGRAMS] = favorite_programs
+                   
+                fname = f"{self.config.get(CONF_FRIENDLY_NAME, SKYCOOKER_NAME)} ({self.config[CONF_MAC]})"
+                if self.entry:
+                    try:
+                        self.hass.config_entries.async_update_entry(self.entry, data=self.config)
+                    except Exception as e:
+                        _LOGGER.error(f"Ошибка при обновлении существующей записи: {e}")
+                        return self.async_abort(reason='update_failed')
+                return self.async_create_entry(
+                    title=fname, data=self.config
+                )
+            except Exception as e:
+                _LOGGER.error(f"Ошибка при сохранении конфигурации: {e}")
+                return self.async_abort(reason='config_save_failed')
+               
+        try:
+            # Удаляем пустую строку из начала списка программ (она используется как подсказка)
+            available_programs_without_hint = [program for program in available_programs if program]
+            
+            # Создание схемы для выбора избранных программ
+            favorite_programs_validator = cv.multi_select(available_programs_without_hint)
+                  
+            schema = vol.Schema({
+                vol.Required(
+                    CONF_PERSISTENT_CONNECTION,
+                    default=self.config.get(CONF_PERSISTENT_CONNECTION, DEFAULT_PERSISTENT_CONNECTION)
+                ): cv.boolean,
+                vol.Required(
+                    CONF_SCAN_INTERVAL,
+                    default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+                vol.Optional(
+                    CONF_FAVORITE_PROGRAMS,
+                    default=self.config.get(CONF_FAVORITE_PROGRAMS, [])
+                ): favorite_programs_validator,
+            })
+                
+            # Получение описания для избранных программ из переводов
+            translations = self.hass.data.get("skycooker_translations", {})
+            favorite_program_description = translations.get("config", {}).get("step", {}).get("init", {}).get("data", {}).get("favorite_programs", "Favorite programs (select up to 5 programs to display as favorites)")
+                 
+            return self.async_show_form(
+                step_id="init",
+                errors=errors,
+                data_schema=schema,
+                description_placeholders={"favorite_program_description": favorite_program_description}
             )
+        except Exception as e:
+            _LOGGER.error(f"Ошибка при инициализации формы: {e}")
+            return self.async_abort(reason='init_failed')
 
-        schema = vol.Schema({
-            vol.Required(
-                CONF_PERSISTENT_CONNECTION,
-                default=self.config.get(CONF_PERSISTENT_CONNECTION, DEFAULT_PERSISTENT_CONNECTION)
-            ): cv.boolean,
-            vol.Required(
-                CONF_SCAN_INTERVAL,
-                default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
-        })
-
-        return self.async_show_form(
-            step_id="init",
-            errors=errors,
-            data_schema=schema
-        )

@@ -2,16 +2,17 @@
 
 from homeassistant.components.sensor import (SensorDeviceClass, SensorEntity,
                                                 SensorStateClass)
-from homeassistant.const import (CONF_FRIENDLY_NAME, PERCENTAGE, UnitOfTemperature,
-                                    UnitOfTime)
+from homeassistant.const import (PERCENTAGE, UnitOfTemperature)
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import *
 from .entity_base import SkyCookerEntity
-from .utils import (get_base_name, get_localized_string, get_status_text, get_mode_name, format_time,
-                   should_show_subprogram, calculate_remaining_time, get_cooking_time, get_auto_warm_time,
-                   get_delayed_launch_time, get_current_mode_text, get_entity_name)
-from .skycooker import SkyCooker
+from .utils import (get_base_name, get_entity_name)
+from .programs import get_current_program_text
+from .time import (calculate_remaining_time, get_cooking_time, get_auto_warm_time,
+                   get_delayed_launch_time)
+from .programs import is_subprogram_supported
+from .status import get_status_text
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -24,12 +25,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
         SkyCookerSensor(hass, entry, SENSOR_TYPE_AUTO_WARM_TIME),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_SUCCESS_RATE),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_DELAYED_LAUNCH_TIME),
-        SkyCookerSensor(hass, entry, SENSOR_TYPE_CURRENT_MODE),
+        SkyCookerSensor(hass, entry, SENSOR_TYPE_CURRENT_PROGRAM),
     ]
     
     # Добавляем сенсор для подпрограммы только если модель поддерживает подпрограммы
     skycooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
-    if should_show_subprogram(skycooker.model_code):
+    if is_subprogram_supported(skycooker.model_id):
         entities.append(SkyCookerSensor(hass, entry, SENSOR_TYPE_SUBPROGRAM))
     
     async_add_entities(entities)
@@ -70,11 +71,11 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
             return get_entity_name(self.hass, self.entry, self.sensor_type, 'Success rate', 'Процент успеха')
         elif self.sensor_type == SENSOR_TYPE_DELAYED_LAUNCH_TIME:
             return get_entity_name(self.hass, self.entry, self.sensor_type, 'Delayed launch time', 'Время до отложенного запуска')
-        elif self.sensor_type == SENSOR_TYPE_CURRENT_MODE:
+        elif self.sensor_type == SENSOR_TYPE_CURRENT_PROGRAM:
             return get_entity_name(self.hass, self.entry, self.sensor_type, 'Current mode', 'Текущий режим')
         elif self.sensor_type == SENSOR_TYPE_SUBPROGRAM:
             return get_entity_name(self.hass, self.entry, self.sensor_type, 'Current subprogram', 'Текущая подпрограмма')
-        
+
         return get_base_name(self.entry)
 
     @property
@@ -88,7 +89,7 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
             SENSOR_TYPE_AUTO_WARM_TIME: "mdi:clock-start",
             SENSOR_TYPE_SUCCESS_RATE: "mdi:bluetooth-connect",
             SENSOR_TYPE_DELAYED_LAUNCH_TIME: "mdi:timer-sand",
-            SENSOR_TYPE_CURRENT_MODE: "mdi:chef-hat",
+            SENSOR_TYPE_CURRENT_PROGRAM: "mdi:chef-hat",
             SENSOR_TYPE_SUBPROGRAM: "mdi:cog-outline",
         }
         return icons.get(self.sensor_type)
@@ -139,7 +140,8 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
         if self.sensor_type == SENSOR_TYPE_STATUS:
             return self.skycooker.status_code is not None
         elif self.sensor_type == SENSOR_TYPE_TEMPERATURE:
-            return self.skycooker.target_temp is not None
+            # Сенсор температуры всегда доступен, даже если target_temp is None
+            return True
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
             return (self.skycooker.status_code is not None and
                     hasattr(self.skycooker, 'target_main_hours') and
@@ -150,7 +152,7 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
             return hasattr(self.skycooker, 'target_main_hours') and hasattr(self.skycooker, 'target_main_minutes')
         elif self.sensor_type == SENSOR_TYPE_AUTO_WARM_TIME:
             return self.skycooker.status_code is not None and hasattr(self.skycooker, 'target_additional_hours') and hasattr(self.skycooker, 'target_additional_minutes')
-        elif self.sensor_type == SENSOR_TYPE_CURRENT_MODE:
+        elif self.sensor_type == SENSOR_TYPE_CURRENT_PROGRAM:
             return self.skycooker.status_code is not None
 
         return False
@@ -164,7 +166,7 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
                 return get_status_text(self.hass, status.status)
             return get_status_text(self.hass, None)
         elif self.sensor_type == SENSOR_TYPE_TEMPERATURE:
-            return 0 if self.skycooker.status_code == STATUS_OFF else (self.skycooker.target_temp if self.skycooker.target_temp is not None else 0)
+            return 0 if self.skycooker.status_code == STATUS_OFF else (self.skycooker.target_temperature if self.skycooker.target_temperature is not None else 0)
         elif self.sensor_type == SENSOR_TYPE_REMAINING_TIME:
             return calculate_remaining_time(self.hass, self.skycooker, self.skycooker.status_code)
         elif self.sensor_type == SENSOR_TYPE_COOKING_TIME:
@@ -175,8 +177,8 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
             return self.skycooker.success_rate if self.skycooker.success_rate is not None else 0
         elif self.sensor_type == SENSOR_TYPE_DELAYED_LAUNCH_TIME:
             return get_delayed_launch_time(self.hass, self.skycooker, self.skycooker.status_code)
-        elif self.sensor_type == SENSOR_TYPE_CURRENT_MODE:
-            return get_current_mode_text(self.hass, self.skycooker, self.skycooker.status_code)
+        elif self.sensor_type == SENSOR_TYPE_CURRENT_PROGRAM:
+            return get_current_program_text(self.hass, self.skycooker, self.skycooker.status_code)
         elif self.sensor_type == SENSOR_TYPE_SUBPROGRAM:
             return str(self.skycooker.status.subprog) if self.skycooker.status and self.skycooker.status.subprog is not None else "0"
         

@@ -1,10 +1,9 @@
 """Переключатели SkyCooker."""
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import CONF_FRIENDLY_NAME
 
 from .const import *
 from .entity_base import SkyCookerEntity
-from .utils import get_base_name, get_localized_string, get_entity_name
+from .utils import get_base_name, get_entity_name
 
 
 
@@ -34,7 +33,7 @@ class SkyCookerSwitch(SkyCookerEntity, SwitchEntity):
         """Возвращает имя переключателя."""
         if self.switch_type == SWITCH_TYPE_AUTO_WARM:
             return get_entity_name(self.hass, self.entry, self.switch_type, 'Auto warm', 'Автоподогрев')
-        
+
         return get_base_name(self.entry)
 
     @property

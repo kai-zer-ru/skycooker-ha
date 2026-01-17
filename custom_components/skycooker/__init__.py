@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import homeassistant.helpers.event as ev
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (ATTR_SW_VERSION, CONF_DEVICE,
+from homeassistant.const import (CONF_DEVICE,
                                   CONF_FRIENDLY_NAME, CONF_MAC, CONF_PASSWORD,
                                   CONF_SCAN_INTERVAL, Platform)
 from homeassistant.core import HomeAssistant
@@ -39,6 +39,48 @@ async def async_setup(hass, config):
     _LOGGER.debug("✅ Интеграция SkyCooker загружена. Версия HA: %s", HA_VERSION)
     return True
 
+async def load_translations(hass):
+    """Load translations from JSON files."""
+    import json
+    import os
+    import aiofiles
+
+    translations = {}
+
+    # Determine the language to load
+    language = getattr(hass.config, 'language', 'ru')
+
+    # Check if the language is supported
+    if language not in LANGS:
+        _LOGGER.warning(f"⚠️  Язык {language} не поддерживается. Используется английский")
+        language = 'en'
+
+    # Load the appropriate translation file
+    translation_file = os.path.join(os.path.dirname(__file__), 'translations', f'{language}.json')
+
+    try:
+        async with aiofiles.open(translation_file, 'r', encoding='utf-8') as f:
+            content = await f.read()
+            translations = json.loads(content)
+        _LOGGER.debug(f"✅ Загружены переводы для языка: {language}")
+    except FileNotFoundError:
+        _LOGGER.warning(f"⚠️  Файл переводов для языка {language} не найден, используется английский")
+        # Fallback to English
+        translation_file = os.path.join(os.path.dirname(__file__), 'translations', 'en.json')
+        try:
+            async with aiofiles.open(translation_file, 'r', encoding='utf-8') as f:
+                content = await f.read()
+                translations = json.loads(content)
+            _LOGGER.debug("✅ Загружены английские переводы как резервные")
+        except Exception as e:
+            _LOGGER.error(f"❌ Ошибка загрузки английских переводов: {e}")
+            translations = {}
+    except Exception as e:
+        _LOGGER.error(f"❌ Ошибка загрузки переводов: {e}")
+        translations = {}
+
+    hass.data["skycooker_translations"] = translations
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Настройка интеграции SkyCooker из конфигурационного входа."""
     entry.async_on_unload(entry.add_update_listener(entry_update_listener))
@@ -46,11 +88,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     if DOMAIN not in hass.data: hass.data[DOMAIN] = {}
     if entry.entry_id not in hass.data: hass.data[DOMAIN][entry.entry_id] = {}
 
+    # Load translations if not already loaded
+    if "skycooker_translations" not in hass.data:
+        await load_translations(hass)
+
     # Проверка поддержки модели
     model_name = entry.data.get(CONF_FRIENDLY_NAME, "")
     if model_name not in MODELS:
         _LOGGER.error(f"🚨 Модель {model_name} не поддерживается. Поддерживаемые модели: {list(MODELS.keys())}")
         return False
+
 
     try:
         skycooker = SkyCookerConnection(
@@ -59,7 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             persistent=entry.data[CONF_PERSISTENT_CONNECTION],
             adapter=entry.data.get(CONF_DEVICE, None),
             hass=hass,
-            model=model_name
+            model_name=model_name
         )
         hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION] = skycooker
         
@@ -139,4 +186,6 @@ async def entry_update_listener(hass, entry):
     """Обработка обновления опций."""
     skycooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
     skycooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
+    
+    
     _LOGGER.debug("⚙️  Опции обновлены")
