@@ -44,16 +44,16 @@ class SkyCookerSwitch(SkyCookerEntity, SwitchEntity):
     @property
     def is_on(self):
         """Возвращает true, если переключатель включен."""
-        return self.switch_type == SWITCH_TYPE_AUTO_WARM and getattr(self.skycooker, '_auto_warm_enabled', False)
+        return self.switch_type == SWITCH_TYPE_AUTO_WARM and getattr(self.skycooker, 'auto_warm_enabled', False)
 
     async def async_turn_on(self, **kwargs):
         """Включение переключателя."""
         if self.switch_type == SWITCH_TYPE_AUTO_WARM:
-            self.skycooker._auto_warm_enabled = True
+            self.skycooker.auto_warm_enabled = True
             self.update()
 
     async def async_turn_off(self, **kwargs):
         """Выключение переключателя."""
         if self.switch_type == SWITCH_TYPE_AUTO_WARM:
-            self.skycooker._auto_warm_enabled = False
+            self.skycooker.auto_warm_enabled = False
             self.update()

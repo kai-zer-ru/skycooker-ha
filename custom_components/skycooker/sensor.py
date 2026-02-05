@@ -134,7 +134,7 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
         
         # Для датчика подпрограммы проверяем, есть ли данные о подпрограмме
         if self.sensor_type == SENSOR_TYPE_SUBPROGRAM:
-            return self.skycooker.status and self.skycooker.status.subprog is not None
+            return self.skycooker.status and self.skycooker.status.subprogram_id is not None
         
         # Для других датчиков проверяем, есть ли данные из статуса устройства
         if self.sensor_type == SENSOR_TYPE_STATUS:
@@ -180,6 +180,6 @@ class SkyCookerSensor(SkyCookerEntity, SensorEntity):
         elif self.sensor_type == SENSOR_TYPE_CURRENT_PROGRAM:
             return get_current_program_text(self.hass, self.skycooker, self.skycooker.status_code)
         elif self.sensor_type == SENSOR_TYPE_SUBPROGRAM:
-            return str(self.skycooker.status.subprog) if self.skycooker.status and self.skycooker.status.subprog is not None else "0"
+            return str(self.skycooker.status.subprogram_id) if self.skycooker.status and self.skycooker.status.subprogram_id is not None else "0"
         
         return None

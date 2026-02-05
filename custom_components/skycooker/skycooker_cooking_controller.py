@@ -183,11 +183,6 @@ class SkyCookerCookingController:
             await self.connection_manager.turn_on()
         else:
             _LOGGER.warning("🔄 Неизвестное состояние устройства, отправляем все команды")
-            if is_in_standby:
-                _LOGGER.debug("🔄 Устройство находится в режиме ожидания, отправляем команду SELECT_MODE для пробуждения")
-                await self.select_program(target_program_id, target_subprogram_id)
-                await asyncio.sleep(0.5)
-               
             await self.select_program(target_program_id, target_subprogram_id)
             await asyncio.sleep(0.3)
                
@@ -463,6 +458,11 @@ class SkyCookerCookingController:
     @property
     def target_subprogram_id(self):
         return self._target_subprogram_id
+
+    @target_subprogram_id.setter
+    def target_subprogram_id(self, value):
+        """Установка целевой подпрограммы."""
+        self._target_subprogram_id = value
 
     @target_temperature.setter
     def target_temperature(self, value):

@@ -90,32 +90,8 @@ class SkyCookerConnectionManager(SkyCooker):
          
         # Check if the response command matches the expected command
         if r[2] != command:
-            _LOGGER.warning(f"⚠️  Получена неожиданная команда ответа: ожидалось {command:02x}, получено {r[2]:02x}")
-            
-            # For SELECT_PROGRAM and SET_MAIN_MODE commands, if we get a status update (0x06),
-            # it might mean the device processed the command and sent its current status
-            if command in [COMMAND_SELECT_PROGRAM, COMMAND_SET_MAIN_MODE] and r[2] == COMMAND_GET_STATUS:
-                _LOGGER.debug(f"📊 Устройство отправило обновление статуса после команды {command:02x}")
-                _LOGGER.debug(f"💡 Вероятно, команда была обработана успешно")
-                clean = bytes([0x01])  # Success code
-                _LOGGER.debug(f"📥 Очищенные данные ответа: 01 (успех)")
-                return clean
-            elif command == COMMAND_TURN_ON and r[2] == COMMAND_GET_STATUS:
-                _LOGGER.debug(f"📊 Устройство отправило обновление статуса после команды {command:02x}")
-                _LOGGER.debug(f"💡 Вероятно, команда была обработана успешно")
-                clean = bytes([0x01])  # Success code
-                _LOGGER.debug(f"📥 Очищенные данные ответа: 01 (успех)")
-                return clean
-            elif command == COMMAND_GET_STATUS and r[2] in [COMMAND_SELECT_PROGRAM, COMMAND_SET_MAIN_MODE, COMMAND_TURN_OFF]:
-                _LOGGER.debug(f"📊 Получен отложенный ответ на команду {r[2]:02x} вместо статуса")
-                _LOGGER.debug(f"💡 Вероятно, предыдущая команда была обработана успешно")
-                clean = bytes(r[3:-1])
-                _LOGGER.debug(f"📥 Очищенные данные ответа: {' '.join([f'{c:02x}' for c in clean])}")
-                return clean
-            else:
-                _LOGGER.error(f"❌ Некорректная команда ответа: ожидалось {command:02x}, получено {r[2]:02x}")
-                raise IOError("Некорректная команда ответа")
-         
+            return self._handle_unexpected_command_response(command, r)
+
         clean = bytes(r[3:-1])
         _LOGGER.debug(f"📥 Очищенные данные ответа: {' '.join([f'{c:02x}' for c in clean])}")
         return clean
@@ -123,6 +99,25 @@ class SkyCookerConnectionManager(SkyCooker):
     def _rx_callback(self, sender: Any, data: bytes) -> None:
         """Callback для обработки входящих данных."""
         self._last_data = data
+
+    def _handle_unexpected_command_response(self, command: int, r: bytes) -> bytes:
+        """Обработка неожиданной команды в ответе. Возвращает данные или выбрасывает IOError."""
+        _LOGGER.warning(f"⚠️  Получена неожиданная команда ответа: ожидалось {command:02x}, получено {r[2]:02x}")
+
+        # SELECT_PROGRAM/SET_MAIN_MODE/TURN_ON: устройство может ответить статусом (0x06) вместо подтверждения
+        if command in [COMMAND_SELECT_PROGRAM, COMMAND_SET_MAIN_MODE, COMMAND_TURN_ON] and r[2] == COMMAND_GET_STATUS:
+            _LOGGER.debug(f"📊 Устройство отправило обновление статуса после команды {command:02x}")
+            _LOGGER.debug(f"💡 Вероятно, команда была обработана успешно")
+            return bytes([0x01])
+
+        # GET_STATUS: может прийти отложенный ответ на предыдущую команду
+        if command == COMMAND_GET_STATUS and r[2] in [COMMAND_SELECT_PROGRAM, COMMAND_SET_MAIN_MODE, COMMAND_TURN_OFF]:
+            _LOGGER.debug(f"📊 Получен отложенный ответ на команду {r[2]:02x} вместо статуса")
+            _LOGGER.debug(f"💡 Вероятно, предыдущая команда была обработана успешно")
+            return bytes(r[3:-1])
+
+        _LOGGER.error(f"❌ Некорректная команда ответа: ожидалось {command:02x}, получено {r[2]:02x}")
+        raise IOError("Некорректная команда ответа")
 
     async def _connect(self) -> None:
         """Установка соединения с устройством."""

@@ -1,8 +1,14 @@
 """Support for SkyCooker."""
+import json
 import logging
+import os
 from datetime import timedelta
 
+import aiofiles
 import homeassistant.helpers.event as ev
+from packaging import version
+
+from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_DEVICE,
                                   CONF_FRIENDLY_NAME, CONF_MAC, CONF_PASSWORD,
@@ -26,9 +32,6 @@ PLATFORMS = [
 async def async_setup(hass, config):
     """Настройка компонента SkyCooker."""
     # Проверка минимальной версии HomeAssistant
-    from homeassistant.const import __version__ as HA_VERSION
-    from packaging import version
-    
     min_ha_version = "2025.12.5"
     if version.parse(HA_VERSION) < version.parse(min_ha_version):
         _LOGGER.error("❌ Требуется HomeAssistant версии %s или выше. У вас установлена версия %s",
@@ -41,10 +44,6 @@ async def async_setup(hass, config):
 
 async def load_translations(hass):
     """Load translations from JSON files."""
-    import json
-    import os
-    import aiofiles
-
     translations = {}
 
     # Determine the language to load
@@ -80,6 +79,21 @@ async def load_translations(hass):
         translations = {}
 
     hass.data["skycooker_translations"] = translations
+
+
+def _create_poll_scheduler(hass, entry, skycooker):
+    """Создаёт poll и schedule_poll для периодического обновления статуса."""
+    def schedule_poll(td):
+        hass.data[DOMAIN][DATA_CANCEL] = ev.async_call_later(hass, td, poll)
+
+    async def poll(now, **kwargs) -> None:
+        await skycooker.update()
+        await hass.async_add_executor_job(dispatcher_send, hass, DISPATCHER_UPDATE)
+        if hass.data[DOMAIN][DATA_WORKING]:
+            schedule_poll(timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]))
+
+    return poll, schedule_poll
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Настройка интеграции SkyCooker из конфигурационного входа."""
@@ -121,16 +135,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.error(f"🚨 Ошибка при настройке соединения: {e}")
             return False
 
-    async def poll(now, **kwargs) -> None:
-        await skycooker.update()
-        await hass.async_add_executor_job(dispatcher_send, hass, DISPATCHER_UPDATE)
-        if hass.data[DOMAIN][DATA_WORKING]:
-            schedule_poll(timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]))
-        else:
-            _LOGGER.debug("🔴 Не работает больше, остановка")
-
-    def schedule_poll(td):
-        hass.data[DOMAIN][DATA_CANCEL] = ev.async_call_later(hass, td, poll)
+    poll, schedule_poll = _create_poll_scheduler(hass, entry, skycooker)
 
     hass.data[DOMAIN][DATA_WORKING] = True
     hass.data[DOMAIN][DATA_DEVICE_INFO] = lambda: device_info(entry, hass)
@@ -155,7 +160,7 @@ def device_info(entry, hass):
     
     return DeviceInfo(
         name=(SKYCOOKER_NAME + " " + entry.data.get(CONF_FRIENDLY_NAME, "")).strip(),
-        manufacturer=MANUFACTORER,
+        manufacturer=MANUFACTURER,
         model=entry.data.get(CONF_FRIENDLY_NAME, None),
         sw_version=sw_version,
         identifiers={

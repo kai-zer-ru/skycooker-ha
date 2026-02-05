@@ -8,6 +8,7 @@ from struct import pack, unpack
 from typing import Any, List, Optional, Tuple
 from .const import COMMAND_SYNC_TIME, COMMAND_GET_TIME, STATUS_DELAYED_LAUNCH, \
     STATUS_WARMING, STATUS_COOKING, STATUS_AUTO_WARM, Status
+from .utils import get_localized_string
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,20 +63,18 @@ async def get_time(self) -> Tuple[int, int]:
     return t, offset
 
 
-def _get_time_str(hours: int, minutes: int, is_russian: bool) -> str:
+def _get_time_str(hours: int, minutes: int, hass: Any) -> str:
     """Форматирует строку времени в зависимости от языка."""
-    if hours < 0: hours = 0
-    if minutes < 0: minutes = 0
-    if is_russian:
-        return f"{hours} ч. {minutes} м."
-    else:
-        return f"{hours} h. {minutes} m."
+    if hours < 0:
+        hours = 0
+    if minutes < 0:
+        minutes = 0
+    return get_localized_string(hass, f"{hours} h. {minutes} m.", f"{hours} ч. {minutes} м.")
 
 
 def format_time(hass: Any, hours: int, minutes: int) -> str:
     """Форматирует время в зависимости от языка."""
-    is_russian = hass.config.language == "ru"
-    return _get_time_str(hours, minutes, is_russian)
+    return _get_time_str(hours, minutes, hass)
 
 
 def get_time_options(hours: bool = True) -> List[str]:
@@ -92,19 +91,11 @@ def get_time_from_status(skycooker: Any, status: Optional[Status], attr_name: st
 
 def _normalize_time(hours: int, minutes: int) -> tuple[int, int]:
     """Нормализует время, обеспечивая, чтобы часы не превышали 23, а минуты - 59."""
-    # Нормализуем минуты
     if minutes >= 60:
         hours += minutes // 60
         minutes = minutes % 60
-
-    # Обеспечиваем, чтобы часы не превышали 23
     if hours > 23:
         hours = 23
-    
-    # Обеспечиваем, чтобы минуты не превышали 59
-    if minutes > 59:
-        minutes = 59
-    
     return hours, minutes
 
 

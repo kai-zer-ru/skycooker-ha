@@ -3,6 +3,7 @@ import logging
 import asyncio
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import *
 from .entity_base import SkyCookerEntity
@@ -73,6 +74,7 @@ class SkyCookerButton(SkyCookerEntity, ButtonEntity):
                 await asyncio.sleep(0.5)
                 # Обновляем состояние после нажатия кнопки
                 await self.skycooker.update()
+                async_dispatcher_send(self.hass, DISPATCHER_UPDATE)
         except SkyCookerError as e:
             _LOGGER.error(f"❌ Ошибка при нажатии кнопки: {str(e)}, {traceback.format_exception(e)}")
         except Exception as e:

@@ -84,7 +84,7 @@ class SkyCookerStateManager:
     def subprog(self):
         """Текущая подпрограмма."""
         if self.cooking_controller.status:
-            return self.cooking_controller.status.subprog
+            return self.cooking_controller.status.subprogram_id
         return None
     
     @property

@@ -136,13 +136,9 @@ class SkyCookerSelect(SkyCookerEntity, SelectEntity):
                     return None
             return program_name
         elif self.select_type == SELECT_TYPE_SUBPROGRAM:
-            # Поддержка старого и нового имени атрибута для совместимости
             if hasattr(self.skycooker, 'target_subprogram_id') and self.skycooker.target_subprogram_id is not None:
                 return str(self.skycooker.target_subprogram_id)
-            elif hasattr(self.skycooker, 'target_subprogram_id') and self.skycooker.target_subprogram_id is not None:
-                return str(self.skycooker.target_subprogram_id)
-            else:
-                return "0"
+            return "0"
         elif self.select_type == SELECT_TYPE_TEMPERATURE:
             if hasattr(self.skycooker, 'target_temperature') and self.skycooker.target_temperature is not None:
                 return str(self.skycooker.target_temperature)
@@ -202,9 +198,7 @@ class SkyCookerSelect(SkyCookerEntity, SelectEntity):
         elif self.select_type == SELECT_TYPE_DELAYED_START_MINUTES:
             self.skycooker.target_additional_minutes = _validate_minutes(int(option))
         elif self.select_type == SELECT_TYPE_SUBPROGRAM:
-            # Поддержка старого и нового имени атрибута для совместимости
             self.skycooker.target_subprogram_id = int(option)
-            self.skycooker._target_subprogram_id = int(option)
         else:
             return None
             

@@ -18,7 +18,7 @@ MAX_FAVORITE_PROGRAMS = 5
 # Дружественные имена
 FRIENDLY_NAME = "SkyCooker"
 SKYCOOKER_NAME = "SkyCooker"
-MANUFACTORER = "Redmond"
+MANUFACTURER = "Redmond"
 
 # Типы кнопок
 BUTTON_TYPE_START = "start"

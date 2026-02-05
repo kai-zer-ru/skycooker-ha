@@ -167,6 +167,10 @@ class SkyCookerConnection(SkyCooker):
     def target_subprogram_id(self):
         return self.cooking_controller.target_subprogram_id
 
+    @target_subprogram_id.setter
+    def target_subprogram_id(self, value):
+        self.cooking_controller.target_subprogram_id = value
+
     @target_temperature.setter
     def target_temperature(self, value):
         self.cooking_controller.target_temperature = value
@@ -192,13 +196,12 @@ class SkyCookerConnection(SkyCooker):
         return self.state_manager.status_code
 
     @property
-    def _auto_warm_enabled(self):
+    def auto_warm_enabled(self) -> bool:
         """Возвращает состояние автоподогрева из cooking_controller."""
-        # Заменим вызов защищенного свойства на публичное
         return self.cooking_controller.auto_warm_enabled
 
-    @_auto_warm_enabled.setter
-    def _auto_warm_enabled(self, value):
+    @auto_warm_enabled.setter
+    def auto_warm_enabled(self, value: bool) -> None:
         """Устанавливает состояние автоподогрева через cooking_controller."""
         self.cooking_controller.auto_warm_enabled = value
 

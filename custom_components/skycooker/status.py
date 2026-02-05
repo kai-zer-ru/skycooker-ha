@@ -6,13 +6,14 @@ import logging
 from .const import COMMAND_GET_STATUS, STATUS_CODE_TO_TRANSLATION_KEY, Status
 from .programs import get_program_name
 from .skycooker import SkyCookerError
+from .utils import get_localized_string
 
 _LOGGER = logging.getLogger(__name__)
 
 def get_status_text(hass: Any, status_code: Optional[int]) -> str:
     """Возвращает текст статуса в зависимости от языка."""
     if status_code is None:
-        return "Unknown" if hass.config.language == "en" else "Неизвестно"
+        return get_localized_string(hass, "Unknown", "Неизвестно")
     
     # Получение ключа перевода для кода статуса
     translation_key = STATUS_CODE_TO_TRANSLATION_KEY.get(status_code)
@@ -28,18 +29,18 @@ def get_status_text(hass: Any, status_code: Optional[int]) -> str:
         else:
             # Резервные значения для тестирования или резервного копирования
             fallback_translations = {
-                "off": "Off" if hass.config.language == "en" else "Выключена",
-                "wait": "Waiting" if hass.config.language == "en" else "Ожидание",
-                "delayed_launch": "Delayed Launch" if hass.config.language == "en" else "Отложенный старт",
-                "warming": "Warming" if hass.config.language == "en" else "Разогрев",
-                "cooking": "Cooking" if hass.config.language == "en" else "Готовка",
-                "auto_warm": "Auto Warm" if hass.config.language == "en" else "Подогрев",
-                "full_off": "Fully off" if hass.config.language == "en" else "Полностью выключена"
+                "off": get_localized_string(hass, "Off", "Выключена"),
+                "wait": get_localized_string(hass, "Waiting", "Ожидание"),
+                "delayed_launch": get_localized_string(hass, "Delayed Launch", "Отложенный старт"),
+                "warming": get_localized_string(hass, "Warming", "Разогрев"),
+                "cooking": get_localized_string(hass, "Cooking", "Готовка"),
+                "auto_warm": get_localized_string(hass, "Auto Warm", "Подогрев"),
+                "full_off": get_localized_string(hass, "Fully off", "Полностью выключена"),
             }
             return fallback_translations.get(translation_key, translation_key)
     else:
         # Резервное значение для неизвестных кодов статусов
-        return f"Unknown ({status_code})" if hass.config.language == "en" else f"Неизвестно ({status_code})"
+        return get_localized_string(hass, f"Unknown ({status_code})", f"Неизвестно ({status_code})")
 
 
 async def get_status(connection_manager) -> Status:
@@ -100,5 +101,4 @@ async def get_status(connection_manager) -> Status:
         f"target_additional_hours={status_data.target_additional_hours}, target_additional_minutes={status_data.target_additional_minutes}, "
         f"current_status={status_data.status}, program_name={status_data.program_name}, "
     )
-    connection_manager.command
     return status_data

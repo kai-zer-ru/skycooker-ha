@@ -1,10 +1,17 @@
 """Модуль для работы с режимами SkyCooker."""
-from typing import List, Dict, Optional, Any
+import logging
+from typing import Any, Dict, List, Optional
 
 from .const import *
-import logging
+from .utils import get_localized_string
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_translations(hass: Any) -> dict:
+    """Возвращает словарь переводов или пустой dict."""
+    return hass.data.get("skycooker_translations", {}) if hass is not None else {}
+
 
 def get_program_data(model_id: int, program_id: int) -> Optional[Dict[str, Any]]:
     """Возвращает данные режима."""
@@ -20,13 +27,10 @@ def get_program_constants(model_id: int) -> List[str]:
 def get_program_options(hass, model_id: int, include_standby: bool = True) -> List[str]:
     """Возвращает список опций для режимов."""
     program_constants = get_program_constants(model_id)
-    if not program_constants:
+    if not program_constants or hass is None:
         return []
 
-    if hass is not None:
-        translations = hass.data.get("skycooker_translations", {})
-    else:
-        return []
+    translations = _get_translations(hass)
     program_names = translations.get("program_names", {})
     if include_standby:
         programs = [program_names.get(PROGRAM_STANDBY, f"Unknown ({PROGRAM_STANDBY})")]
@@ -58,28 +62,29 @@ def get_program_name_by_const(hass, const_name: str, model_id: int) -> Optional[
 def get_standby_program_name(hass, model_id: int) -> Optional[str]:
     return get_program_name_by_const(hass, PROGRAM_STANDBY, model_id)
 
+def _find_program_index(program_constants: List[str], target_constant: str) -> Optional[int]:
+    """Возвращает индекс константы в списке режимов модели."""
+    for idx, mc in enumerate(program_constants):
+        if mc == target_constant:
+            return idx
+    return None
+
+
 def find_program_id(hass, program_name: str, model_id: int) -> Optional[int]:
     """Ищет идентификатор режима по названию."""
     program_constants = get_program_constants(model_id)
     if not program_constants:
         return None
 
-    # Handle case when hass is None (e.g., during testing)
-    translations = {}
-    if hass is not None:
-        translations = hass.data.get("skycooker_translations", {})
+    translations = _get_translations(hass)
     program_names = translations.get("program_names", {})
 
-    # Create reverse mapping from display name to mode constant
     program_constant_by_name = {program_names.get(mc, ""): mc for mc in program_constants if mc}
-    # Find the mode constant that matches the option
-    for display_name, program_constant in program_constant_by_name.items():
-        if display_name == program_name:
-            # Find the index of this mode constant in the model's mode list
-            for idx, mc in enumerate(program_constants):
-                if mc == program_constant:
-                    return idx
-    return None
+    program_constant = program_constant_by_name.get(program_name)
+    if program_constant is None:
+        return None
+    return _find_program_index(program_constants, program_constant)
+
 
 def find_program_id_by_const(hass, const_name: str, model_id: int) -> Optional[int]:
     """Ищет идентификатор режима по константе."""
@@ -87,21 +92,13 @@ def find_program_id_by_const(hass, const_name: str, model_id: int) -> Optional[i
     if not program_constants:
         return None
 
-    # Handle case when hass is None (e.g., during testing)
-    if hass is None:
-        translations = {}
-    else:
-        translations = hass.data.get("skycooker_translations", {})
+    translations = _get_translations(hass)
     program_names = translations.get("program_names", {})
 
-    # Create reverse mapping from display name to mode constant
     program_constant_by_name = {program_names.get(mc, ""): mc for mc in program_constants if mc}
-    # Find the mode constant that matches the option
     for display_name, program_constant in program_constant_by_name.items():
         if program_constant == const_name:
-            for idx, mc in enumerate(program_constants):
-                if mc == program_constant:
-                    return idx
+            return _find_program_index(program_constants, program_constant)
     return None
 
 
@@ -112,10 +109,7 @@ def get_program_name(hass, program_id: int, model_id: int) -> str:
         return f"Unknown ({program_id})"
     program_constant = program_constants[program_id]
     if program_constant and program_constant != PROGRAM_NONE:
-        # Get translation from JSON
-        translations = {}
-        if hass is not None:
-            translations = hass.data.get("skycooker_translations", {})
+        translations = _get_translations(hass)
         program_names = translations.get("program_names", {})
         return program_names.get(program_constant, f"Unknown ({program_id})")
 
@@ -133,12 +127,13 @@ def get_subprogram_options() -> List[str]:
 
 def get_current_program_text(hass, skycooker, status_code: int) -> str:
     """Возвращает текст текущего режима."""
+    standby_mode_text = get_localized_string(hass, "Standby Mode", "Режим ожидания")
     if status_code == STATUS_OFF:
-        return "Режим ожидания" if hass.config.language == "ru" else "Standby Mode"
+        return standby_mode_text
     current_program_id = skycooker.current_program_id
     if current_program_id is not None:
         return get_program_name(hass, current_program_id, skycooker.model_id)
-    return "Режим ожидания" if hass.config.language == "ru" else "Standby Mode"
+    return standby_mode_text
 
 
 def get_favorite_programs(hass, entry, model_id: int) -> List[str]:
@@ -172,5 +167,5 @@ def is_program_supported(hass, program_name: str, model_id: int) -> bool:
         if program_const == PROGRAM_STANDBY:
             _LOGGER.debug(f"📋 Режим 16 (ожидание) - это допустимое состояние устройства, но его нельзя устанавливать напрямую")
         elif program_const == PROGRAM_NONE:
-            _LOGGER.debug(f"📋 Режим 15 (ожидание) - это допустимое состояние устройства, но его нельзя устанавливать напрямую")
+            _LOGGER.debug(f"📋 Режим PROGRAM_NONE - зарезервированный слот, его нельзя устанавливать напрямую")
     return True
