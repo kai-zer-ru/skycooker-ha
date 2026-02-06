@@ -39,6 +39,8 @@ async def async_setup(hass, config):
         return False
     
     hass.data.setdefault(DOMAIN, {})
+    if "skycooker_translations" not in hass.data:
+        await load_translations(hass)
     _LOGGER.debug("✅ Интеграция SkyCooker загружена. Версия HA: %s", HA_VERSION)
     return True
 
@@ -189,8 +191,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def entry_update_listener(hass, entry):
     """Обработка обновления опций."""
-    skycooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
-    skycooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
-    
-    
-    _LOGGER.debug("⚙️  Опции обновлены")
+    skycooker = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get(DATA_CONNECTION)
+    if skycooker:
+        skycooker.persistent = entry.data.get(CONF_PERSISTENT_CONNECTION)
+    # Перезагрузка для применения новых избранных (появление/скрытие селекта)
+    await hass.config_entries.async_reload(entry.entry_id)
