@@ -17,6 +17,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL, DEFAULT_PERSISTENT_CONNECTION, MAX_FAVORITE_PROGRAMS,
     SKYCOOKER_NAME, MODEL_3
 )
+from . import load_translations
 from .programs import get_program_options
 
 from .skycooker_connection import SkyCookerConnection
@@ -200,6 +201,10 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             Форма для отображения или результат создания входа.
         """
         errors: Dict[str, str] = {}
+        
+        # Загружаем переводы до построения формы (при первой настройке async_setup мог не вызваться)
+        if "skycooker_translations" not in self.hass.data:
+            await load_translations(self.hass)
         
         # Получение модели устройства
         model = self.config.get(CONF_MODEL, MODEL_3)
