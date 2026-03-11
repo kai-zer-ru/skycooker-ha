@@ -18,12 +18,13 @@ def is_mode_supported(hass, program_name: str, model_id: int) -> bool:
     """Проверяет, поддерживается ли режим устройством (устаревшее название для совместимости)."""
     return is_program_supported(hass, program_name, model_id)
 
+
 _LOGGER = logging.getLogger(__name__)
 
 
 class SkyCookerCookingController:
     """Класс для управления логикой приготовления."""
-    
+
     def __init__(self, connection_manager):
         self.connection_manager = connection_manager
         # self._target_program_name - название программы на языке, который установлен в системе, не число и не константа!!!!
@@ -38,20 +39,20 @@ class SkyCookerCookingController:
         self._status = None
         self._last_set_target = 0
 
-    async def select_program(self, program_id: int, subprog: int=0):
+    async def select_program(self, program_id: int, subprog: int = 0):
         """Выбор программы приготовления."""
         program_name = get_program_name(self.connection_manager.hass, program_id, self.connection_manager.model_id)
         standby_program_name = self._get_standby_program_name()
         if program_name != standby_program_name and not self.is_program_supported(program_name):
-            _LOGGER.error(f"❌ Попытка установить неподдерживаемый режим {program_name}")
+            _LOGGER.error("Попытка установить неподдерживаемый режим %s", program_name)
             raise ValueError(f"Режим {program_name} не поддерживается устройством")
-        
+
         model_id = self.connection_manager.model_id
         program_constants = get_program_constants(model_id)
         if model_id and program_id < len(program_constants):
             program_constant = program_constants[program_id]
             if program_constant == PROGRAM_NONE:
-                _LOGGER.error(f"❌ Попытка установить режим PROGRAM_NONE (индекс {program_id})")
+                _LOGGER.error("Попытка установить режим PROGRAM_NONE (индекс %s)", program_id)
                 raise ValueError(f"Режим {program_name} не поддерживается устройством (PROGRAM_NONE)")
             elif program_constant == PROGRAM_STANDBY:
                 self._target_temperature = 100
@@ -60,28 +61,29 @@ class SkyCookerCookingController:
                 self._target_additional_hours = 0
                 self._target_additional_minutes = 0
                 return
-        
-        _LOGGER.debug(f"📤 Отправка команды SELECT_PROGRAM для режима {program_name}")
+
+        _LOGGER.debug("Отправка команды SELECT_PROGRAM для режима %s", program_name)
         await self.connection_manager.select_program(program_id, subprog)
-        
+
         model_id = self.connection_manager.model_id
         if model_id and model_id in PROGRAM_DATA and program_id < len(PROGRAM_DATA[model_id]):
             program_data = PROGRAM_DATA[model_id][program_id]
-            
+
             target_temperature_from_program = program_data["temperature"]
             if target_temperature_from_program != 0:
                 if not hasattr(self, '_target_temperature') or self._target_temperature is None:
                     self._target_temperature = target_temperature_from_program
-            
+
             if (not hasattr(self, '_target_main_hours') or self._target_main_hours is None or
-                not hasattr(self, '_target_main_minutes') or self._target_main_minutes is None):
+                    not hasattr(self, '_target_main_minutes') or self._target_main_minutes is None):
                 self._target_main_hours = program_data["hours"]
                 self._target_main_minutes = program_data["minutes"]
-            
-            if getattr(self, '_target_additional_hours', None) is None and getattr(self, '_target_additional_minutes', None) is None:
+
+            if getattr(self, '_target_additional_hours', None) is None and getattr(self, '_target_additional_minutes',
+                                                                                   None) is None:
                 self._target_additional_hours = 0
                 self._target_additional_minutes = 0
-    
+
     def is_program_supported(self, program_name: str):
         """Публичный метод для проверки поддержки программы устройством."""
         return is_mode_supported(self.connection_manager.hass, program_name, self.connection_manager.model_id)
@@ -118,153 +120,220 @@ class SkyCookerCookingController:
         """Получение параметров приготовления на основе целевой программы."""
         model_id = self.connection_manager.model_id
         target_program_id = find_program_id(self.connection_manager.hass, target_program_name, model_id)
+        if target_program_id is None:
+            _LOGGER.error("Не удалось найти ID программы для '%s' (model_id=%s)", target_program_name, model_id)
+            raise SkyCookerError(
+                f"Программа '{target_program_name}' не поддерживается или не найдена для текущей мультиварки")
         target_temperature = self._target_temperature if hasattr(self, '_target_temperature') else 100
         target_main_hours = self._target_main_hours if self._target_main_hours is not None else 0
         target_main_minutes = self._target_main_minutes if self._target_main_minutes is not None else 0
-        
+
         target_subprogram_id = getattr(self, '_target_subprogram_id', 0)
-        _LOGGER.debug(f"🎯 Используется подпрограмма {target_subprogram_id}")
-        
+        _LOGGER.debug("Используется подпрограмма %s", target_subprogram_id)
+
         if target_temperature is None:
             if model_id and model_id in PROGRAM_DATA and target_program_id < len(PROGRAM_DATA[model_id]):
                 target_temperature = PROGRAM_DATA[model_id][target_program_id]["temperature"]
-        
+
         if target_main_hours == 0 and target_main_minutes == 0:
             if model_id and model_id in PROGRAM_DATA and target_program_id < len(PROGRAM_DATA[model_id]):
                 target_main_hours = PROGRAM_DATA[model_id][target_program_id]["hours"]
                 target_main_minutes = PROGRAM_DATA[model_id][target_program_id]["minutes"]
-        
+
         target_main_hours = target_main_hours or 0
         target_main_minutes = target_main_minutes or 0
-        
+
         return [target_program_id, target_subprogram_id, target_temperature, target_main_hours, target_main_minutes]
-    
-    async def _execute_cooking_sequence(self, target_program_id: int, target_subprogram_id: int, target_temperature: int,
+
+    async def _execute_cooking_sequence(self, target_program_id: int, target_subprogram_id: int,
+                                        target_temperature: int,
                                         target_main_hours: int, target_main_minutes: int,
                                         target_additional_hours: int, target_additional_minutes: int,
                                         auto_warm_flag: int):
         """Выполнение последовательности приготовления."""
+        if target_program_id is None:
+            _LOGGER.error("Попытка запустить приготовление без выбранной программы (target_program_id=None)")
+            raise SkyCookerError("Целевая программа не выбрана или не поддерживается устройством")
         # is_in_standby = self._status and self._get_constant_by_name(self._status.program_name) == PROGRAM_STANDBY
         is_in_standby = self._get_constant_by_name(self.target_program_name) == PROGRAM_STANDBY
         current_program_id = self._status.program_id if self._status else None
         device_is_on = self._status.is_on if self._status else False
-        
+
         if is_in_standby:
-            _LOGGER.debug("🔄 Устройство находится в режиме ожидания (MODE_STANDBY статус)")
-            _LOGGER.debug("📤 Отправка команды 09 с выбранным режимом и подпрограммой")
+            _LOGGER.debug("Устройство в режиме ожидания (MODE_STANDBY)")
+            _LOGGER.debug("Отправка команды 09 с выбранным режимом и подпрограммой")
             await self.select_program(target_program_id, target_subprogram_id)
             await asyncio.sleep(0.5)
-               
-            _LOGGER.debug("📤 Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
-            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature, target_main_hours, target_main_minutes, target_additional_hours, target_additional_minutes, auto_warm_flag)
+
+            _LOGGER.debug("Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
+            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature,
+                                                           target_main_hours, target_main_minutes,
+                                                           target_additional_hours, target_additional_minutes,
+                                                           auto_warm_flag)
             await asyncio.sleep(0.3)
-             
-            _LOGGER.debug("📤 Отправка COMMAND_TURN_ON = 0x03")
+
+            _LOGGER.debug("Отправка COMMAND_TURN_ON = 0x03")
             await self.connection_manager.turn_on()
         elif current_program_id == target_program_id and device_is_on:
-            _LOGGER.debug(f"🔄 На мультиварке уже выбран режим {target_program_id}, и он совпадает с выбранным в интерфейсе")
-            _LOGGER.debug("📤 Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
-            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature, target_main_hours, target_main_minutes, target_additional_hours, target_additional_minutes, auto_warm_flag)
+            _LOGGER.debug("На мультиварке уже выбран режим %s, совпадает с интерфейсом", target_program_id)
+            _LOGGER.debug("Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
+            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature,
+                                                           target_main_hours, target_main_minutes,
+                                                           target_additional_hours, target_additional_minutes,
+                                                           auto_warm_flag)
             await asyncio.sleep(0.3)
-               
-            _LOGGER.debug("📤 Отправка COMMAND_TURN_ON = 0x03")
+
+            _LOGGER.debug("Отправка COMMAND_TURN_ON = 0x03")
             await self.connection_manager.turn_on()
         elif current_program_id != target_program_id:
-            _LOGGER.debug(f"🔄 На мультиварке уже выбран режим {current_program_id}, и он НЕ совпадает с выбранным в интерфейсе ({target_program_id})")
-            _LOGGER.debug("📤 Отправка команды 09 с выбранным режимом и подпрограммой")
+            _LOGGER.debug(
+                "На мультиварке выбран режим %s, в интерфейсе выбран %s",
+                current_program_id, target_program_id
+            )
+            _LOGGER.debug("Отправка команды 09 с выбранным режимом и подпрограммой")
             await self.select_program(target_program_id, target_subprogram_id)
             await asyncio.sleep(0.5)
-               
-            _LOGGER.debug("📤 Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
-            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature, target_main_hours, target_main_minutes, target_additional_hours, target_additional_minutes, auto_warm_flag)
+
+            _LOGGER.debug("Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
+            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature,
+                                                           target_main_hours, target_main_minutes,
+                                                           target_additional_hours, target_additional_minutes,
+                                                           auto_warm_flag)
             await asyncio.sleep(0.3)
-                  
-            _LOGGER.debug("📤 Отправка COMMAND_TURN_ON = 0x03")
+
+            _LOGGER.debug("Отправка COMMAND_TURN_ON = 0x03")
             await self.connection_manager.turn_on()
         else:
-            _LOGGER.warning("🔄 Неизвестное состояние устройства, отправляем все команды")
+            _LOGGER.warning("Неизвестное состояние устройства, отправляем все команды")
             await self.select_program(target_program_id, target_subprogram_id)
             await asyncio.sleep(0.3)
-               
-            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature, target_main_hours, target_main_minutes, target_additional_hours, target_additional_minutes, auto_warm_flag)
+
+            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature,
+                                                           target_main_hours, target_main_minutes,
+                                                           target_additional_hours, target_additional_minutes,
+                                                           auto_warm_flag)
             await asyncio.sleep(0.3)
-               
+
             await self.connection_manager.turn_on()
-    
+
     async def start(self):
         """Запуск приготовления с текущими настройками."""
 
         if not self.connection_manager.connected:
-            _LOGGER.error("❌ Устройство не подключено. Пожалуйста, проверьте соединение и повторите попытку.")
+            _LOGGER.error("Устройство не подключено. Проверьте соединение и повторите попытку.")
             raise SkyCookerError("Устройство не подключено")
         if self._target_program_name == self._get_standby_program_name():
             return
         auto_warm_flag = self._get_auto_warm_flag()
-        [target_program_id, target_subprogram_id, target_temp, target_main_hours, target_main_minutes] = self._get_cooking_parameters(self._target_program_name) # Строка с НАЗВАНИЕМ!!!!)
+        [target_program_id, target_subprogram_id, target_temp, target_main_hours,
+         target_main_minutes] = self._get_cooking_parameters(self._target_program_name)
         try:
             await self.connection_manager.connect_if_need()
             await self._execute_cooking_sequence(target_program_id, target_subprogram_id, target_temp,
                                                  target_main_hours, target_main_minutes,
                                                  0, 0, auto_warm_flag)
-            # self._status = await get_status(self.connection_manager)
             if self.connection_manager.hass:
                 async_dispatcher_send(self.connection_manager.hass, DISPATCHER_UPDATE)
         except Exception as ex:
-            _LOGGER.error(f"❌ Ошибка при запуске приготовления: {str(ex)}")
+            _LOGGER.error("Ошибка при старте приготовления: %s", ex)
             if "Некорректный размер данных статуса" in str(ex):
-                _LOGGER.error("💡 Проверьте соединение с устройством и повторите попытку")
+                _LOGGER.error("Проверьте соединение с устройством и повторите попытку")
             raise
         finally:
             await self.connection_manager.disconnect_if_need()
-    
+
+    async def _apply_auto_warm_to_device(self) -> None:
+        """Отправляет текущий флаг автоподогрева на устройство, если оно в режиме готовки или разогрева."""
+        async with self.connection_manager.update_lock:
+            try:
+                await self.connection_manager.connect_if_need()
+                self._status = await get_status(self.connection_manager)
+            except Exception as ex:
+                _LOGGER.warning("Не удалось получить статус для применения автоподогрева: %s", ex)
+                return
+            finally:
+                await self.connection_manager.disconnect_if_need()
+
+        if self._status is None or self._status.status not in (STATUS_WARMING, STATUS_COOKING):
+            if self._status:
+                _LOGGER.debug(
+                    "Устройство не в режиме готовки/разогрева (статус=%s), автоподогрев только сохранён локально",
+                    self._status.status)
+            return
+
+        async with self.connection_manager.update_lock:
+            try:
+                await self.connection_manager.connect_if_need()
+                st = self._status
+                auto_warm_flag = self._get_auto_warm_flag()
+                _LOGGER.debug("Применение автоподогрева на устройство: auto_warm=%s", auto_warm_flag)
+                await self.connection_manager.set_main_program(
+                    st.program_id, st.subprogram_id, st.target_temperature,
+                    st.target_main_hours, st.target_main_minutes,
+                    st.target_additional_hours, st.target_additional_minutes,
+                    auto_warm_flag, 0
+                )
+                await asyncio.sleep(0.3)
+                await self.connection_manager.turn_on()
+                if self.connection_manager.hass:
+                    async_dispatcher_send(self.connection_manager.hass, DISPATCHER_UPDATE)
+            except Exception as ex:
+                _LOGGER.warning("Ошибка применения автоподогрева на устройство: %s", ex)
+            finally:
+                await self.connection_manager.disconnect_if_need()
+
     async def enable_auto_warm(self) -> None:
         """Включение режима автоподогрева."""
         self._auto_warm_enabled = True
+        await self._apply_auto_warm_to_device()
 
     async def disable_auto_warm(self) -> None:
         """Выключение режима автоподогрева."""
         self._auto_warm_enabled = False
-    
+        await self._apply_auto_warm_to_device()
+
     async def stop_cooking(self) -> None:
         """Остановка приготовления."""
         await self.connection_manager.turn_off()
-        
+
         # Сбрасываем все целевые значения к значениям по умолчанию
         await self.set_target_program(self._get_standby_program_name())
-        _LOGGER.debug(f"target_program_name: {self._target_program_name}, target_temperature: {self._target_temperature}, target_main_hours: {self._target_main_hours}, "
-                      f"target_main_minutes: {self._target_main_minutes}, target_additional_hours: {self._target_additional_hours}, target_additional_minutes: {self._target_additional_minutes}"
-                      f"auto_warm: {self._auto_warm_enabled}, target_program_name: {self._target_program_name}")
+        _LOGGER.debug(
+            f"target_program_name: {self._target_program_name}, target_temperature: {self._target_temperature}, target_main_hours: {self._target_main_hours}, "
+            f"target_main_minutes: {self._target_main_minutes}, target_additional_hours: {self._target_additional_hours}, target_additional_minutes: {self._target_additional_minutes}"
+            f"auto_warm: {self._auto_warm_enabled}, target_program_name: {self._target_program_name}")
         if self.connection_manager.hass:
             async_dispatcher_send(self.connection_manager.hass, DISPATCHER_UPDATE)
 
         # self._status = await get_status(self.connection_manager)
-    
+
     def _get_delayed_start_parameters(self) -> Tuple[int, int]:
         """Получение параметров отложенного старта."""
         target_additional_hours = 0
         target_additional_minutes = 0
-        
+
         if hasattr(self, '_target_additional_hours') and self._target_additional_hours is not None:
             target_additional_hours = self._target_additional_hours
         if hasattr(self, '_target_additional_minutes') and self._target_additional_minutes is not None:
             target_additional_minutes = self._target_additional_minutes
-        
+
         target_additional_hours = target_additional_hours or 0
         target_additional_minutes = target_additional_minutes or 0
-        
+
         return target_additional_hours, target_additional_minutes
-    
+
     async def start_delayed(self) -> None:
         """Запуск приготовления с отложенным стартом."""
         _LOGGER.debug("Starting cooking with delayed start")
 
         if not self.connection_manager.connected:
-            _LOGGER.error("❌ Устройство не подключено. Пожалуйста, проверьте соединение и повторите попытку.")
+            _LOGGER.error("Устройство не подключено. Проверьте соединение и повторите попытку.")
             raise SkyCookerError("Устройство не подключено")
 
         if self._target_program_name == self._get_standby_program_name():
             return
-        target_program_id, target_subprogram_id, target_temp, target_main_hours, target_main_minutes = self._get_cooking_parameters(self._target_program_name)
+        target_program_id, target_subprogram_id, target_temp, target_main_hours, target_main_minutes = self._get_cooking_parameters(
+            self._target_program_name)
         target_additional_hours, target_additional_minutes = self._get_delayed_start_parameters()
         auto_warm_flag = self._get_auto_warm_flag()
         try:
@@ -278,7 +347,7 @@ class SkyCookerCookingController:
             if self.connection_manager.hass:
                 async_dispatcher_send(self.connection_manager.hass, DISPATCHER_UPDATE)
         except Exception as ex:
-            _LOGGER.error(f"❌ Ошибка при настройке отложенного старта: {str(ex)}")
+            _LOGGER.error("Ошибка при настройке отложенного старта: %s", ex)
             raise
         finally:
             await self.connection_manager.disconnect_if_need()
@@ -306,13 +375,14 @@ class SkyCookerCookingController:
         target_temperature = 90
         target_main_hours = 0
         target_main_minutes = 0
-        if program_const == PROGRAM_STANDBY: # Режим ожидания
+        if program_const == PROGRAM_STANDBY:  # Режим ожидания
             target_temperature = 100
             target_main_hours = 0
             target_main_minutes = 0
 
             return target_temperature, target_main_hours, target_main_minutes
-        program_id = find_program_id_by_const(self.connection_manager.hass, program_name, self.connection_manager.model_id)
+        program_id = find_program_id_by_const(self.connection_manager.hass, program_name,
+                                              self.connection_manager.model_id)
         if model_id and model_id in PROGRAM_DATA and program_id == PROGRAM_NAMES[model_id].index(program_const):
             program_data = PROGRAM_DATA[model_id][program_id]
             target_temperature = program_data["temperature"]
@@ -320,7 +390,7 @@ class SkyCookerCookingController:
             target_main_minutes = program_data["minutes"]
 
         return target_temperature, target_main_hours, target_main_minutes
-    
+
     async def set_target_program(self, program_name: str) -> None:
         """Установка целевой программы."""
         if program_name == self._target_program_name: return
@@ -335,7 +405,7 @@ class SkyCookerCookingController:
             self._auto_warm_enabled = True
             return
         if not self.is_program_supported(program_name):
-            _LOGGER.error(f"❌ Программа {program_name} не поддерживается устройством")
+            _LOGGER.error("Программа %s не поддерживается устройством", program_name)
             return
 
         target_temperature, target_main_hours, target_main_minutes = self._get_program_parameters(program_name)
@@ -352,7 +422,6 @@ class SkyCookerCookingController:
         self._target_main_hours = target_main_hours
         self._target_main_minutes = target_main_minutes
 
-    
     async def set_boil_time(self, target_main_hours: int, target_main_minutes: int) -> None:
         """Установка времени приготовления."""
         self._target_main_hours = int(target_main_hours)
@@ -367,7 +436,7 @@ class SkyCookerCookingController:
         """Установка отложенного старта."""
         self._target_additional_hours = int(target_additional_hours)
         self._target_additional_minutes = int(target_additional_minutes)
-    
+
     @property
     def target_temperature(self):
         """Целевая температура."""
@@ -379,7 +448,7 @@ class SkyCookerCookingController:
             else:
                 return 25
         return None
-    
+
     @property
     def target_program_name(self):
         """Целевая программа."""
@@ -394,7 +463,7 @@ class SkyCookerCookingController:
     def target_program_name(self, value):
         """Установка целевой программы."""
         self._target_program_name = value
-    
+
     @property
     def target_main_hours(self):
         """Целевые часы приготовления."""
@@ -409,7 +478,7 @@ class SkyCookerCookingController:
     def target_main_hours(self):
         """Удаление целевых часов приготовления."""
         delattr(self, '_target_main_hours')
-    
+
     @property
     def target_main_minutes(self):
         """Целевые минуты приготовления."""
@@ -424,7 +493,7 @@ class SkyCookerCookingController:
     def target_main_minutes(self):
         """Удаление целевых минут приготовления."""
         delattr(self, '_target_main_minutes')
-    
+
     @property
     def target_additional_hours(self):
         """Целевые часы отложенного старта."""
@@ -439,7 +508,7 @@ class SkyCookerCookingController:
     def target_additional_hours(self):
         """Удаление целевых часов отложенного старта."""
         delattr(self, '_target_additional_hours')
-    
+
     @property
     def target_additional_minutes(self):
         """Целевые минуты отложенного старта."""
@@ -454,7 +523,7 @@ class SkyCookerCookingController:
     def target_additional_minutes(self):
         """Удаление целевых минут отложенного старта."""
         delattr(self, '_target_additional_minutes')
-    
+
     @property
     def target_subprogram_id(self):
         return self._target_subprogram_id
@@ -468,7 +537,7 @@ class SkyCookerCookingController:
     def target_temperature(self, value):
         """Установка целевой температуры."""
         self._target_temperature = value
-    
+
     @property
     def status(self):
         """Текущий статус."""
@@ -490,6 +559,7 @@ class SkyCookerCookingController:
     def last_set_target(self):
         """Время последней установки цели."""
         return self._last_set_target
+
 
 class SkyCookerError(Exception):
     pass

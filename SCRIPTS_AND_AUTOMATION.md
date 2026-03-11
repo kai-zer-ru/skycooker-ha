@@ -2,30 +2,36 @@
 
 Этот документ содержит примеры скриптов, автоматизаций и других интеграций для работы с мультиваркой Redmond RMC-M40S через SkyCooker.
 
-## 📱 Пример автоматизации
+## 📱 Пример автоматизации (новые сервисы)
 
 ```yaml
-# Автоматический запуск утром
+# Автоматический запуск утром (режим "Молочная каша")
 alias: "Утренняя каша"
+mode: single
+
 trigger:
   - platform: time
     at: "07:00:00"
+
 action:
-  - service: select.select_option
-    target:
-      entity_id: select.skycooker_mode
+  - service: skycooker.set_program
     data:
-      option: "Молочная каша"
-  - service: button.press
-    target:
-      entity_id: button.skycooker_start
+      # Укажи свой config_entry_id из настроек интеграции SkyCooker
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+      program_name: "Молочная каша"
+  - service: skycooker.start_cooking
+    data:
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
 
 # Уведомление о завершении готовки
 alias: "Готовка завершена"
+mode: single
+
 trigger:
   - platform: state
     entity_id: sensor.skycooker_status
     to: "Автоподогрев"
+
 action:
   - service: notify.mobile_app
     data:
@@ -46,45 +52,39 @@ script:
     alias: "Молочная каша"
     icon: mdi:bowl-mix
     sequence:
-      - service: select.select_option
-        target:
-          entity_id: select.skycooker_mode
+      - service: skycooker.set_program
         data:
-          option: "Молочная каша"
-      - delay: 1
-      - service: button.press
-        target:
-          entity_id: button.skycooker_start
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+          program_name: "Молочная каша"
+      - service: skycooker.start_cooking
+        data:
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
 
   # Запуск в программе "Суп"
   start_soup:
     alias: "Суп"
     icon: mdi:pot-mix
     sequence:
-      - service: select.select_option
-        target:
-          entity_id: select.skycooker_mode
+      - service: skycooker.set_program
         data:
-          option: "Суп"
-      - delay: 1
-      - service: button.press
-        target:
-          entity_id: button.skycooker_start
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+          program_name: "Суп"
+      - service: skycooker.start_cooking
+        data:
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
 
   # Запуск в программе "Тушение"
   start_stew:
     alias: "Тушение"
     icon: mdi:pot-steam
     sequence:
-      - service: select.select_option
-        target:
-          entity_id: select.skycooker_mode
+      - service: skycooker.set_program
         data:
-          option: "Тушение"
-      - delay: 1
-      - service: button.press
-        target:
-          entity_id: button.skycooker_start
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+          program_name: "Тушение"
+      - service: skycooker.start_cooking
+        data:
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
 ```
 
 ### Автоматизации
@@ -236,52 +236,106 @@ action:
 
 ### Интеграция с Yandex.Intents
 
-Для голосового управления через Яндекс Станцию:
+Для голосового управления через Яндекс Станцию удобнее использовать **автоматизации с триггером события `yandex_intent`**.
+
+Ниже несколько примеров.
+
+#### Запуск мультиварки в нужной программе по фразе
 
 ```yaml
-# configuration.yaml
-yandex_intents:
-  - intent: "Запустить мультиварку в программе {программа}"
-    action:
-      - service: select.select_option
-        target:
-          entity_id: select.skycooker_mode
-        data:
-          option: "{{ программа }}"
-      - delay: 1
-      - service: button.press
-        target:
-          entity_id: button.skycooker_start
-      - service: notify.mobile_app
-        data:
-          message: "Мультиварка запущена в программе {{ программа }}"
-          title: "Мультиварка"
+alias: "Запусти мультиварку в программе На пару"
+mode: single
 
-  - intent: "Выключить мультиварку"
-    action:
-      - service: button.press
-        target:
-          entity_id: button.skycooker_stop
-      - service: notify.mobile_app
-        data:
-          message: "Мультиварка выключена"
-          title: "Мультиварка"
+trigger:
+  - platform: event
+    event_type: yandex_intent
+    event_data: Запусти мультиварку на пару
 
-  - intent: "Какой статус мультиварки"
-    action:
-      - service: notify.mobile_app
-        data:
-          message: >
-            {% if is_state('sensor.skycooker_status', 'Готовка') or
-                  is_state('sensor.skycooker_status', 'Автоподогрев') or
-                  is_state('sensor.skycooker_status', 'Разогрев') %}
-              Мультиварка работает. Статус: {{ states('sensor.skycooker_status') }}.
-              Температура: {{ states('sensor.skycooker_temperature') }}°C.
-              Осталось: {{ states('sensor.skycooker_remaining_time') }} минут.
-            {% else %}
-              Мультиварка ожидает.
-            {% endif %}
-          title: "Статус мультиварки"
+condition: []
+
+action:
+  - service: skycooker.set_program
+    data:
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+      program_name: "На пару"
+  - service: skycooker.start_cooking
+    data:
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+```
+
+#### Пример «Свари позы» (пароварка с кастомным временем)
+
+```yaml
+alias: "Свари позы (Пароварка)"
+mode: single
+
+trigger:
+  - platform: event
+    event_type: yandex_intent
+    event_data: Свари позы
+
+condition: []
+
+action:
+  - service: skycooker.set_program
+    data:
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+      program_name: "На пару"
+      temperature: 100
+      main_hours: 0
+      main_minutes: 35
+
+  - service: skycooker.start_cooking
+    data:
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+```
+
+#### Выключить мультиварку голосом
+
+```yaml
+alias: "Выключить мультиварку (Яндекс)"
+mode: single
+
+trigger:
+  - platform: event
+    event_type: yandex_intent
+    event_data: Выключи мультиварку
+
+condition: []
+
+action:
+  - service: skycooker.stop_cooking
+    data:
+      config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+```
+
+#### Узнать статус мультиварки голосом
+
+```yaml
+alias: "Статус мультиварки (Яндекс)"
+mode: single
+
+trigger:
+  - platform: event
+    event_type: yandex_intent
+    event_data: Какой статус мультиварки
+
+condition: []
+
+action:
+  - service: notify.mobile_app
+    data:
+      title: "Статус мультиварки"
+      message: >
+        {% if is_state('sensor.skycooker_status', 'Готовка') or
+              is_state('sensor.skycooker_status', 'Автоподогрев') or
+              is_state('sensor.skycooker_status', 'Разогрев') %}
+          Мультиварка работает. Статус: {{ states('sensor.skycooker_status') }}.
+          Температура: {{ states('sensor.skycooker_temperature') }}°C.
+          Осталось: {{ states('sensor.skycooker_remaining_time') }} минут.
+        {% else %}
+          Мультиварка ожидает.
+        {% endif %}
 ```
 
 **Примечание**: Для работы Yandex.Intents требуется установленная интеграция [ha-yandex-station-intents](https://github.com/dext0r/ha-yandex-station-intents).

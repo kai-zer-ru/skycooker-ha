@@ -2,17 +2,16 @@
 import logging
 import asyncio
 
-from homeassistant.components.button import ButtonEntity
+from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN, ButtonEntity
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import *
 from .entity_base import SkyCookerEntity
 from .skycooker import SkyCookerError
-from .utils import get_base_name, get_entity_name
+from .utils import get_base_name, get_entity_name, build_entity_id
 import traceback
+
 _LOGGER = logging.getLogger(__name__)
-
-
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -31,6 +30,8 @@ class SkyCookerButton(SkyCookerEntity, ButtonEntity):
         """Инициализация сущности кнопки."""
         super().__init__(hass, entry)
         self.button_type = button_type
+        # Стабильный английский entity_id, независимо от языка интерфейса
+        self.entity_id = build_entity_id(BUTTON_DOMAIN, hass, entry, button_type)
 
     @property
     def unique_id(self):
@@ -61,6 +62,9 @@ class SkyCookerButton(SkyCookerEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Нажатие кнопки."""
+        if not self.skycooker:
+            _LOGGER.warning("Устройство недоступно")
+            return
         actions = {
             BUTTON_TYPE_START: self.skycooker.start,
             BUTTON_TYPE_STOP: self.skycooker.stop_cooking,
@@ -76,7 +80,7 @@ class SkyCookerButton(SkyCookerEntity, ButtonEntity):
                 await self.skycooker.update()
                 async_dispatcher_send(self.hass, DISPATCHER_UPDATE)
         except SkyCookerError as e:
-            _LOGGER.error(f"❌ Ошибка при нажатии кнопки: {str(e)}, {traceback.format_exception(e)}")
+            _LOGGER.error("Ошибка при нажатии кнопки: %s, %s", e, traceback.format_exception(e))
         except Exception as e:
-            _LOGGER.error(f"❌ Неожиданная ошибка при нажатии кнопки: {str(e)}, {traceback.format_exception(e)}")
+            _LOGGER.error("Неожиданная ошибка при нажатии кнопки: %s, %s", e, traceback.format_exception(e))
             raise e

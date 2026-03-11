@@ -126,38 +126,38 @@ class SkyCooker(ABC):
         # Для MODEL_3 отправляем только mode (1 байт), для остальных - mode и subprog (2 байта)
         if is_subprogram_supported(self.model_id):
             data = pack("BB", int(program_id), int(subprog))
-            _LOGGER.debug(f"📤 Отправка команды SELECT_MODE (0x09) с данными: {data.hex().upper()}")
-            _LOGGER.debug(f"   Параметры: mode={program_id}, subprog={subprog}")
+            _LOGGER.debug("Отправка команды SELECT_MODE (0x09) с данными: %s", data.hex().upper())
+            _LOGGER.debug("Параметры: mode=%s, subprog=%s", program_id, subprog)
         else:
             data = pack("B", int(program_id))
-            _LOGGER.debug(f"📤 Отправка команды SELECT_MODE (0x09) для MODEL_3 с данными: {data.hex().upper()}")
-            _LOGGER.debug(f"   Параметры: mode={program_id}")
+            _LOGGER.debug("Отправка команды SELECT_MODE (0x09) для MODEL_3 с данными: %s", data.hex().upper())
+            _LOGGER.debug("Параметры: mode=%s", program_id)
 
         try:
             r = await self.command(COMMAND_SELECT_PROGRAM, list(data))
-            _LOGGER.debug(f"📥 Получен ответ на SELECT_MODE: {r.hex().upper() if r else 'None'}")
+            _LOGGER.debug("Получен ответ на SELECT_MODE: %s", r.hex().upper() if r else 'None')
             if r and len(r) > 0:
-                _LOGGER.debug(f"   Первый байт ответа: {r[0]} (ожидалось 1 для успеха)")
+                _LOGGER.debug("Первый байт ответа: %s (ожидалось 1 для успеха)", r[0])
             # Accept both success code (0x01) and status updates as success
             if r and r[0] != 1 and len(r) != 1:
-                _LOGGER.error(f"❌ Ошибка выбора режима: устройство вернуло код ошибки {r[0]}")
+                _LOGGER.error("Ошибка выбора режима: устройство вернуло код ошибки %s", r[0])
                 raise SkyCookerError(f"Ошибка выбора режима: код {r[0]}")
-            _LOGGER.debug(f"✅ Режим успешно выбран: mode={program_id}")
+            _LOGGER.debug("Режим успешно выбран: mode=%s", program_id)
         except Exception as e:
-            _LOGGER.error(f"❌ Исключение при выборе режима: {e}")
+            _LOGGER.error("Исключение при выборе режима: %s", e)
             raise SkyCookerError(f"Исключение при выборе режима: {e}")
 
     async def set_main_program(
-        self,
-        program_id: int,
-        subprogram_id: int = 0,
-        target_temperature: int = 0,
-        target_main_hours: int = 0,
-        target_main_minutes: int = 0,
-        target_additional_hours: int = 0,
-        target_additional_minutes: int = 0,
-        auto_warm: int = 0,
-        bit_flags: int = 0
+            self,
+            program_id: int,
+            subprogram_id: int = 0,
+            target_temperature: int = 0,
+            target_main_hours: int = 0,
+            target_main_minutes: int = 0,
+            target_additional_hours: int = 0,
+            target_additional_minutes: int = 0,
+            auto_warm: int = 0,
+            bit_flags: int = 0
     ) -> None:
         """Установка основного программы и параметров для устройства SkyCooker.
         
@@ -198,25 +198,24 @@ class SkyCooker(ABC):
                 int(target_main_minutes), int(target_additional_hours),
                 int(target_additional_minutes), int(auto_warm)
             )
-        _LOGGER.debug(f"📤 Отправка команды SET_MAIN_MODE (0x05) с данными: {data.hex().upper()}")
+        _LOGGER.debug("Отправка команды SET_MAIN_MODE (0x05) с данными: %s", data.hex().upper())
         _LOGGER.debug(
-            f"   Параметры: mode={program_id}, subprog={subprogram_id}, target_temp={target_temperature}, "
-            f"target_main_hours={target_main_hours}, target_main_minutes={target_main_minutes}, "
-            f"target_additional_hours={target_additional_hours}, target_additional_minutes={target_additional_minutes}, "
-            f"auto_warm={auto_warm}, bit_flags={bit_flags}"
+            "Параметры: mode=%s, subprog=%s, target_temp=%s, target_main_hours=%s, target_main_minutes=%s, "
+            "target_additional_hours=%s, target_additional_minutes=%s, auto_warm=%s, bit_flags=%s",
+            program_id, subprogram_id, target_temperature, target_main_hours, target_main_minutes,
+            target_additional_hours, target_additional_minutes, auto_warm, bit_flags
         )
 
         try:
             r = await self.command(COMMAND_SET_MAIN_MODE, list(data))
-            _LOGGER.debug(f"📥 Получен ответ на SET_MAIN_MODE: {r.hex().upper() if r else 'None'}")
+            _LOGGER.debug("Получен ответ на SET_MAIN_MODE: %s", r.hex().upper() if r else 'None')
             if r and len(r) > 0:
-                _LOGGER.debug(f"   Первый байт ответа: {r[0]} (ожидалось 1 для успеха)")
+                _LOGGER.debug("Первый байт ответа: %s (ожидалось 1 для успеха)", r[0])
             # Accept both success code (0x01) and status updates as success
             if r and r[0] != 1 and len(r) != 1:
-                _LOGGER.error(f"❌ Ошибка установки режима: устройство вернуло код ошибки {r[0]}")
+                _LOGGER.error("Ошибка установки режима: устройство вернуло код ошибки %s", r[0])
                 raise SkyCookerError(f"Ошибка установки режима: код {r[0]}")
-            _LOGGER.debug(f"✅ Режим успешно установлен: mode={program_id}")
+            _LOGGER.debug("Режим успешно установлен: mode=%s", program_id)
         except Exception as e:
-            _LOGGER.error(f"❌ Исключение при установке режима: {e}")
+            _LOGGER.error("Исключение при установке режима: %s", e)
             raise SkyCookerError(f"Исключение при установке режима: {e}")
-

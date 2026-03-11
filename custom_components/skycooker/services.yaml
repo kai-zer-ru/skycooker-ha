@@ -1,0 +1,252 @@
+set_program:
+  name: Set program
+  description: >
+    Устанавливает целевую программу и параметры (без немедленного старта).
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      description: Экземпляр настроенной интеграции SkyCooker.
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+    program_name:
+      name: Program name
+      required: false
+      selector:
+        text: { }
+    subprogram_id:
+      name: Subprogram id
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    temperature:
+      name: Temperature
+      required: false
+      selector:
+        number:
+          min: 40
+          max: 180
+          unit_of_measurement: "°C"
+          mode: box
+    main_hours:
+      name: Main hours
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    main_minutes:
+      name: Main minutes
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+    additional_hours:
+      name: Additional hours
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    additional_minutes:
+      name: Additional minutes
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+    auto_warm:
+      name: Auto warm
+      required: false
+      selector:
+        boolean: { }
+
+set_temperature:
+  name: Set temperature
+  description: Устанавливает целевую температуру для выбранной мультиварки.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+    temperature:
+      name: Temperature
+      required: true
+      selector:
+        number:
+          min: 40
+          max: 180
+          unit_of_measurement: "°C"
+          mode: slider
+
+set_cook_time:
+  name: Set cook time
+  description: Устанавливает основное время приготовления.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+    main_hours:
+      name: Hours
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    main_minutes:
+      name: Minutes
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+
+set_delayed_start:
+  name: Set delayed start
+  description: Устанавливает время отложенного старта.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+    delayed_start_hours:
+      name: Hours
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    delayed_start_minutes:
+      name: Minutes
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+
+enable_auto_warm:
+  name: Enable auto warm
+  description: Включает автоподогрев через контроллер приготовления.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+
+disable_auto_warm:
+  name: Disable auto warm
+  description: Выключает автоподогрев через контроллер приготовления.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+
+sync_time:
+  name: Sync time
+  description: Синхронизирует время мультиварки с системным временем Home Assistant.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+
+start_cooking:
+  name: Start cooking
+  description: Запускает приготовление с текущими настроенными параметрами.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+    auto_warm:
+      name: Auto warm
+      description: Если указано, включает или выключает автоподогрев перед стартом.
+      required: false
+      selector:
+        boolean: { }
+
+stop_cooking:
+  name: Stop cooking
+  description: Останавливает текущее приготовление и сбрасывает программу в режим ожидания.
+  fields:
+    config_entry_id:
+      name: SkyCooker instance
+      required: false
+      selector:
+        config_entry:
+          integration: skycooker
+    entity_id:
+      name: SkyCooker entity
+      required: false
+      selector:
+        entity: {}
+

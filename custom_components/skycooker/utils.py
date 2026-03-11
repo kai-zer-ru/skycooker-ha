@@ -1,8 +1,10 @@
 """Утилиты для SkyCooker."""
 
 from typing import Any
+
 from homeassistant.const import CONF_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import generate_entity_id
 
 from .const import SKYCOOKER_NAME
 
@@ -33,11 +35,11 @@ def get_localized_string(hass: HomeAssistant, english_text: str, russian_text: s
 
 
 def get_entity_name(
-    hass: HomeAssistant,
-    entry: Any,
-    entity_type: str,
-    localized_name_en: str,
-    localized_name_ru: str,
+        hass: HomeAssistant,
+        entry: Any,
+        entity_type: str,
+        localized_name_en: str,
+        localized_name_ru: str,
 ) -> str:
     """Возвращает имя сущности с учетом локализации."""
     base_name = get_base_name(entry)
@@ -48,3 +50,22 @@ def get_entity_name(
 def get_temperature_options() -> list[str]:
     """Возвращает список опций для температуры."""
     return [str(temp) for temp in range(40, 201, 5)]
+
+
+def build_entity_id(domain: str, hass: HomeAssistant, entry: Any, suffix: str) -> str:
+    """Строит стабильный английский entity_id независимо от языка интерфейса.
+
+    Формат: <domain>.skycooker_<model>_<suffix>, например:
+    sensor.skycooker_rmc_m40s_success_rate
+    """
+    # В тестах или при некорректной инициализации entry/hass могут быть None.
+    friendly = ""
+    if entry is not None and getattr(entry, "data", None) is not None:
+        friendly = entry.data.get(CONF_FRIENDLY_NAME, "") or ""
+    model = get_lower_model_name(friendly) if friendly else "unknown"
+    base_object_id = f"{SKYCOOKER_NAME.lower()}_{model}_{suffix}".lower()
+    # В юнит‑тестах hass может быть None — в этом случае не используем generate_entity_id,
+    # а просто собираем entity_id напрямую.
+    if hass is None:
+        return f"{domain}.{base_object_id}"
+    return generate_entity_id(f"{domain}.{{}}", base_object_id, hass=hass)

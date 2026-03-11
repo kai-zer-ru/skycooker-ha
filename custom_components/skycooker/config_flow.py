@@ -9,7 +9,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant import config_entries
 from homeassistant.components import bluetooth
 from homeassistant.const import (CONF_DEVICE, CONF_FRIENDLY_NAME, CONF_MAC,
-                                   CONF_PASSWORD, CONF_SCAN_INTERVAL)
+                                 CONF_PASSWORD, CONF_SCAN_INTERVAL)
 from homeassistant.core import callback
 
 from .const import (
@@ -19,15 +19,15 @@ from .const import (
 )
 from . import load_translations
 from .programs import get_program_options
-
 from .skycooker_connection import SkyCookerConnection
 from .skycooker import SkyCooker
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Поток настройки для интеграции SkyCooker."""
-    
+
     VERSION = 1
 
     @staticmethod
@@ -63,7 +63,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """
         mac = mac.upper()
         mac = mac.replace(':', '').replace('-', '').replace(' ', '')
-        mac = ':'.join([mac[p*2:(p*2)+2] for p in range(6)])
+        mac = ':'.join([mac[p * 2:(p * 2) + 2] for p in range(6)])
         unique_id = f"{DOMAIN}-{mac}"
         if unique_id in self._async_current_ids():
             return False
@@ -82,7 +82,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             Результат шага сканирования.
         """
         return await self.async_step_scan()
-    
+
     async def async_step_scan(self, user_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Обработка шага сканирования.
         
@@ -109,13 +109,13 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception as e:
                 _LOGGER.error(f"Ошибка при обработке ввода пользователя: {e}")
                 return self.async_abort(reason='invalid_input')
-       
+
         try:
             scanner = bluetooth.async_get_scanner(self.hass)
             if not scanner:
                 _LOGGER.error("Сканер Bluetooth не инициализирован")
                 return self.async_abort(reason='no_bluetooth')
-           
+
             devices_filtered: List[Any] = [
                 device for device in scanner.discovered_devices
                 if device.name and (device.name.startswith("RMC-") or device.name.startswith("RFS-"))
@@ -123,7 +123,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if len(devices_filtered) == 0:
                 _LOGGER.error("Устройство не найдено")
                 return self.async_abort(reason='device_not_found')
-            
+
             mac_list: List[str] = [f"{r.address} ({r.name})" for r in devices_filtered]
             schema = vol.Schema({
                 vol.Required(CONF_MAC): vol.In(mac_list)
@@ -131,7 +131,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception as e:
             _LOGGER.error(f"Ошибка во время сканирования: {e}")
             return self.async_abort(reason='scan_failed')
-       
+
         return self.async_show_form(
             step_id="scan",
             errors=errors,
@@ -157,10 +157,12 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if not self.config.get(CONF_PASSWORD):
                     _LOGGER.error("Отсутствует пароль для подключения")
                     return self.async_abort(reason='invalid_config')
-                
+
+                key = self.config[CONF_PASSWORD]
+                key_bytes = bytes(key) if isinstance(key, list) else key
                 skycooker = SkyCookerConnection(
                     mac=self.config[CONF_MAC],
-                    key=self.config[CONF_PASSWORD],
+                    key=key_bytes,
                     persistent=True,
                     adapter=self.config.get(CONF_DEVICE, None),
                     hass=self.hass,
@@ -170,11 +172,11 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 while tries > 0 and not skycooker.last_connect_ok:
                     await skycooker.update()
                     tries -= 1
-                 
+
                 connect_ok = getattr(skycooker, 'last_connect_ok', False)
                 auth_ok = getattr(skycooker, 'last_auth_ok', False)
                 await skycooker.stop()
-                
+
                 if not connect_ok:
                     errors["base"] = "cant_connect"
                 elif not auth_ok:
@@ -184,7 +186,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception as e:
                 _LOGGER.error(f"Ошибка при подключении: {e}")
                 return self.async_abort(reason='connection_failed')
-    
+
         return self.async_show_form(
             step_id="connect",
             errors=errors,
@@ -201,17 +203,17 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             Форма для отображения или результат создания входа.
         """
         errors: Dict[str, str] = {}
-        
+
         # Загружаем переводы до построения формы (при первой настройке async_setup мог не вызваться)
         if "skycooker_translations" not in self.hass.data:
             await load_translations(self.hass)
-        
+
         # Получение модели устройства
         model = self.config.get(CONF_MODEL, MODEL_3)
-       
+
         # Получение списка доступных программ для модели, исключая PROGRAM_STANDBY и PROGRAM_NONE
         available_programs = get_program_options(self.hass, model, False)
-        
+
         if user_input is not None:
             try:
                 # Проверка наличия необходимых параметров
@@ -221,7 +223,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if not self.config.get(CONF_PASSWORD):
                     _LOGGER.error("Отсутствует пароль в конфигурации")
                     return self.async_abort(reason='invalid_config')
-                  
+
                 # Проверка и обработка CONF_SCAN_INTERVAL
                 try:
                     scan_interval = user_input[CONF_SCAN_INTERVAL]
@@ -231,7 +233,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 except (ValueError, KeyError) as e:
                     _LOGGER.error(f"Некорректное значение CONF_SCAN_INTERVAL: {e}")
                     return self.async_abort(reason='invalid_input')
-                  
+
                 # Проверка и обработка CONF_PERSISTENT_CONNECTION
                 try:
                     persistent_connection = user_input[CONF_PERSISTENT_CONNECTION]
@@ -241,7 +243,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 except (ValueError, KeyError) as e:
                     _LOGGER.error(f"Некорректное значение CONF_PERSISTENT_CONNECTION: {e}")
                     return self.async_abort(reason='invalid_input')
-                  
+
                 # Сохранение избранных программ
                 if CONF_FAVORITE_PROGRAMS in user_input:
                     favorite_programs = user_input[CONF_FAVORITE_PROGRAMS]
@@ -249,7 +251,7 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     if len(favorite_programs) > MAX_FAVORITE_PROGRAMS:
                         favorite_programs = favorite_programs[:MAX_FAVORITE_PROGRAMS]
                     self.config[CONF_FAVORITE_PROGRAMS] = favorite_programs
-                   
+
                 fname = f"{self.config.get(CONF_FRIENDLY_NAME, SKYCOOKER_NAME)} ({self.config[CONF_MAC]})"
                 if self.entry:
                     try:
@@ -263,14 +265,14 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception as e:
                 _LOGGER.error(f"Ошибка при сохранении конфигурации: {e}")
                 return self.async_abort(reason='config_save_failed')
-               
+
         try:
             # Удаляем пустую строку из начала списка программ (она используется как подсказка)
             available_programs_without_hint = [program for program in available_programs if program]
-            
+
             # Создание схемы для выбора избранных программ
             favorite_programs_validator = cv.multi_select(available_programs_without_hint)
-                  
+
             schema = vol.Schema({
                 vol.Required(
                     CONF_PERSISTENT_CONNECTION,
@@ -285,11 +287,13 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     default=self.config.get(CONF_FAVORITE_PROGRAMS, [])
                 ): favorite_programs_validator,
             })
-                
+
             # Получение описания для избранных программ из переводов
             translations = self.hass.data.get("skycooker_translations", {})
-            favorite_program_description = translations.get("config", {}).get("step", {}).get("init", {}).get("data", {}).get("favorite_programs", "Favorite programs (select up to 5 programs to display as favorites)")
-                 
+            favorite_program_description = translations.get("config", {}).get("step", {}).get("init", {}).get("data",
+                                                                                                              {}).get(
+                "favorite_programs", "Favorite programs (select up to 5 programs to display as favorites)")
+
             return self.async_show_form(
                 step_id="init",
                 errors=errors,
@@ -299,4 +303,3 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception as e:
             _LOGGER.error(f"Ошибка при инициализации формы: {e}")
             return self.async_abort(reason='init_failed')
-

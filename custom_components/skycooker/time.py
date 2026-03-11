@@ -34,18 +34,18 @@ async def sync_time(self) -> None:
         offset = calendar.timegm(t) - calendar.timegm(time.gmtime(time.mktime(t)))
         now = int(time.time())
         data = pack("<ii", now, offset)
-        _LOGGER.debug(f"🕒 Синхронизация времени: time={now}, offset={offset}")
+        _LOGGER.debug("Синхронизация времени: time=%s, offset=%s", now, offset)
         r = await self.command(COMMAND_SYNC_TIME, data)
         if r[0] != 0:
-            _LOGGER.warning(f"⚠️  Не удалось синхронизировать время. Код ответа: {r[0]}")
+            _LOGGER.warning("Не удалось синхронизировать время. Код ответа: %s", r[0])
             return
         _LOGGER.debug(
-            f"✅ Время синхронизировано: {now} "
-            f"({datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S')}), "
-            f"offset={offset} (GMT{offset/60/60:+.2f})"
+            "Время синхронизировано: %s (%s), offset=%s (GMT%+.2f)",
+            now, datetime.fromtimestamp(now).strftime('%Y-%m-%d %H:%M:%S'),
+            offset, offset / 60 / 60
         )
     except Exception as e:
-        _LOGGER.warning(f"⚠️  Ошибка синхронизации времени: {e}")
+        _LOGGER.warning("Ошибка синхронизации времени: %s", e)
 
 
 async def get_time(self) -> Tuple[int, int]:
@@ -58,7 +58,7 @@ async def get_time(self) -> Tuple[int, int]:
     t, offset = unpack("<ii", r)
     _LOGGER.debug(
         f"time={t} ({datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')}), "
-        f"offset={offset} (GMT{offset/60/60:+.2f})"
+        f"offset={offset} (GMT{offset / 60 / 60:+.2f})"
     )
     return t, offset
 
@@ -102,7 +102,7 @@ def _normalize_time(hours: int, minutes: int) -> tuple[int, int]:
 def calculate_remaining_time(hass: Any, skycooker: Any, status_code: int) -> str:
     """Рассчитывает оставшееся время в зависимости от статуса."""
     if status_code == STATUS_DELAYED_LAUNCH:
-        # Для отложенного запуска: target_main + target_additional
+        # Для отложенного старта: target_main + target_additional
         boil_hours = get_time_from_status(skycooker, skycooker.status, 'target_main_hours')
         boil_minutes = get_time_from_status(skycooker, skycooker.status, 'target_main_minutes')
         additional_hours = get_time_from_status(skycooker, skycooker.status, 'target_additional_hours')
@@ -118,7 +118,7 @@ def calculate_remaining_time(hass: Any, skycooker: Any, status_code: int) -> str
     else:
         total_hours = 0
         total_minutes = 0
-    
+
     return format_time(hass, total_hours, total_minutes)
 
 
@@ -141,7 +141,7 @@ def get_auto_warm_time(hass: Any, skycooker: Any, status_code: int) -> str:
 
 
 def get_delayed_launch_time(hass: Any, skycooker: Any, status_code: int) -> str:
-    """Возвращает время до отложенного запуска."""
+    """Возвращает время до отложенного старта."""
     if status_code == STATUS_DELAYED_LAUNCH:
         additional_hours = get_time_from_status(skycooker, skycooker.status, 'target_additional_hours')
         additional_minutes = get_time_from_status(skycooker, skycooker.status, 'target_additional_minutes')

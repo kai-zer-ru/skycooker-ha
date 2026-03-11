@@ -19,6 +19,7 @@ def get_program_data(model_id: int, program_id: int) -> Optional[Dict[str, Any]]
         return PROGRAM_DATA[model_id][program_id]
     return None
 
+
 def get_program_constants(model_id: int) -> List[str]:
     """Возвращает список констант режимов для указанной модели."""
     return PROGRAM_NAMES.get(model_id, [])
@@ -44,14 +45,16 @@ def get_program_options(hass, model_id: int, include_standby: bool = True) -> Li
 
     return programs
 
+
 # option - текст в выбранном пункте селекта, а не число
 def get_constant_by_name(hass, program_name: str, model_id: int) -> Optional[str]:
     program_id = find_program_id(hass, program_name, model_id)
     program_constants = get_program_constants(model_id)
     if not program_constants or program_id is None or program_id >= len(program_constants):
         return None
-    
+
     return program_constants[program_id]
+
 
 def get_program_name_by_const(hass, const_name: str, model_id: int) -> Optional[str]:
     program_id = find_program_id_by_const(hass, const_name, model_id)
@@ -59,8 +62,10 @@ def get_program_name_by_const(hass, const_name: str, model_id: int) -> Optional[
         return None
     return get_program_name(hass, program_id, model_id)
 
+
 def get_standby_program_name(hass, model_id: int) -> Optional[str]:
     return get_program_name_by_const(hass, PROGRAM_STANDBY, model_id)
+
 
 def _find_program_index(program_constants: List[str], target_constant: str) -> Optional[int]:
     """Возвращает индекс константы в списке режимов модели."""
@@ -120,6 +125,7 @@ def is_subprogram_supported(model_id: int) -> bool:
     """Возвращает True, если модель поддерживает подпрограммы."""
     return model_id != MODEL_3
 
+
 def get_subprogram_options() -> List[str]:
     """Возвращает список опций для подпрограмм."""
     return [str(i) for i in range(0, 16)]
@@ -136,25 +142,31 @@ def get_current_program_text(hass, skycooker, status_code: int) -> str:
     return standby_mode_text
 
 
+def get_favorites_other_label(hass: Any) -> str:
+    """Возвращает подпись опции «Другое» для селекта избранного."""
+    translations = _get_translations(hass)
+    return translations.get("favorites_other", "Other")
+
+
 def get_favorite_programs(hass, entry, model_id: int) -> List[str]:
-    """Возвращает список избранных режимов из настроек."""
+    """Возвращает список избранных режимов из настроек + опция «Другое»."""
     favorite_programs = entry.data.get(CONF_FAVORITE_PROGRAMS, [])
     if not favorite_programs:
         return []
-     
-    # Get translations
-    translations = hass.data.get("skycooker_translations", {})
+
+    translations = _get_translations(hass)
     program_names = translations.get("program_names", {})
-     
-    # Filter out invalid mode IDs and get their display names
+
     valid_favorites = [program_names.get(PROGRAM_STANDBY, f"Unknown ({PROGRAM_STANDBY})")]
     for program_name in favorite_programs:
         program_constant = get_constant_by_name(hass, program_name, model_id)
         if not program_name or not program_constant or program_constant == PROGRAM_NONE or program_constant == PROGRAM_STANDBY:
             continue
         valid_favorites.append(program_name)
- 
+
+    valid_favorites.append(get_favorites_other_label(hass))
     return valid_favorites
+
 
 def is_program_supported(hass, program_name: str, model_id: int) -> bool:
     """Проверяет, поддерживается ли режим устройством."""
@@ -162,10 +174,14 @@ def is_program_supported(hass, program_name: str, model_id: int) -> bool:
     if program_const is None: return False
     if model_id and model_id in PROGRAM_DATA:
         if program_const not in PROGRAM_NAMES[model_id]:
-            _LOGGER.warning(f"⚠️  Режим {program_name} не поддерживается для модели {model_id}")
+            _LOGGER.warning("Режим %s не поддерживается для модели %s", program_name, model_id)
             return False
         if program_const == PROGRAM_STANDBY:
-            _LOGGER.debug(f"📋 Режим 16 (ожидание) - это допустимое состояние устройства, но его нельзя устанавливать напрямую")
+            _LOGGER.debug(
+                "Режим 16 (ожидание) - допустимое состояние устройства, но его нельзя устанавливать напрямую"
+            )
         elif program_const == PROGRAM_NONE:
-            _LOGGER.debug(f"📋 Режим PROGRAM_NONE - зарезервированный слот, его нельзя устанавливать напрямую")
+            _LOGGER.debug(
+                "Режим PROGRAM_NONE - зарезервированный слот, его нельзя устанавливать напрямую"
+            )
     return True

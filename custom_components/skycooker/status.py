@@ -10,19 +10,20 @@ from .utils import get_localized_string
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def get_status_text(hass: Any, status_code: Optional[int]) -> str:
     """Возвращает текст статуса в зависимости от языка."""
     if status_code is None:
         return get_localized_string(hass, "Unknown", "Неизвестно")
-    
+
     # Получение ключа перевода для кода статуса
     translation_key = STATUS_CODE_TO_TRANSLATION_KEY.get(status_code)
-    
+
     if translation_key:
         # Получение переводов из данных hass
         translations = hass.data.get("skycooker_translations", {})
         status_codes = translations.get("status_codes", {})
-        
+
         # Если переводы доступны, используем их
         if status_codes:
             return status_codes.get(translation_key, translation_key)
@@ -55,7 +56,7 @@ async def get_status(connection_manager) -> Status:
     r = await connection_manager.command(COMMAND_GET_STATUS)
     _LOGGER.debug(f"Raw status data: {r.hex().upper()}, length: {len(r)}")
     if len(r) < 16:
-        _LOGGER.error(f"❌ Ошибка: получено {len(r)} байт вместо ожидаемых 16")
+        _LOGGER.error("Ошибка: получено %s байт вместо ожидаемых 16", len(r))
         raise SkyCookerError(f"Некорректный размер данных статуса: {len(r)} байт")
     try:
         # Parse the 16-byte status response according to the new format
@@ -90,7 +91,7 @@ async def get_status(connection_manager) -> Status:
             program_name=program_name
         )
     except Exception as e:
-        _LOGGER.error(f"❌ Ошибка распаковки статуса: {e}")
+        _LOGGER.error("Ошибка распаковки статуса: %s", e)
         raise SkyCookerError(f"Ошибка распаковки статуса: {e}")
 
     _LOGGER.debug(

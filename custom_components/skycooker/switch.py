@@ -1,11 +1,9 @@
 """Переключатели SkyCooker."""
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN, SwitchEntity
 
 from .const import *
 from .entity_base import SkyCookerEntity
-from .utils import get_base_name, get_entity_name
-
-
+from .utils import get_base_name, get_entity_name, build_entity_id
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -22,6 +20,8 @@ class SkyCookerSwitch(SkyCookerEntity, SwitchEntity):
         """Инициализация переключателя."""
         super().__init__(hass, entry)
         self.switch_type = switch_type
+        # Стабильный английский entity_id, независимо от языка интерфейса
+        self.entity_id = build_entity_id(SWITCH_DOMAIN, hass, entry, switch_type)
 
     @property
     def unique_id(self):
@@ -44,16 +44,20 @@ class SkyCookerSwitch(SkyCookerEntity, SwitchEntity):
     @property
     def is_on(self):
         """Возвращает true, если переключатель включен."""
+        if not self.skycooker:
+            return False
         return self.switch_type == SWITCH_TYPE_AUTO_WARM and getattr(self.skycooker, 'auto_warm_enabled', False)
 
     async def async_turn_on(self, **kwargs):
         """Включение переключателя."""
-        if self.switch_type == SWITCH_TYPE_AUTO_WARM:
-            self.skycooker.auto_warm_enabled = True
-            self.update()
+        if not self.skycooker or self.switch_type != SWITCH_TYPE_AUTO_WARM:
+            return
+        await self.skycooker.enable_auto_warm()
+        self.update()
 
     async def async_turn_off(self, **kwargs):
         """Выключение переключателя."""
-        if self.switch_type == SWITCH_TYPE_AUTO_WARM:
-            self.skycooker.auto_warm_enabled = False
-            self.update()
+        if not self.skycooker or self.switch_type != SWITCH_TYPE_AUTO_WARM:
+            return
+        await self.skycooker.disable_auto_warm()
+        self.update()

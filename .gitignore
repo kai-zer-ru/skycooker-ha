@@ -49,3 +49,6 @@ node_modules/
 *.swo
 *.bak
 *.tmp
+scripts
+tests
+pytest.ini

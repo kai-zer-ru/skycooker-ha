@@ -15,11 +15,11 @@ class SkyCookerEntity(Entity):
         self.entry = entry
 
     async def async_added_to_hass(self):
-            """Когда сущность добавлена в hass."""
-            self.update()
-            self.async_on_remove(
-                async_dispatcher_connect(self.hass, DISPATCHER_UPDATE, self.update)
-            )
+        """Когда сущность добавлена в hass."""
+        self.update()
+        self.async_on_remove(
+            async_dispatcher_connect(self.hass, DISPATCHER_UPDATE, self.update)
+        )
 
     def update(self):
         """Обновление сущности."""
@@ -27,8 +27,13 @@ class SkyCookerEntity(Entity):
 
     @property
     def skycooker(self):
-        """Получение соединения skycooker."""
-        return self.hass.data[DOMAIN][self.entry.entry_id][DATA_CONNECTION]
+        """Получение соединения skycooker. None при выгрузке интеграции."""
+        try:
+            domain_data = self.hass.data.get(DOMAIN, {})
+            entry_data = domain_data.get(self.entry.entry_id, {})
+            return entry_data.get(DATA_CONNECTION)
+        except (KeyError, TypeError):
+            return None
 
     @property
     def device_info(self):
@@ -48,4 +53,5 @@ class SkyCookerEntity(Entity):
     @property
     def available(self):
         """Возвращает доступность сущности."""
-        return self.skycooker.available
+        conn = self.skycooker
+        return conn.available if conn else False

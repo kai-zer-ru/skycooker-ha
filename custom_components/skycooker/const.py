@@ -46,8 +46,17 @@ SENSOR_TYPE_DELAYED_LAUNCH_TIME = "delayed_launch_time"
 SENSOR_TYPE_CURRENT_PROGRAM = "current_program"
 SENSOR_TYPE_SUBPROGRAM = "subprogram"
 
+# Дополнительные диагностические сенсоры
+SENSOR_TYPE_ERROR_CODE = "error_code"
+SENSOR_TYPE_SOUND_ENABLED = "sound_enabled"
+
 # Типы переключателей
 SWITCH_TYPE_AUTO_WARM = "auto_warm"
+
+# Типы бинарных сенсоров
+BINARY_SENSOR_TYPE_COOKING = "cooking_active"
+BINARY_SENSOR_TYPE_AUTO_WARM_ACTIVE = "auto_warm_active"
+BINARY_SENSOR_TYPE_DELAYED_START_ACTIVE = "delayed_start_active"
 
 # Настройки BLE
 UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
@@ -81,15 +90,14 @@ COMMAND_AUTH = 0xFF
 
 # Битовые флаги для настроек программ (uint8_t)
 # Битовые флаги для настроек программ
-BIT_FLAG_SUBMODE_ENABLE = 0x80        # B[7] - включение подрежима
-BIT_FLAG_AUTOPOWER_ENABLE = 0x40      # B[6] - включение автопита
-BIT_FLAG_EXPANSION_MODES_ENABLE = 0x20 # B[5] - включение расширенных программ
-BIT_FLAG_TWO_BOWL_ENABLE = 0x10       # B[4] - включение двух чаш
-BIT_FLAG_PRESET_TEMP_ENABLE = 0x08    # B[3] - включение предварительной температуры
-BIT_FLAG_MASTERCHEF_LIGHT_ENABLE = 0x04 # B[2] - включение подсветки MasterChef
-BIT_FLAG_DELAY_START_ENABLE = 0x02    # B[1] - включение отложенного старта
-BIT_FLAG_POSTHEAT_ENABLE = 0x01       # B[0] - включение подогрева
-
+BIT_FLAG_SUBMODE_ENABLE = 0x80  # B[7] - включение подрежима
+BIT_FLAG_AUTOPOWER_ENABLE = 0x40  # B[6] - включение автопита
+BIT_FLAG_EXPANSION_MODES_ENABLE = 0x20  # B[5] - включение расширенных программ
+BIT_FLAG_TWO_BOWL_ENABLE = 0x10  # B[4] - включение двух чаш
+BIT_FLAG_PRESET_TEMP_ENABLE = 0x08  # B[3] - включение предварительной температуры
+BIT_FLAG_MASTERCHEF_LIGHT_ENABLE = 0x04  # B[2] - включение подсветки MasterChef
+BIT_FLAG_DELAY_START_ENABLE = 0x02  # B[1] - включение отложенного старта
+BIT_FLAG_POSTHEAT_ENABLE = 0x01  # B[0] - включение подогрева
 
 ######## Константы моделей мультиварок ########
 
@@ -161,7 +169,6 @@ SUPPORTED_MODELS = {
     "RMC-CBF390S": {"supported": False, "type": MODEL_2},
 }
 
-
 ######## Константы продуктов ########
 
 # Константы для названий продуктов
@@ -171,7 +178,6 @@ PRODUCT_FISH = "fish"
 PRODUCT_MEAT = "meat"
 PRODUCT_BIRD = "bird"
 PRODUCT_DESSERTS = "desserts"
-
 
 # Данные продуктов для каждой модели
 PRODUCT_DATA = {
@@ -216,10 +222,7 @@ PRODUCT_NAMES = {
     ],
 }
 
-
-
 ######## Константы программ ########
-
 
 
 # Данные режимов для каждой модели
@@ -478,7 +481,6 @@ PROGRAM_NAMES = {
         PROGRAM_MILK_PORRIDGE, PROGRAM_YOGURT, PROGRAM_EXPRESS, PROGRAM_WARMING_UP
     ],
 }
-
 
 ######## Константы статусов ########
 

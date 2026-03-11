@@ -19,19 +19,19 @@ _LOGGER = logging.getLogger(__name__)
 
 class SkyCookerConnectionManager(SkyCooker):
     """Класс для управления BLE соединением с мультиваркой."""
-     
+
     def __init__(
-        self,
-        mac_address: str,
-        key: bytes,
-        persistent: bool = True,
-        adapter: Optional[Any] = None,
-        hass: Optional[Any] = None,
-        model_name: Optional[str] = None
+            self,
+            mac_address: str,
+            key: bytes,
+            persistent: bool = True,
+            adapter: Optional[Any] = None,
+            hass: Optional[Any] = None,
+            model_name: Optional[str] = None
     ) -> None:
         # Инициализация базового класса SkyCooker
         super().__init__(hass, model_name)
-        
+
         self._device = None
         self._client = None
         self._mac_address = mac_address
@@ -49,7 +49,7 @@ class SkyCookerConnectionManager(SkyCooker):
         self._successes: List[bool] = []
         self._disposed = False
         self._last_data: Optional[bytes] = None
-    
+
     async def command(self, command: int, params: Optional[List[int]] = None) -> bytes:
         """Отправка команды устройству через BLE."""
         if params is None:
@@ -57,43 +57,48 @@ class SkyCookerConnectionManager(SkyCooker):
         if self._disposed:
             raise DisposedError()
         if not self._client or not self._client.is_connected:
-            raise IOError("🔌 Не подключено")
+            raise IOError("Не подключено")
         self._iter = (self._iter + 1) % 256
-        _LOGGER.debug(f"📤 Отправка команды {command:02x}, данные: [{' '.join([f'{c:02x}' for c in params])}]")
+        _LOGGER.debug(
+            "Отправка команды %02x, данные: [%s]",
+            command, ' '.join(f'{c:02x}' for c in params)
+        )
         data = bytes([0x55, self._iter, command] + list(params) + [0xAA])
         self._last_data = None
         try:
             await self._client.write_gatt_char(UUID_TX, data)
-            _LOGGER.debug(f"📋 Отправленный пакет: {data.hex().upper()}")
+            _LOGGER.debug("Отправленный пакет: %s", data.hex().upper())
         except Exception as e:
-            _LOGGER.error(f"🚫 Ошибка отправки команды: {e}")
+            _LOGGER.error("Ошибка отправки команды: %s", e)
             raise IOError(f"Ошибка отправки команды: {e}")
         timeout_time = monotonic() + BLE_RECV_TIMEOUT
         while True:
             await asyncio.sleep(0.05)
             if self._last_data:
                 r = self._last_data
-                _LOGGER.debug(f"📥 Получен сырой ответ: {r.hex().upper()}")
+                _LOGGER.debug("Получен сырой ответ: %s", r.hex().upper())
                 if len(r) < 4 or r[0] != 0x55 or r[-1] != 0xAA:
-                    _LOGGER.error(f"❌ Некорректный формат ответа: {r.hex().upper()}")
+                    _LOGGER.error("Некорректный формат ответа: %s", r.hex().upper())
                     raise IOError("Некорректный формат ответа")
                 if r[1] == self._iter:
-                    _LOGGER.debug(f"✅ Правильный идентификатор запроса {self._iter} в ответе")
+                    _LOGGER.debug("Правильный идентификатор запроса %s в ответе", self._iter)
                     break
-                else:
-                    _LOGGER.warning(f"⚠️  Неправильный идентификатор запроса в ответе: ожидалось {self._iter}, получено {r[1]}")
-                    _LOGGER.warning(f"💡 Это может быть ответ на предыдущий запрос или от другого устройства")
-                    self._last_data = None
+                _LOGGER.warning(
+                    "Неправильный идентификатор запроса в ответе: ожидалось %s, получено %s",
+                    self._iter, r[1]
+                )
+                _LOGGER.warning("Это может быть ответ на предыдущий запрос или от другого устройства")
+                self._last_data = None
             if monotonic() >= timeout_time:
-                _LOGGER.error(f"⏱️  Таймаут приема ответа на команду {command:02x}")
+                _LOGGER.error("Таймаут приема ответа на команду %02x", command)
                 raise IOError("Таймаут приема")
-         
+
         # Check if the response command matches the expected command
         if r[2] != command:
             return self._handle_unexpected_command_response(command, r)
 
         clean = bytes(r[3:-1])
-        _LOGGER.debug(f"📥 Очищенные данные ответа: {' '.join([f'{c:02x}' for c in clean])}")
+        _LOGGER.debug("Очищенные данные ответа: %s", ' '.join(f'{c:02x}' for c in clean))
         return clean
 
     def _rx_callback(self, sender: Any, data: bytes) -> None:
@@ -102,21 +107,24 @@ class SkyCookerConnectionManager(SkyCooker):
 
     def _handle_unexpected_command_response(self, command: int, r: bytes) -> bytes:
         """Обработка неожиданной команды в ответе. Возвращает данные или выбрасывает IOError."""
-        _LOGGER.warning(f"⚠️  Получена неожиданная команда ответа: ожидалось {command:02x}, получено {r[2]:02x}")
+        _LOGGER.warning(
+            "Получена неожиданная команда ответа: ожидалось %02x, получено %02x",
+            command, r[2]
+        )
 
         # SELECT_PROGRAM/SET_MAIN_MODE/TURN_ON: устройство может ответить статусом (0x06) вместо подтверждения
         if command in [COMMAND_SELECT_PROGRAM, COMMAND_SET_MAIN_MODE, COMMAND_TURN_ON] and r[2] == COMMAND_GET_STATUS:
-            _LOGGER.debug(f"📊 Устройство отправило обновление статуса после команды {command:02x}")
-            _LOGGER.debug(f"💡 Вероятно, команда была обработана успешно")
+            _LOGGER.debug("Устройство отправило обновление статуса после команды %02x", command)
+            _LOGGER.debug("Вероятно, команда была обработана успешно")
             return bytes([0x01])
 
         # GET_STATUS: может прийти отложенный ответ на предыдущую команду
         if command == COMMAND_GET_STATUS and r[2] in [COMMAND_SELECT_PROGRAM, COMMAND_SET_MAIN_MODE, COMMAND_TURN_OFF]:
-            _LOGGER.debug(f"📊 Получен отложенный ответ на команду {r[2]:02x} вместо статуса")
-            _LOGGER.debug(f"💡 Вероятно, предыдущая команда была обработана успешно")
+            _LOGGER.debug("Получен отложенный ответ на команду %02x вместо статуса", r[2])
+            _LOGGER.debug("Вероятно, предыдущая команда была обработана успешно")
             return bytes(r[3:-1])
 
-        _LOGGER.error(f"❌ Некорректная команда ответа: ожидалось {command:02x}, получено {r[2]:02x}")
+        _LOGGER.error("Некорректная команда ответа: ожидалось %02x, получено %02x", command, r[2])
         raise IOError("Некорректная команда ответа")
 
     async def _connect(self) -> None:
@@ -124,17 +132,17 @@ class SkyCookerConnectionManager(SkyCooker):
         if self._disposed:
             raise DisposedError()
         if self._client and self._client.is_connected:
-            _LOGGER.debug("✅ Уже подключено к мультиварке")
+            _LOGGER.debug("Уже подключено к мультиварке")
             return
         try:
             # Очистка предыдущих подключений
             await self._cleanup_previous_connections()
-            
+
             self._device = bluetooth.async_ble_device_from_address(self._hass, self._mac_address)
             if not self._device:
-                _LOGGER.error("❌ Устройство %s не найдено", self._mac_address)
+                _LOGGER.error("Устройство %s не найдено", self._mac_address)
                 raise IOError(f"Устройство {self._mac_address} не найдено")
-            _LOGGER.debug("🔌 Подключение к мультиварке %s (%s)...", self._mac_address, self._device.name)
+            _LOGGER.debug("Подключение к мультиварке %s (%s)...", self._mac_address, self._device.name)
             self._client = await establish_connection(
                 BleakClientWithServiceCache,
                 self._device,
@@ -142,18 +150,18 @@ class SkyCookerConnectionManager(SkyCooker):
                 max_attempts=5,
                 retry_interval=1.0
             )
-            _LOGGER.debug("✅ Успешно подключено к мультиварке %s", self._mac_address)
+            _LOGGER.debug("Успешно подключено к мультиварке %s", self._mac_address)
             await self._client.start_notify(UUID_RX, self._rx_callback)
-            _LOGGER.debug("📡 Подписка на уведомления от мультиварки")
+            _LOGGER.debug("Подписка на уведомления от мультиварки")
         except Exception as e:
-            _LOGGER.error("❌ Ошибка подключения к мультиварке: %s", e)
-            _LOGGER.error("💡 Проверьте, что устройство находится в режиме сопряжения и рядом с адаптером")
+            _LOGGER.error("Ошибка подключения к мультиварке: %s", e)
+            _LOGGER.error("Проверьте, что устройство в режиме сопряжения и рядом с адаптером")
             if "out of connection slots" in str(e).lower():
-                _LOGGER.error("💡 Bluetooth адаптер исчерпал лимит соединений. Попробуйте:")
-                _LOGGER.error("   1. Перезагрузите Bluetooth адаптер")
-                _LOGGER.error("   2. Уменьшите количество активных Bluetooth устройств")
-                _LOGGER.error("   3. Используйте дополнительный Bluetooth прокси")
-                _LOGGER.error("   4. Проверьте, что мультиварка находится в режиме сопряжения")
+                _LOGGER.error("Bluetooth адаптер исчерпал лимит соединений. Попробуйте:")
+                _LOGGER.error("  1. Перезагрузите Bluetooth адаптер")
+                _LOGGER.error("  2. Уменьшите количество активных Bluetooth устройств")
+                _LOGGER.error("  3. Используйте дополнительный Bluetooth прокси")
+                _LOGGER.error("  4. Проверьте, что мультиварка в режиме сопряжения")
             raise
 
     async def auth(self, key: bytes) -> bool:
@@ -165,12 +173,12 @@ class SkyCookerConnectionManager(SkyCooker):
         try:
             if self._client:
                 if self._client.is_connected:
-                    _LOGGER.debug("🧹 Очистка предыдущего соединения...")
+                    _LOGGER.debug("Очистка предыдущего соединения...")
                     await self._client.disconnect()
                 self._client = None
             self._device = None
         except Exception as e:
-            _LOGGER.warning(f"⚠️  Ошибка очистки предыдущего соединения: {e}")
+            _LOGGER.warning("Ошибка очистки предыдущего соединения: %s", e)
 
     async def _disconnect(self) -> None:
         """Отключение от устройства."""
@@ -229,7 +237,7 @@ class SkyCookerConnectionManager(SkyCooker):
     async def _connect_if_need(self) -> None:
         """Подключение при необходимости."""
         if self._client and not self._client.is_connected:
-            _LOGGER.warning("⚠️  Подключение к мультиварке потеряно")
+            _LOGGER.warning("Подключение к мультиварке потеряно")
             await self.disconnect()
         if not self._client or not self._client.is_connected:
             try:
@@ -238,16 +246,16 @@ class SkyCookerConnectionManager(SkyCooker):
             except Exception as ex:
                 await self.disconnect()
                 self._last_connect_ok = False
-                _LOGGER.error(f"🚫 Ошибка подключения к мультиварке: {ex}")
+                _LOGGER.error("Ошибка подключения к мультиварке: %s", ex)
                 raise ex
         if not self._auth_ok:
             self._last_auth_ok = self._auth_ok = await self.auth(self._key)
             if not self._auth_ok:
-                _LOGGER.error("🚫 Ошибка аутентификации. Необходимо включить режим сопряжения на мультиварке.")
+                _LOGGER.error("Ошибка аутентификации. Включите режим сопряжения на мультиварке.")
                 raise AuthError("Ошибка аутентификации")
-            _LOGGER.debug("✅ Аутентификация успешна")
+            _LOGGER.debug("Аутентификация успешна")
             self._sw_version = await self.get_version()
-            _LOGGER.debug(f"📋 Версия ПО: {self._sw_version}")
+            _LOGGER.debug("Версия ПО: %s", self._sw_version)
 
     async def _disconnect_if_need(self) -> None:
         """Отключение при необходимости (если не постоянное соединение)."""
@@ -328,22 +336,21 @@ class SkyCookerConnectionManager(SkyCooker):
         """Получение статуса устройства."""
         return await get_status(self)
 
-
     async def select_program(self, program_id: int, subprogram_id: int = 0) -> None:
         """Выбор программы устройства."""
         return await super().select_program(program_id, subprogram_id)
 
     async def set_main_program(
-        self,
-        program_id: int,
-        subprogram_id: int = 0,
-        target_temperature: int = 0,
-        target_main_hours: int = 0,
-        target_main_minutes: int = 0,
-        target_additional_hours: int = 0,
-        target_additional_minutes: int = 0,
-        auto_warm: int = 0,
-        bit_flags: int = 0
+            self,
+            program_id: int,
+            subprogram_id: int = 0,
+            target_temperature: int = 0,
+            target_main_hours: int = 0,
+            target_main_minutes: int = 0,
+            target_additional_hours: int = 0,
+            target_additional_minutes: int = 0,
+            auto_warm: int = 0,
+            bit_flags: int = 0
     ) -> None:
         """Установка основной программы."""
         return await super().set_main_program(
