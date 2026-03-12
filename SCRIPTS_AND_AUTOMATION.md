@@ -339,3 +339,75 @@ action:
 ```
 
 **Примечание**: Для работы Yandex.Intents требуется установленная интеграция [ha-yandex-station-intents](https://github.com/dext0r/ha-yandex-station-intents).
+
+### Передача мультиварки в Умный дом Яндекса
+
+Для экспорта мультиварки в платформу «Умный дом Яндекса» можно использовать интеграцию [`yandex_smart_home`](https://github.com/dext0r/yandex_smart_home).
+Ниже пример конфигурации, которая отдаёт мультиварку как `cooking.multicooker` с управлением программой, температурой и автоподогревом:
+
+```yaml
+yandex_smart_home:
+  entity_config:
+    switch.skycooker_rmc_m40s_auto_warm:
+      name: Мультиварка
+      room: Кухня
+      type: cooking.multicooker
+      state_template: >
+        {{ 'on' if is_state('binary_sensor.skycooker_rmc_m40s_cooking_active', 'on') else 'off' }}
+      turn_on:
+        action: script.zapusk_multivarki
+      turn_off:
+        action: script.otkliuchenie_multivarki
+      properties:
+        - type: temperature
+          entity: sensor.skycooker_rmc_m40s_temperature
+      custom_toggles:
+        keep_warm:
+          state_entity_id: switch.skycooker_rmc_m40s_auto_warm
+          turn_on:
+            service: switch.turn_on
+            entity_id: switch.skycooker_rmc_m40s_auto_warm
+          turn_off:
+            service: switch.turn_off
+            entity_id: switch.skycooker_rmc_m40s_auto_warm
+      modes:
+        program:
+          multicooker: "Мультиповар"
+          milk_porridge: "Молочная каша"
+          stewing: "Тушение"
+          frying: "Жарка"
+          soup: "Суп"
+          steam: "На пару"
+          pasta: "Паста/Макароны"
+          slow_cook: "Томление"
+          boiling: "Варка"
+          baking: "Выпечка"
+          cereals: "Рис/Крупы"
+          pilaf: "Плов"
+          yogurt: "Йогурт"
+          pizza: "Пицца"
+          bread: "Хлеб"
+          vacuum: "Вакуум"
+      custom_modes:
+        program:
+          state_entity_id: select.skycooker_rmc_m40s_program
+          set_mode:
+            service: select.select_option
+            entity_id: select.skycooker_rmc_m40s_program
+            data:
+              option: "{{ mode }}"
+      custom_ranges:
+        temperature:
+          state_entity_id: select.skycooker_rmc_m40s_temperature
+          set_value:
+            service: select.select_option
+            entity_id: select.skycooker_rmc_m40s_temperature
+            data:
+              option: "{{ value | int }}"
+          range:
+            min: 40
+            max: 200
+            precision: 5
+```
+
+⚠️ Важно: на данный момент платформа «Умный дом Яндекса» **не поддерживает управление временем приготовления мультиварки** (часы/минуты) через тип `cooking.multicooker`. Как только такая поддержка появится со стороны УДЯ, конфигурация будет расширена примерами `custom_ranges` для времени.
