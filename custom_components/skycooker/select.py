@@ -1,4 +1,5 @@
 """Сущности выбора SkyCooker."""
+import inspect
 import logging
 
 from homeassistant.components.select import DOMAIN as SELECT_DOMAIN, SelectEntity
@@ -197,20 +198,46 @@ class SkyCookerSelect(SkyCookerEntity, SelectEntity):
         """Изменение выбранного варианта."""
         if not self.skycooker:
             return
+        should_apply_to_device = False
         if self.select_type == SELECT_TYPE_PROGRAM or self.select_type == SELECT_TYPE_FAVORITES:
+            previous_snapshot = (
+                getattr(self.skycooker, "target_program_name", None),
+                getattr(self.skycooker, "target_temperature", None),
+                getattr(self.skycooker, "target_main_hours", None),
+                getattr(self.skycooker, "target_main_minutes", None),
+                getattr(self.skycooker, "target_additional_hours", None),
+                getattr(self.skycooker, "target_additional_minutes", None),
+                getattr(self.skycooker, "target_subprogram_id", None),
+            )
             await self._handle_program_selection(option)
+            current_snapshot = (
+                getattr(self.skycooker, "target_program_name", None),
+                getattr(self.skycooker, "target_temperature", None),
+                getattr(self.skycooker, "target_main_hours", None),
+                getattr(self.skycooker, "target_main_minutes", None),
+                getattr(self.skycooker, "target_additional_hours", None),
+                getattr(self.skycooker, "target_additional_minutes", None),
+                getattr(self.skycooker, "target_subprogram_id", None),
+            )
+            should_apply_to_device = previous_snapshot != current_snapshot
         elif self.select_type == SELECT_TYPE_TEMPERATURE:
             self.skycooker.target_temperature = int(option)
+            should_apply_to_device = True
         elif self.select_type == SELECT_TYPE_COOKING_TIME_HOURS:
             self.skycooker.target_main_hours = _validate_hours(int(option))
+            should_apply_to_device = True
         elif self.select_type == SELECT_TYPE_COOKING_TIME_MINUTES:
             self.skycooker.target_main_minutes = _validate_minutes(int(option))
+            should_apply_to_device = True
         elif self.select_type == SELECT_TYPE_DELAYED_START_HOURS:
             self.skycooker.target_additional_hours = _validate_hours(int(option))
+            should_apply_to_device = True
         elif self.select_type == SELECT_TYPE_DELAYED_START_MINUTES:
             self.skycooker.target_additional_minutes = _validate_minutes(int(option))
+            should_apply_to_device = True
         elif self.select_type == SELECT_TYPE_SUBPROGRAM:
             self.skycooker.target_subprogram_id = int(option)
+            should_apply_to_device = True
         else:
             return None
 
@@ -227,6 +254,13 @@ class SkyCookerSelect(SkyCookerEntity, SelectEntity):
         # чтобы обновить связанные селекты (время приготовления, температура и т.д.)
         if self.select_type == SELECT_TYPE_PROGRAM or self.select_type == SELECT_TYPE_FAVORITES:
             async_dispatcher_send(self.hass, DISPATCHER_UPDATE)
+
+        if should_apply_to_device:
+            apply_method = getattr(self.skycooker, "apply_current_settings_without_start", None)
+            if callable(apply_method):
+                result = apply_method()
+                if inspect.isawaitable(result):
+                    await result
 
         return None
 

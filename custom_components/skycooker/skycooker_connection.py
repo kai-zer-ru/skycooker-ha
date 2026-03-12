@@ -324,6 +324,10 @@ class SkyCookerConnection(SkyCooker):
     async def set_target_program(self, program_name: str) -> None:
         await self.cooking_controller.set_target_program(program_name)
 
+    async def apply_current_settings_without_start(self) -> None:
+        """Применяет текущие целевые параметры на устройстве без запуска."""
+        await self.cooking_controller.apply_current_settings_without_start()
+
 
 class DisposedError(Exception):
     pass

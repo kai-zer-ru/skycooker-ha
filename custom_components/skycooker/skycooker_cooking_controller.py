@@ -242,29 +242,87 @@ class SkyCookerCookingController:
         finally:
             await self.connection_manager.disconnect_if_need()
 
-    async def _apply_auto_warm_to_device(self) -> None:
-        """Отправляет текущий флаг автоподогрева на устройство, если оно в режиме готовки или разогрева."""
-        async with self.connection_manager.update_lock:
-            try:
-                await self.connection_manager.connect_if_need()
-                self._status = await get_status(self.connection_manager)
-            except Exception as ex:
-                _LOGGER.warning("Не удалось получить статус для применения автоподогрева: %s", ex)
-                return
-            finally:
-                await self.connection_manager.disconnect_if_need()
+    async def apply_current_settings_without_start(self) -> None:
+        """Отправляет текущие настройки программы на устройство без запуска приготовления."""
+        if self._target_program_name == self._get_standby_program_name():
+            _LOGGER.debug("Пропуск применения настроек: выбран режим ожидания")
+            return
 
-        if self._status is None or self._status.status not in (STATUS_WARMING, STATUS_COOKING):
-            if self._status:
-                _LOGGER.debug(
-                    "Устройство не в режиме готовки/разогрева (статус=%s), автоподогрев только сохранён локально",
-                    self._status.status)
+        try:
+            [
+                target_program_id,
+                target_subprogram_id,
+                target_temp,
+                target_main_hours,
+                target_main_minutes,
+            ] = self._get_cooking_parameters(self._target_program_name)
+            target_additional_hours, target_additional_minutes = self._get_delayed_start_parameters()
+            auto_warm_flag = self._get_auto_warm_flag()
+        except Exception as ex:
+            _LOGGER.warning("Не удалось подготовить настройки для отправки на устройство: %s", ex)
             return
 
         async with self.connection_manager.update_lock:
             try:
                 await self.connection_manager.connect_if_need()
-                st = self._status
+                await self.select_program(target_program_id, target_subprogram_id)
+                await asyncio.sleep(0.3)
+                await self.connection_manager.set_main_program(
+                    target_program_id,
+                    target_subprogram_id,
+                    target_temp,
+                    target_main_hours,
+                    target_main_minutes,
+                    target_additional_hours,
+                    target_additional_minutes,
+                    auto_warm_flag,
+                )
+                if self.connection_manager.hass:
+                    async_dispatcher_send(self.connection_manager.hass, DISPATCHER_UPDATE)
+            except Exception as ex:
+                _LOGGER.warning("Ошибка отправки настроек на устройство без запуска: %s", ex)
+            finally:
+                await self.connection_manager.disconnect_if_need()
+
+    async def _apply_auto_warm_to_device(self) -> None:
+        """Отправляет текущий флаг автоподогрева на устройство при активной программе."""
+        status_to_apply = self._status
+        async with self.connection_manager.update_lock:
+            try:
+                await self.connection_manager.connect_if_need()
+                self._status = await get_status(self.connection_manager)
+                status_to_apply = self._status
+            except Exception as ex:
+                # Используем последний известный статус, если чтение текущего не удалось.
+                _LOGGER.warning(
+                    "Не удалось получить актуальный статус для применения автоподогрева: %s. "
+                    "Будет использован последний известный статус.",
+                    ex,
+                )
+            finally:
+                await self.connection_manager.disconnect_if_need()
+
+        if status_to_apply is None:
+            _LOGGER.debug("Нет статуса устройства для применения автоподогрева")
+            return
+
+        standby_program_name = self._get_standby_program_name()
+        is_active_program = status_to_apply.is_on and status_to_apply.program_name != standby_program_name
+        if not is_active_program:
+            if status_to_apply:
+                _LOGGER.debug(
+                    "Устройство не в активной программе (is_on=%s, program=%s, status=%s), "
+                    "автоподогрев только сохранён локально",
+                    status_to_apply.is_on,
+                    status_to_apply.program_name,
+                    status_to_apply.status,
+                )
+            return
+
+        async with self.connection_manager.update_lock:
+            try:
+                await self.connection_manager.connect_if_need()
+                st = status_to_apply
                 auto_warm_flag = self._get_auto_warm_flag()
                 _LOGGER.debug("Применение автоподогрева на устройство: auto_warm=%s", auto_warm_flag)
                 await self.connection_manager.set_main_program(

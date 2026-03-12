@@ -126,6 +126,11 @@ def is_subprogram_supported(model_id: int) -> bool:
     return model_id != MODEL_3
 
 
+def is_sound_sensor_supported(model_id: int) -> bool:
+    """Возвращает True, если модель поддерживает сенсор состояния звука."""
+    return model_id != MODEL_3
+
+
 def get_subprogram_options() -> List[str]:
     """Возвращает список опций для подпрограмм."""
     return [str(i) for i in range(0, 16)]

@@ -19,7 +19,7 @@ from .time import (
     get_auto_warm_time,
     get_delayed_launch_time,
 )
-from .programs import is_subprogram_supported
+from .programs import is_subprogram_supported, is_sound_sensor_supported
 from .status import get_status_text
 
 
@@ -35,11 +35,14 @@ async def async_setup_entry(hass, entry, async_add_entities):
         SkyCookerSensor(hass, entry, SENSOR_TYPE_DELAYED_LAUNCH_TIME),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_CURRENT_PROGRAM),
         SkyCookerSensor(hass, entry, SENSOR_TYPE_ERROR_CODE),
-        SkyCookerSensor(hass, entry, SENSOR_TYPE_SOUND_ENABLED),
     ]
 
-    # Добавляем сенсор для подпрограммы только если модель поддерживает подпрограммы
+    # Добавляем сенсор звука только для моделей, где его состояние надежно определяется.
     skycooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
+    if is_sound_sensor_supported(skycooker.model_id):
+        entities.append(SkyCookerSensor(hass, entry, SENSOR_TYPE_SOUND_ENABLED))
+
+    # Добавляем сенсор для подпрограммы только если модель поддерживает подпрограммы
     if is_subprogram_supported(skycooker.model_id):
         entities.append(SkyCookerSensor(hass, entry, SENSOR_TYPE_SUBPROGRAM))
 

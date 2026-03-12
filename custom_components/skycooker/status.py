@@ -11,6 +11,23 @@ from .utils import get_localized_string
 _LOGGER = logging.getLogger(__name__)
 
 
+def _normalize_status_payload(raw: bytes) -> bytes:
+    """Нормализует ответ статуса до 16-байтного payload.
+
+    Поддерживает два формата:
+    - уже очищенный payload (обычный путь интеграции): 16 байт;
+    - полный транспортный кадр 55 <iter> 06 <payload(16)> AA: 20 байт.
+    """
+    if (
+        len(raw) >= 20
+        and raw[0] == 0x55
+        and raw[-1] == 0xAA
+        and raw[2] == COMMAND_GET_STATUS
+    ):
+        return raw[3:-1]
+    return raw
+
+
 def get_status_text(hass: Any, status_code: Optional[int]) -> str:
     """Возвращает текст статуса в зависимости от языка."""
     if status_code is None:
@@ -55,6 +72,8 @@ async def get_status(connection_manager) -> Status:
     """
     r = await connection_manager.command(COMMAND_GET_STATUS)
     _LOGGER.debug(f"Raw status data: {r.hex().upper()}, length: {len(r)}")
+    r = _normalize_status_payload(r)
+    _LOGGER.debug(f"Normalized status payload: {r.hex().upper()}, length: {len(r)}")
     if len(r) < 16:
         _LOGGER.error("Ошибка: получено %s байт вместо ожидаемых 16", len(r))
         raise SkyCookerError(f"Некорректный размер данных статуса: {len(r)} байт")
@@ -73,6 +92,8 @@ async def get_status(connection_manager) -> Status:
         status = r[8]
         is_on = r[8] != 0
         sound_enabled = r[9] != 0
+        # Для текущих моделей код ошибки приходит в последнем байте payload статуса.
+        error_code = r[15] if len(r) >= 16 else 0
         program_name = get_program_name(connection_manager.hass, program_id, connection_manager.model_id)
         status_data = Status(
             program_id=program_id,
@@ -82,7 +103,7 @@ async def get_status(connection_manager) -> Status:
             is_on=is_on,
             sound_enabled=sound_enabled,
             parental_control=False,
-            error_code=0,
+            error_code=error_code,
             target_main_hours=target_main_hours,
             target_main_minutes=target_main_minutes,
             target_additional_hours=target_additional_hours,

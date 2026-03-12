@@ -354,7 +354,8 @@ action:
 ### Передача мультиварки в Умный дом Яндекса
 
 Для экспорта мультиварки в платформу «Умный дом Яндекса» можно использовать интеграцию [`yandex_smart_home`](https://github.com/dext0r/yandex_smart_home).
-Ниже пример конфигурации, которая отдаёт мультиварку как `cooking.multicooker` с управлением программой, температурой и автоподогревом:
+Ниже пример конфигурации, которая отдаёт мультиварку как `cooking.multicooker` с управлением программой, температурой и автоподогревом.  
+Скрипты `script.zapusk_multivarki` и `script.otkliuchenie_multivarki` приведены ниже.
 
 ```yaml
 yandex_smart_home:
@@ -422,3 +423,32 @@ yandex_smart_home:
 ```
 
 ⚠️ Важно: на данный момент платформа «Умный дом Яндекса» **не поддерживает управление временем приготовления мультиварки** (часы/минуты) через тип `cooking.multicooker`. Как только такая поддержка появится со стороны УДЯ, конфигурация будет расширена примерами `custom_ranges` для времени.
+
+Примеры скриптов, используемых в `turn_on`/`turn_off`:
+
+```yaml
+script:
+  otkliuchenie_multivarki:
+    alias: Отключение мультиварки
+    sequence:
+      - action: skycooker.stop_cooking
+        data:
+          config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+
+  zapusk_multivarki:
+    alias: Запуск мультиварки
+    sequence:
+      - if:
+          - condition: switch.is_off
+            target:
+              entity_id: switch.skycooker_rmc_m40s_auto_warm
+        then:
+          - action: skycooker.start_cooking
+            data:
+              config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+        else:
+          - action: skycooker.start_cooking
+            data:
+              config_entry_id: YOUR_SKYCOOKER_ENTRY_ID
+              auto_warm: true
+```

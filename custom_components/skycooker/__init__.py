@@ -147,6 +147,13 @@ def _ensure_services_registered(hass: HomeAssistant) -> None:
         }
     )
 
+    async def _apply_settings_without_start(conn: SkyCookerConnection, service_name: str) -> None:
+        """Применяет текущие настройки на устройстве без запуска приготовления."""
+        try:
+            await conn.apply_current_settings_without_start()
+        except Exception as e:
+            _LOGGER.debug("Применение настроек без запуска после %s: %s", service_name, e)
+
     async def handle_set_program(call: ServiceCall) -> None:
         _LOGGER.debug("Сервис set_program вызван с данными: %s", dict(call.data))
         conn = _get_connection_from_call(hass, call)
@@ -162,6 +169,18 @@ def _ensure_services_registered(hass: HomeAssistant) -> None:
         additional_hours = data.get("additional_hours")
         additional_minutes = data.get("additional_minutes")
         auto_warm = data.get("auto_warm")
+        should_apply = any(
+            [
+                bool(program_name),
+                subprogram_id is not None,
+                temperature is not None,
+                main_hours is not None,
+                main_minutes is not None,
+                additional_hours is not None,
+                additional_minutes is not None,
+                auto_warm is not None,
+            ]
+        )
 
         if program_name:
             await conn.set_target_program(program_name)
@@ -182,6 +201,8 @@ def _ensure_services_registered(hass: HomeAssistant) -> None:
                 await conn.enable_auto_warm()
             else:
                 await conn.disable_auto_warm()
+        if should_apply:
+            await _apply_settings_without_start(conn, "set_program")
 
     async def handle_set_temperature(call: ServiceCall) -> None:
         """Устанавливает целевую температуру."""
@@ -193,6 +214,7 @@ def _ensure_services_registered(hass: HomeAssistant) -> None:
         if temperature is None:
             return
         await conn.set_temperature(int(temperature))
+        await _apply_settings_without_start(conn, "set_temperature")
 
     async def handle_set_cook_time(call: ServiceCall) -> None:
         """Устанавливает основное время приготовления."""
@@ -207,6 +229,7 @@ def _ensure_services_registered(hass: HomeAssistant) -> None:
         mh = int(main_hours) if main_hours is not None else 0
         mm = int(main_minutes) if main_minutes is not None else 0
         await conn.set_boil_time(mh, mm)
+        await _apply_settings_without_start(conn, "set_cook_time")
 
     async def handle_set_delayed_start(call: ServiceCall) -> None:
         """Устанавливает время отложенного старта."""
@@ -221,6 +244,7 @@ def _ensure_services_registered(hass: HomeAssistant) -> None:
         dh = int(delayed_hours) if delayed_hours is not None else 0
         dm = int(delayed_minutes) if delayed_minutes is not None else 0
         await conn.set_delayed_start(dh, dm)
+        await _apply_settings_without_start(conn, "set_delayed_start")
 
     async def handle_enable_auto_warm(call: ServiceCall) -> None:
         _LOGGER.debug("Сервис enable_auto_warm вызван с данными: %s", dict(call.data))
