@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Home Assistant
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+
+# pytest
+.pytest_cache/
+
+# Python packages
+*.egg-info/
+
+# Build
+build/
+
+# Node.js
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Other
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# HACS
+.hacsignore
+.roo
+other_source
+scripts
+custom_components/skycooker/skycooker_card/frontend/package-lock.json
+alarmo

@@ -1,0 +1,575 @@
+#   notifier:
+#     - oauth_token: !secret yandex_smart_home_oauth_token
+#       skill_id: !secret yandex_smart_home_skill_id
+#       user_id: !secret yandex_smart_home_user_id
+
+  entity_config:
+    switch.skycooker_rmc_m40s_auto_warm:
+      name: Мультиварка
+      room: Кухня
+      type: cooking.multicooker
+      state_template: >
+        {{ 'on' if is_state('binary_sensor.skycooker_rmc_m40s_cooking_active', 'on') else 'off' }}
+      turn_on:
+        action: script.zapusk_multivarki
+      turn_off:
+        action: script.otkliuchenie_multivarki
+      properties:
+        - type: temperature
+          entity: sensor.skycooker_rmc_m40s_temperature
+      custom_toggles:
+        keep_warm:
+          state_entity_id: switch.skycooker_rmc_m40s_auto_warm
+          turn_on:
+            service: switch.turn_on
+            entity_id: switch.skycooker_rmc_m40s_auto_warm
+          turn_off:
+            service: switch.turn_off
+            entity_id: switch.skycooker_rmc_m40s_auto_warm
+      modes:
+        program:
+          multicooker: "Мультиповар"
+          milk_porridge: "Молочная каша"
+          stewing: "Тушение"
+          frying: "Жарка"
+          soup: "Суп"
+          steam: "На пару"
+          pasta: "Паста/Макароны"
+          slow_cook: "Томление"
+          boiling: "Варка"
+          baking: "Выпечка"
+          cereals: "Рис/Крупы"
+          pilaf: "Плов"
+          yogurt: "Йогурт"
+          pizza: "Пицца"
+          bread: "Хлеб"
+          vacuum: "Вакуум"
+      custom_modes:
+        program:
+          state_entity_id: select.skycooker_rmc_m40s_program
+          set_mode:
+            service: select.select_option
+            entity_id: select.skycooker_rmc_m40s_program
+            data:
+              option: "{{ mode }}"
+      custom_ranges:
+        temperature:
+          state_entity_id: select.skycooker_rmc_m40s_temperature
+          set_value:
+            service: select.select_option
+            entity_id: select.skycooker_rmc_m40s_temperature
+            data:
+              option: "{{ value | int }}"
+          range:
+            min: 40
+            max: 200
+            precision: 5
+
+    # Redmond RMC-M92S — 19 программ, подпрограммы, без вакуума
+    switch.skycooker_rmc_m92s_auto_warm:
+      name: Мультиварка
+      room: Кухня
+      type: cooking.multicooker
+      state_template: >
+        {{ 'on' if is_state('binary_sensor.skycooker_rmc_m92s_cooking_active', 'on') else 'off' }}
+      turn_on:
+        action: script.zapusk_multivarki_m92s
+      turn_off:
+        action: script.otkliuchenie_multivarki_m92s
+      properties:
+        - type: temperature
+          entity: sensor.skycooker_rmc_m92s_temperature
+      custom_toggles:
+        keep_warm:
+          state_entity_id: switch.skycooker_rmc_m92s_auto_warm
+          turn_on:
+            service: switch.turn_on
+            entity_id: switch.skycooker_rmc_m92s_auto_warm
+          turn_off:
+            service: switch.turn_off
+            entity_id: switch.skycooker_rmc_m92s_auto_warm
+      modes:
+        program:
+          multicooker: "Мультиповар"
+          milk_porridge: "Молочная каша"
+          stewing: "Тушение"
+          frying: "Жарка"
+          soup: "Суп"
+          steam: "На пару"
+          pasta: "Паста/Макароны"
+          slow_cook: "Томление"
+          boiling: "Варка"
+          baking: "Выпечка"
+          cereals: "Рис/Крупы"
+          pilaf: "Плов"
+          yogurt: "Йогурт"
+          pizza: "Пицца"
+          bread: "Хлеб"
+          desserts: "Десерты"
+          express: "Экспресс"
+          warming: "Подогрев"
+      custom_modes:
+        program:
+          state_entity_id: select.skycooker_rmc_m92s_program
+          set_mode:
+            service: select.select_option
+            entity_id: select.skycooker_rmc_m92s_program
+            data:
+              option: "{{ mode }}"
+      custom_ranges:
+        temperature:
+          state_entity_id: select.skycooker_rmc_m92s_temperature
+          set_value:
+            service: select.select_option
+            entity_id: select.skycooker_rmc_m92s_temperature
+            data:
+              option: "{{ value | int }}"
+          range:
+            min: 40
+            max: 200
+            precision: 5
+
+    switch.rozetka_akustiki:
+      name: Акустика
+      room: Зал
+      type: media_device.receiver
+    light.aqara_night_light:
+      name: Ночник
+      room: Коридор
+      type: devices.types.light.sconce
+      
+    sensor.datchik_temperatury_v_kabinete_temperature:
+      name: Датчик температуры
+      type: devices.types.sensor.climate
+      room: Кабинет
+      properties:
+        - type: temperature
+          entity: sensor.datchik_temperatury_v_kabinete_temperature
+        - type: humidity
+          entity: sensor.datchik_temperatury_v_kabinete_humidity
+        - type: battery_level
+          entity: sensor.datchik_temperatury_v_kabinete_battery_plus
+
+
+    sensor.datchik_klimata_zal_temperature:
+      name: Датчик климата
+      type: devices.types.sensor.climate
+      room: Зал
+      properties:
+        - type: temperature
+          entity: sensor.datchik_klimata_zal_temperature
+        - type: humidity
+          entity: sensor.datchik_klimata_zal_humidity
+        - type: battery_level
+          entity: sensor.datchik_klimata_v_zale_battery_plus
+        - type: pm1_density
+          entity: sensor.datchik_klimata_zal_voc
+        - type: co2_level
+          entity: sensor.datchik_klimata_zal_eco2
+
+    sensor.datchik_temperatury_v_detskoi_temperature:
+      name: Датчик температуры
+      type: devices.types.sensor.climate
+      room: Детская
+      properties:
+        - type: temperature
+          entity: sensor.datchik_temperatury_v_detskoi_temperature
+        - type: humidity
+          entity: sensor.datchik_temperatury_v_detskoi_humidity
+        - type: battery_level
+          entity: sensor.datchik_temperatury_i_vlazhnosti_2_battery_plus
+  
+    binary_sensor.datchik_dvizheniia_prostoi_occupancy:
+      name: Датчик движения
+      room: Кабинет
+      type: devices.types.sensor.motion
+      properties:
+        - type: event.motion
+          entity: binary_sensor.datchik_dvizheniia_prostoi_occupancy
+        - type: battery_level
+          entity: sensor.datchik_dvizheniia_prostoi_battery_plus
+  
+    binary_sensor.datchik_dvizheniia_v_vannoi_occupancy:
+      name: Датчик движения
+      room: Ванная
+      type: devices.types.sensor.motion
+      properties:
+        - type: event.motion
+          entity: binary_sensor.datchik_dvizheniia_v_vannoi_occupancy
+        - type: battery_level
+          entity: sensor.datchik_dvizheniia_v_vannoi_battery_plus
+        - type: illumination
+          entity: sensor.datchik_dvizheniia_v_vannoi_illuminance
+  
+    binary_sensor.datchik_dvizheniia_v_koridore_occupancy:
+      name: Датчик движения
+      room: Коридор
+      type: devices.types.sensor.motion
+      properties:
+        - type: event.motion
+          entity: binary_sensor.datchik_dvizheniia_v_koridore_occupancy
+        - type: battery_level
+          entity: sensor.datchik_dvizheniia_v_koridore_battery_plus
+        - type: illumination
+          entity: sensor.datchik_dvizheniia_v_koridore_illuminance
+  
+    binary_sensor.datchik_dvizheniia_v_detskoi_occupancy:
+      name: Датчик движения
+      room: Детская
+      type: devices.types.sensor.motion
+      properties:
+        - type: event.motion
+          entity: binary_sensor.datchik_dvizheniia_v_detskoi_occupancy
+        - type: battery_level
+          entity: sensor.datchik_dvizheniia_v_detskoi_battery_plus
+        - type: illumination
+          entity: sensor.datchik_dvizheniia_v_detskoi_illuminance
+
+    binary_sensor.datchik_otkrytiia_dveri_na_balkon_contact:
+      name: Датчик открытия балкона
+      room: Зал
+      type: devices.types.sensor.open
+      properties:
+        - type: open
+          entity: binary_sensor.datchik_otkrytiia_dveri_na_balkon_contact
+        - type: battery_level
+          entity: sensor.datchik_otkrytiia_dveri_na_balkon_battery_plus
+
+    binary_sensor.datchik_otkrytiia_okna_v_kabinete_contact:
+      name: Датчик открытия окна
+      room: Кабинет
+      type: devices.types.sensor.open
+      properties:
+        - type: open
+          entity: binary_sensor.datchik_otkrytiia_okna_v_kabinete_contact
+        - type: battery_level
+          entity: sensor.datchik_otkrytiia_okna_v_kabinete_battery_plus
+
+    binary_sensor.datchik_otkrytiia_okna_na_kukhne_contact:
+      name: Датчик открытия окна
+      room: Кухня
+      type: devices.types.sensor.open
+      properties:
+        - type: open
+          entity: binary_sensor.datchik_otkrytiia_okna_na_kukhne_contact
+        - type: battery_level
+          entity: sensor.datchik_otkrytiia_okna_na_kukhne_battery_plus
+
+    binary_sensor.datchik_dveri_v_detskoi_contact:
+      name: Дверь в детской
+      room: Детская
+      type: devices.types.sensor.open
+      properties:
+        - type: open
+          entity: binary_sensor.datchik_dveri_v_detskoi_contact
+        - type: battery_level
+          entity: sensor.dver_v_detskuiu_battery_plus
+
+    binary_sensor.datchik_dveri_v_kabinete_contact:
+      name: Дверь в кабинет
+      room: Кабинет
+      type: devices.types.sensor.open
+      properties:
+        - type: open
+          entity: binary_sensor.datchik_dveri_v_kabinete_contact
+        - type: battery_level
+          entity: sensor.dver_v_kabinet_battery_plus
+
+    binary_sensor.datchik_protechki_na_kukhne_water_leak:
+      name: Датчик протечки кухня
+      room: Кухня
+      type: devices.types.sensor.water_leak
+      properties:
+        - type: water_leak
+          entity: binary_sensor.datchik_protechki_na_kukhne_water_leak
+        - type: battery_level
+          entity: sensor.datchik_protechki_na_kukhne_battery_plus
+
+    binary_sensor.datchik_protechki_pod_vannoi_water_leak:
+      name: Датчик протечки ванна
+      room: Ванная
+      type: devices.types.sensor.water_leak
+      properties:
+        - type: water_leak
+          entity: binary_sensor.datchik_protechki_pod_vannoi_water_leak
+        - type: battery_level
+          entity: sensor.datchik_protechki_pod_vannoi_battery_plus
+
+    binary_sensor.datchik_protechki_podstiralkoi_water_leak:
+      name: Датчик протечки под стиралкой
+      room: Ванная
+      type: devices.types.sensor.water_leak
+      properties:
+        - type: water_leak
+          entity: binary_sensor.datchik_protechki_podstiralkoi_water_leak
+        - type: battery_level
+          entity: sensor.datchik_protechki_pod_unitazom_battery_plus
+    
+    # sensor.0x54ef44100010eeef_illuminance:
+    #   name: Датчик освещённости
+    #   room: Коридор
+    #   type: devices.types.sensor.illumination
+
+    binary_sensor.protechka_pod_unitazom_water_leak:
+      name: Датчик протечки под унитазом
+      room: Ванная
+      type: devices.types.sensor.water_leak
+      properties:
+        - type: water_leak
+          entity: binary_sensor.protechka_pod_unitazom_water_leak
+        - type: battery_level
+          entity: sensor.datchik_protechki_pod_unitazom_battery_plus_2
+
+
+    switch.washing_machine:
+      name: Розетка в ванной
+      room: Ванная
+      type: devices.types.washing_machine
+      properties:
+        - type: power
+          entity: sensor.washing_machine_power
+        - type: amperage
+          entity: sensor.washing_machine_current
+        - type: voltage
+          entity: sensor.washing_machine_voltage
+
+    switch.girlianda:
+      name: Гирлянда
+      room: Зал
+      type: devices.types.socket
+      properties:
+        - type: power
+          entity: sensor.girlianda_power
+        - type: amperage
+          entity: sensor.girlianda_current
+        - type: voltage
+          entity: sensor.girlianda_voltage
+
+    switch.kofevarka:
+      name: Кофеварка
+      room: Детская
+      type: devices.types.cooking.coffee_maker
+      properties:
+        - type: power
+          entity: sensor.kofevarka_power
+        - type: amperage
+          entity: sensor.kofevarka_current
+        - type: voltage
+          entity: sensor.kofevarka_voltage
+
+    # humidifier.mi_smart_antibacterial_humidifier:
+    #   name: Увлажнитель
+    #   room: Детская
+    #   properties:
+    #     - type: humidity
+    #       entity: sensor.datchik_temperatury_i_vlazhnosti_2_humidity
+    #     - type: temperature
+    #       entity: sensor.datchik_temperatury_i_vlazhnosti_2_temperature
+    #   custom_toggles:
+    #     backlight:
+    #       state_entity_id: switch.mi_smart_antibacterial_humidifier_led
+    #       state_attribute: indicator_light.on
+    #       turn_on:
+    #         service: switch.turn_on
+    #         entity_id: switch.mi_smart_antibacterial_humidifier_led
+    #       turn_off:
+    #         service: switch.turn_off
+    #         entity_id: switch.mi_smart_antibacterial_humidifier_led
+    #     mute:
+    #       state_entity_id: switch.mi_smart_antibacterial_humidifier_buzzer
+    #       state_attribute: alarm
+    #       turn_on:
+    #         service: switch.turn_off
+    #         entity_id: switch.mi_smart_antibacterial_humidifier_buzzer
+    #       turn_off:
+    #         service: switch.turn_on
+    #         entity_id: switch.mi_smart_antibacterial_humidifier_buzzer
+    #   modes:
+    #     program:
+    #       low: ["Low"]
+    #       medium: ["Medium"]
+    #       high: ["High"]
+    #       auto: ["ConstHumidity"]
+
+
+    humidifier.deerma_jsq2w_3edd_humidifier:
+      name: Увлажнитель
+      properties:
+        - type: temperature
+          entity: sensor.datchik_klimata_zal_temperature
+        - type: humidity
+          entity: sensor.datchik_klimata_zal_humidity
+      backlight_entity_id: light.deerma_jsq2w_3edd_indicator_light
+      custom_toggles:
+        mute:
+          state_template: '{( is_state("switch.deerma_jsq2w_3edd_alarm", "off") }}'
+          turn_on:
+            action: switch.turn_off
+            entity_id: switch.deerma_jsq2w_3edd_alarm
+          turn_off:
+            action: switch.turn_on
+            entity_id: switch.deerma_jsq2w_3edd_alarm
+      modes:
+        program:
+          low: "Уровень\_1"
+          medium: "Уровень\_2"
+          high: "Уровень\_3"
+        #   auto: "Постоянная влажность"
+      custom_modes:
+        program:
+          state_entity_id: select.deerma_jsq2w_3edd_fan_level
+          set_mode:
+            action: select.select_option
+            entity_id: select.deerma_jsq2w_3edd_fan_level
+            data:
+              option: "{{ mode }}"
+
+
+    # sensor.knopka_kruglaia_2_action:
+    #   device_class: button
+    #   name: Звонок
+    #   room: Коридор
+    #   properties:
+    #     - type: battery_level
+    #       entity: sensor.0x00158d0005be0a4e_battery
+
+    binary_sensor.datchik_gaza_gas:
+      type: devices.types.sensor.gas
+      name: Датчик газа
+      room: Кухня
+
+
+
+    water_heater.skykettle_rk_m216s:
+      name: Чайник
+      room: Кухня
+      type: devices.types.cooking.kettle
+      properties:
+        - type: temperature
+          entity: water_heater.skykettle_rk_m216s
+          attribute: current_temperature
+        - type: power
+          entity: sensor.skykettle_rk_m216s_current_power
+      custom_toggles:
+        backlight:
+          state_entity_id: switch.skykettle_rk_m216s_enable_sync_light
+          turn_on:
+            service: switch.turn_on
+            entity_id: switch.skykettle_rk_m216s_enable_sync_light
+          turn_off:
+            service: switch.turn_off
+            entity_id: switch.skykettle_rk_m216s_enable_sync_light
+        mute:
+          state_entity_id: switch.skykettle_rk_m216s_enable_sound
+          turn_on:
+            service: switch.turn_on
+            entity_id: switch.skykettle_rk_m216s_enable_sound
+          turn_off:
+            service: switch.turn_off
+            entity_id: switch.skykettle_rk_m216s_enable_sound
+      custom_ranges:
+        temperature:
+          state_attribute: temperature
+          set_value:
+            service: water_heater.set_temperature
+            data:
+              temperature: '{{ value }}'
+              operation_mode: '{% if value == 100 %} Boil {% elif value == 90 %} Boil+Heat {% else %} Heat {% endif %}'
+            target:
+              entity_id: water_heater.skykettle_rk_m216s
+          range:
+            min: 25
+            max: 100
+            precision: 5
+
+    sensor.datchik_temperatury_v_vannoi_temperature:
+      name: Датчик температуры
+      type: devices.types.sensor.climate
+      room: Ванная
+      properties:
+        - type: temperature
+          entity: sensor.datchik_temperatury_v_vannoi_temperature
+        - type: humidity
+          entity: sensor.datchik_temperatury_v_vannoi_humidity
+        - type: battery_level
+          entity: sensor.datchik_temperatury_v_vannoi_battery_plus
+
+    sensor.datchik_temperatury_na_kukhne_temperature:
+      name: Датчик температуры
+      type: devices.types.sensor.climate
+      room: Кухня
+      properties:
+        - type: temperature
+          entity: sensor.datchik_temperatury_na_kukhne_temperature
+        - type: humidity
+          entity: sensor.datchik_temperatury_na_kukhne_humidity
+        - type: battery_level
+          entity: sensor.datchik_temperatury_na_kukhne_battery_plus
+
+
+    climate.konditsioner_tclac_climate:
+      name: Кондиционер
+      type: devices.types.thermostat.ac
+      room: Зал
+      properties:
+        - type: temperature
+          entity: sensor.datchik_klimata_zal_temperature
+        - type: humidity
+          entity: sensor.datchik_klimata_zal_humidity
+      modes:
+        thermostat:
+          heat: ['heat']
+          cool: ['cool']
+          auto: ['auto']
+          dry: ['dry']
+          fan_only: ['fan_only']
+        # program:
+        #   eco: ['eco']
+        #   quiet: ['sleep']
+        fan_speed:
+          auto: ['auto']
+          low: ['low']
+          medium: ['medium']
+          high: ['high']
+          turbo: ['diffuse']
+          quiet: ['quiet']
+        swing:
+          stationary: ['off']
+          auto: ['both']
+          vertical: ['vertical']
+          horizontal: ['horizontal']
+
+    light.controller_rgb_bcd514:
+      type: devices.types.light.strip
+      room: Зал
+      name: Лента
+
+    light.controller_rgb_002569:
+      type: devices.types.light.strip
+      room: Зал
+      name: Подсветка
+
+    light.controller_rgb_bca4fa:
+      type: devices.types.light.strip
+      room: Кабинет
+      name: Лента
+
+    light.controller_dimmable_daae4b:
+      type: devices.types.light.strip
+      room: Кухня
+      name: Подсветка
+
+    light.lenta:
+      type: devices.types.light.strip
+      room: Детская
+      name: Лента
+
+    # fan.ventiliatsiia:
+    #   type: devices.types.thermostat
+    #   room: Детская
+    #   name: Вентиляция
+
+    fan.ventiliatsiia_socket_1:
+      type: devices.types.thermostat
+      room: Ванная
+      name: Вытяжка

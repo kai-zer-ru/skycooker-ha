@@ -1,0 +1,270 @@
+{
+  "title": "SkyCooker",
+  "favorites_other": "Other",
+  "config": {
+    "step": {
+      "scan": {
+        "title": "Scan for multicooker",
+        "description": "Select your Redmond multicooker from the list of discovered devices."
+      },
+      "connect": {
+        "title": "Connecting",
+        "description": "Switch your multicooker to pairing mode..."
+      },
+      "init": {
+        "title": "Setup",
+        "description": "Configure connection settings.",
+        "data": {
+          "persistent_connection": "Persistent connection (faster but exclusive, e.g. you can't use the official app while this integration is in work)",
+          "scan_interval": "Scan interval in seconds (small values recommended only for persistent connection)",
+          "favorite_programs": "Favorite programs (select up to 5 programs to display as favorites)"
+        }
+      }
+    },
+    "abort": {
+      "unknown_model": "Unknown multicooker model",
+      "unsupported_model": "This multicooker model is not yet supported",
+      "already_configured": "Multicooker already configured",
+      "invalid_input": "Invalid input",
+      "no_bluetooth": "Bluetooth not available",
+      "device_not_found": "Multicooker not found",
+      "scan_failed": "Scan failed",
+      "invalid_config": "Invalid configuration",
+      "connection_failed": "Connection failed",
+      "config_save_failed": "Failed to save configuration",
+      "init_failed": "Initialization failed"
+    },
+    "error": {
+      "cant_connect": "Connection failed",
+      "cant_auth": "Authentication failed"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SkyCooker Options",
+        "description": "Configure connection settings.",
+        "data": {
+          "persistent_connection": "Persistent connection. Faster but exclusive, e.g. you can't use the official app while this integration is in work.",
+          "scan_interval": "Scan interval in seconds. Small values recommended only for persistent connection.",
+          "favorite_programs": "Favorite programs (select up to 5 programs to display in favorites)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": "Status",
+      "temperature": "Temperature",
+      "remaining_time": "Remaining time",
+      "total_time": "Total time",
+      "auto_warm_time": "Auto warm time",
+      "success_rate": "Success rate",
+      "delayed_launch_time": "Time until delayed launch",
+      "error_code": "Error code",
+      "sound_enabled": "Sound enabled"
+    },
+    "switch": {
+      "power": "Power"
+    },
+    "select": {
+      "mode": "Cooking program"
+    },
+    "button": {
+      "start": "Start",
+      "stop": "Stop"
+    }
+  },
+  "state": {
+    "status": {
+      "off": "Off",
+      "wait": "Waiting",
+      "delayed_launch": "Delayed launch",
+      "warming": "Warming",
+      "cooking": "Cooking",
+      "auto_warm": "Auto warm",
+      "full_off": "Fully off"
+    }
+  },
+  "status_codes": {
+    "off": "Off",
+    "wait": "Waiting",
+    "delayed_launch": "Delayed Launch",
+    "warming": "Warming",
+    "cooking": "Cooking",
+    "auto_warm": "Auto Warm",
+    "full_off": "Fully off"
+  },
+  "program_names": {
+    "standby": "Standby Mode",
+    "multi_chef": "Multi-chef",
+    "rice_cereals": "Rice/Cereals",
+    "languor": "Languor",
+    "pilaf": "Pilaf",
+    "frying": "Frying",
+    "stewing": "Stewing",
+    "pasta": "Pasta",
+    "milk_porridge": "Milk porridge",
+    "soup": "Soup",
+    "yogurt": "Yogurt",
+    "baking": "Baking",
+    "steam": "Steam",
+    "cooking_legumes": "Cooking/Legumes",
+    "wildfowl": "Wildfowl",
+    "pizza": "Pizza",
+    "bread": "Bread",
+    "baby_food": "Baby food",
+    "sous_vide": "Sous-vide",
+    "deep_frying": "Deep frying",
+    "desserts": "Desserts",
+    "express": "Express",
+    "galantine": "Galantine",
+    "yogurt_dough": "Yogurt/Dough",
+    "cheesecake": "Cheesecake",
+    "sous": "Sous",
+    "warming_up": "Warming up",
+    "warming": "Warming",
+    "cooking": "Cooking",
+    "none": "None"
+  },
+  "product_names": {
+    "no_choice": "No choice",
+    "vegetables": "Vegetables",
+    "fish": "Fish",
+    "meat": "Meat",
+    "bird": "Bird",
+    "desserts": "Desserts"
+  },
+  "services": {
+    "set_program": {
+      "name": "Set program",
+      "description": "Set target program and parameters without starting it.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance",
+          "description": "Select the SkyCooker multicooker."
+        },
+        "program_name": {
+          "name": "Program",
+          "description": "Enter the program name exactly as it appears in the SkyCooker card/UI for this multicooker."
+        },
+        "subprogram_id": {
+          "name": "Subprogram"
+        },
+        "temperature": {
+          "name": "Temperature"
+        },
+        "main_hours": {
+          "name": "Cooking time (hours)"
+        },
+        "main_minutes": {
+          "name": "Cooking time (minutes)"
+        },
+        "additional_hours": {
+          "name": "Delayed start time (hours)"
+        },
+        "additional_minutes": {
+          "name": "Delayed start time (minutes)"
+        },
+        "auto_warm": {
+          "name": "Auto warm"
+        }
+      }
+    },
+    "set_temperature": {
+      "name": "Set temperature",
+      "description": "Set target temperature for the selected multicooker.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance",
+          "description": "Select the SkyCooker multicooker."
+        },
+        "temperature": {
+          "name": "Temperature",
+          "description": "Target cooking temperature."
+        }
+      }
+    },
+    "set_cook_time": {
+      "name": "Set cook time",
+      "description": "Set main cooking time (without delayed start).",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance",
+          "description": "Select the SkyCooker multicooker."
+        },
+        "main_hours": {
+          "name": "Hours"
+        },
+        "main_minutes": {
+          "name": "Minutes"
+        }
+      }
+    },
+    "set_delayed_start": {
+      "name": "Set delayed start",
+      "description": "Set time until delayed start.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance",
+          "description": "Select the SkyCooker multicooker."
+        },
+        "delayed_start_hours": {
+          "name": "Hours until start"
+        },
+        "delayed_start_minutes": {
+          "name": "Minutes until start"
+        }
+      }
+    },
+    "enable_auto_warm": {
+      "name": "Enable auto warm",
+      "description": "Enable auto warm via cooking controller.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance"
+        }
+      }
+    },
+    "disable_auto_warm": {
+      "name": "Disable auto warm",
+      "description": "Disable auto warm via cooking controller.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance"
+        }
+      }
+    },
+    "sync_time": {
+      "name": "Sync time",
+      "description": "Synchronize multicooker time with Home Assistant system time.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance"
+        }
+      }
+    },
+    "start_cooking": {
+      "name": "Start cooking",
+      "description": "Start cooking with current parameters (or delayed start if a delay is set).",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance"
+        },
+        "auto_warm": {
+          "name": "Auto warm",
+          "description": "If set, enables or disables auto warm before starting."
+        }
+      }
+    },
+    "stop_cooking": {
+      "name": "Stop cooking",
+      "description": "Stop current cooking and switch the multicooker to standby mode.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SkyCooker instance"
+        }
+      }
+    }
+  }
+}
