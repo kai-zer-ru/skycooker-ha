@@ -23,6 +23,7 @@
     },
     "abort": {
       "unknown_model": "Неизвестная модель мультиварки",
+      "unsupported_model": "Эта модель мультиварки пока не поддерживается",
       "already_configured": "Мультиварка уже настроена",
       "invalid_input": "Неверный ввод",
       "no_bluetooth": "Bluetooth не доступен",

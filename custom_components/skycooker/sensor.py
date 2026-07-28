@@ -37,11 +37,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         SkyCookerSensor(hass, entry, SENSOR_TYPE_ERROR_CODE),
     ]
 
-    # Добавляем сенсор звука только для моделей, где его состояние надежно определяется.
     skycooker = hass.data[DOMAIN][entry.entry_id][DATA_CONNECTION]
+    # Добавляем сенсор звука только для моделей, где его состояние надежно определяется.
     if is_sound_sensor_supported(skycooker.model_id):
         entities.append(SkyCookerSensor(hass, entry, SENSOR_TYPE_SOUND_ENABLED))
-
     # Добавляем сенсор для подпрограммы только если модель поддерживает подпрограммы
     if is_subprogram_supported(skycooker.model_id):
         entities.append(SkyCookerSensor(hass, entry, SENSOR_TYPE_SUBPROGRAM))

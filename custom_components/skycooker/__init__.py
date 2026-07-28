@@ -35,9 +35,10 @@ from .const import (
     DISPATCHER_UPDATE,
     DOMAIN,
     LANGS,
-    MODELS,
     MANUFACTURER,
     SKYCOOKER_NAME,
+    get_supported_model_names,
+    is_model_supported,
 )
 from .skycooker_connection import SkyCookerConnection
 
@@ -490,10 +491,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Проверка поддержки модели
     model_name = entry.data.get(CONF_FRIENDLY_NAME, "")
-    if model_name not in MODELS:
+    if not is_model_supported(model_name):
         _LOGGER.error(
             "Модель %s не поддерживается. Поддерживаемые модели: %s",
-            model_name, list(MODELS.keys())
+            model_name, get_supported_model_names()
         )
         return False
 

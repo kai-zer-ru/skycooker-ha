@@ -23,6 +23,7 @@
     },
     "abort": {
       "unknown_model": "Unknown multicooker model",
+      "unsupported_model": "This multicooker model is not yet supported",
       "already_configured": "Multicooker already configured",
       "invalid_input": "Invalid input",
       "no_bluetooth": "Bluetooth not available",

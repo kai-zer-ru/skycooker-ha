@@ -143,10 +143,10 @@ MODELS = {
 SUPPORTED_MODELS = {
     "RMC-M40S": {"supported": True, "type": MODEL_3},
     "RMC-M42S": {"supported": True, "type": MODEL_3},
-    "RMC-M92S": {"supported": False, "type": MODEL_6},
-    "RMC-M92S-A": {"supported": False, "type": MODEL_6},
-    "RMC-M92S-C": {"supported": False, "type": MODEL_6},
-    "RMC-M92S-E": {"supported": False, "type": MODEL_6},
+    "RMC-M92S": {"supported": True, "type": MODEL_6},
+    "RMC-M92S-A": {"supported": True, "type": MODEL_6},
+    "RMC-M92S-C": {"supported": True, "type": MODEL_6},
+    "RMC-M92S-E": {"supported": True, "type": MODEL_6},
     "RMC-M222S": {"supported": False, "type": MODEL_7},
     "RMC-M222S-A": {"supported": False, "type": MODEL_7},
     "RMC-M223S": {"supported": False, "type": MODEL_7},
@@ -168,6 +168,25 @@ SUPPORTED_MODELS = {
     "RMC-CBD100S": {"supported": False, "type": MODEL_1},
     "RMC-CBF390S": {"supported": False, "type": MODEL_2},
 }
+
+
+def is_model_supported(model_name: str) -> bool:
+    """Проверяет, поддерживается ли модель мультиварки интеграцией."""
+    if not model_name:
+        return False
+    if model_name in SUPPORTED_MODELS:
+        return SUPPORTED_MODELS[model_name]["supported"]
+    if model_name.endswith("-E"):
+        base_name = model_name[:-2]
+        if base_name in SUPPORTED_MODELS:
+            return SUPPORTED_MODELS[base_name]["supported"]
+    return False
+
+
+def get_supported_model_names() -> list[str]:
+    """Возвращает список полностью поддерживаемых моделей."""
+    return [name for name, info in SUPPORTED_MODELS.items() if info["supported"]]
+
 
 ######## Константы продуктов ########
 
@@ -347,7 +366,6 @@ PROGRAM_DATA = {
         {"temperature": 100, "hours": 0, "minutes": 20, "byte_flag": 64}
     ],
     6: [
-        {"temperature": 100, "hours": 0, "minutes": 0, "byte_flag": 0},
         {"temperature": 100, "hours": 0, "minutes": 30, "byte_flag": 15},
         {"temperature": 97, "hours": 0, "minutes": 10, "byte_flag": 7},
         {"temperature": 100, "hours": 1, "minutes": 0, "byte_flag": 7},
@@ -364,8 +382,9 @@ PROGRAM_DATA = {
         {"temperature": 150, "hours": 0, "minutes": 25, "byte_flag": 7},
         {"temperature": 150, "hours": 3, "minutes": 0, "byte_flag": 7},
         {"temperature": 98, "hours": 0, "minutes": 20, "byte_flag": 7},
-        {"temperature": 100, "hours": 0, "minutes": 0, "byte_flag": 64},
-        {"temperature": 100, "hours": 70, "minutes": 30, "byte_flag": 64}
+        {"temperature": 100, "hours": 0, "minutes": 20, "byte_flag": 64},
+        {"temperature": 70, "hours": 0, "minutes": 30, "byte_flag": 64},
+        {"temperature": 100, "hours": 0, "minutes": 0, "byte_flag": 0},
     ],
     7: [
         {"temperature": 100, "hours": 0, "minutes": 0, "byte_flag": 0},
@@ -467,12 +486,11 @@ PROGRAM_NAMES = {
         PROGRAM_EXPRESS
     ],
     6: [
-        PROGRAM_STANDBY,
         PROGRAM_MULTI_CHEF, PROGRAM_MILK_PORRIDGE, PROGRAM_STEWING, PROGRAM_FRYING,
         PROGRAM_SOUP, PROGRAM_STEAM, PROGRAM_PASTA, PROGRAM_LANGUOR,
         PROGRAM_COOKING, PROGRAM_BAKING, PROGRAM_RICE_CEREALS, PROGRAM_PILAF,
         PROGRAM_YOGURT, PROGRAM_PIZZA, PROGRAM_BREAD, PROGRAM_DESSERTS,
-        PROGRAM_EXPRESS, PROGRAM_WARMING
+        PROGRAM_EXPRESS, PROGRAM_WARMING, PROGRAM_STANDBY,
     ],
     7: [
         PROGRAM_STANDBY,

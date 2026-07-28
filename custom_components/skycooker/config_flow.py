@@ -15,7 +15,7 @@ from homeassistant.core import callback
 from .const import (
     DOMAIN, CONF_PERSISTENT_CONNECTION, CONF_MODEL, CONF_FAVORITE_PROGRAMS,
     DEFAULT_SCAN_INTERVAL, DEFAULT_PERSISTENT_CONNECTION, MAX_FAVORITE_PROGRAMS,
-    SKYCOOKER_NAME, MODEL_3
+    SKYCOOKER_NAME, MODEL_3, is_model_supported,
 )
 from . import load_translations
 from .programs import get_program_options
@@ -100,6 +100,8 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 name = spl[1][1:-1] if len(spl) >= 2 else None
                 if not SkyCooker.get_model_id(name):
                     return self.async_abort(reason='unknown_model')
+                if not is_model_supported(name):
+                    return self.async_abort(reason='unsupported_model')
                 if not await self.init_mac(mac):
                     return self.async_abort(reason='already_configured')
                 if name:
@@ -118,7 +120,9 @@ class SkyCookerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             devices_filtered: List[Any] = [
                 device for device in scanner.discovered_devices
-                if device.name and (device.name.startswith("RMC-") or device.name.startswith("RFS-"))
+                if device.name
+                and (device.name.startswith("RMC-") or device.name.startswith("RFS-"))
+                and is_model_supported(device.name)
             ]
             if len(devices_filtered) == 0:
                 _LOGGER.error("Устройство не найдено")

@@ -35,7 +35,6 @@ htmlcov/
 
 # Build
 build/
-dist/
 
 # Node.js
 node_modules/
@@ -49,6 +48,11 @@ node_modules/
 *.swo
 *.bak
 *.tmp
+
+# HACS
+.hacsignore
+.roo
+other_source
 scripts
-tests
-pytest.ini
+custom_components/skycooker/skycooker_card/frontend/package-lock.json
+alarmo
