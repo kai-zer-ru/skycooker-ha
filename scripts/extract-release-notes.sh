@@ -48,11 +48,25 @@ fi
 extract_section() {
 	local heading="$1"
 	awk -v h="$heading" '
+		function is_version_heading(line) {
+			return line ~ /^## \[/ || line ~ /^## v[0-9]/
+		}
+		function matches_heading(line, ver) {
+			return line ~ "^## \\[" ver "\\]" || line ~ "^## " ver "([^0-9.]|$)"
+		}
 		BEGIN { found = 0 }
-		$0 ~ "^## \\[" h "\\]" { found = 1; print; next }
-		found && /^## \[/ { exit }
-		found && /^\[[^]]+\]:[[:space:]]/ { next }
-		found { print }
+		{
+			if (!found) {
+				if (matches_heading($0, h)) {
+					found = 1
+					print
+				}
+				next
+			}
+			if (is_version_heading($0)) exit
+			if (/^\[[^]]+\]:[[:space:]]/) next
+			print
+		}
 	' "$CHANGELOG"
 }
 
