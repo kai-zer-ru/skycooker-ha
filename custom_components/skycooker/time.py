@@ -7,7 +7,7 @@ from datetime import datetime
 from struct import pack, unpack
 from typing import Any, List, Optional, Tuple
 from .const import COMMAND_SYNC_TIME, COMMAND_GET_TIME, STATUS_DELAYED_LAUNCH, \
-    STATUS_WARMING, STATUS_COOKING, STATUS_AUTO_WARM, Status
+    STATUS_WARMING, STATUS_COOKING, STATUS_AUTO_WARM, STATUS_WAIT_PRODUCT, Status
 from .utils import get_localized_string
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,6 +115,11 @@ def calculate_remaining_time(hass: Any, skycooker: Any, status_code: int) -> str
         additional_hours = get_time_from_status(skycooker, skycooker.status, 'target_additional_hours')
         additional_minutes = get_time_from_status(skycooker, skycooker.status, 'target_additional_minutes')
         total_hours, total_minutes = _normalize_time(additional_hours, additional_minutes)
+    elif status_code == STATUS_WAIT_PRODUCT:
+        # Ожидание загрузки продуктов: отсчёт ещё не начался, показываем заданное время варки
+        boil_hours = get_time_from_status(skycooker, skycooker.status, 'target_main_hours')
+        boil_minutes = get_time_from_status(skycooker, skycooker.status, 'target_main_minutes')
+        total_hours, total_minutes = _normalize_time(boil_hours, boil_minutes)
     else:
         total_hours = 0
         total_minutes = 0
@@ -124,7 +129,7 @@ def calculate_remaining_time(hass: Any, skycooker: Any, status_code: int) -> str
 
 def get_cooking_time(hass: Any, skycooker: Any, status_code: int) -> str:
     """Возвращает время приготовления."""
-    if status_code in [STATUS_DELAYED_LAUNCH, STATUS_WARMING, STATUS_COOKING]:
+    if status_code in [STATUS_DELAYED_LAUNCH, STATUS_WARMING, STATUS_COOKING, STATUS_WAIT_PRODUCT]:
         boil_hours = get_time_from_status(skycooker, skycooker.status, 'target_main_hours')
         boil_minutes = get_time_from_status(skycooker, skycooker.status, 'target_main_minutes')
         return format_time(hass, boil_hours, boil_minutes)

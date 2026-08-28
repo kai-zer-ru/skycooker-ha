@@ -21,6 +21,7 @@ from custom_components.skycooker.const import (
     STATUS_WARMING,
     STATUS_COOKING,
     STATUS_AUTO_WARM,
+    STATUS_WAIT_PRODUCT,
     Status
 )
 
@@ -212,6 +213,10 @@ def test_calculate_remaining_time():
     # Тест для готовки
     result = calculate_remaining_time(mock_hass, mock_skycooker, STATUS_COOKING)
     assert result == "2 ч. 15 м."
+
+    mock_skycooker.status = mock_status
+    result = calculate_remaining_time(mock_hass, mock_skycooker, STATUS_WAIT_PRODUCT)
+    assert result == "1 ч. 30 м."
     
     # Тест для других статусов
     result = calculate_remaining_time(mock_hass, mock_skycooker, 0)
@@ -239,6 +244,9 @@ def test_get_cooking_time():
     
     # Тест для готовки
     result = get_cooking_time(mock_hass, mock_skycooker, STATUS_COOKING)
+    assert result == "1 ч. 30 м."
+
+    result = get_cooking_time(mock_hass, mock_skycooker, STATUS_WAIT_PRODUCT)
     assert result == "1 ч. 30 м."
     
     # Тест для других статусов

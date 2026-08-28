@@ -38,7 +38,7 @@ async def test_async_setup_success():
     mock_hass.data = {}
     mock_config = {}
     
-    with patch('custom_components.skycooker.HA_VERSION', '2025.12.6'):
+    with patch('custom_components.skycooker.HA_VERSION', '2026.6.0'):
         result = await async_setup(mock_hass, mock_config)
     
     assert result is True

@@ -1,0 +1,56 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements-dev.txt
+
+      - name: CI checks
+        run: make ci
+
+  release:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release notes
+        run: |
+          chmod +x scripts/extract-release-notes.sh
+          scripts/extract-release-notes.sh --stdout "${GITHUB_REF_NAME}" > .release-notes.md
+
+      - name: Pack integration zip
+        run: |
+          mkdir -p dist
+          cd custom_components && zip -r ../dist/skycooker.zip skycooker
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: .release-notes.md
+          files: dist/skycooker.zip
+          generate_release_notes: false

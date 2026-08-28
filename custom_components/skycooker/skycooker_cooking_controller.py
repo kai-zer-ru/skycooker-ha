@@ -176,15 +176,23 @@ class SkyCookerCookingController:
             await self.connection_manager.turn_on()
         elif current_program_id == target_program_id and device_is_on:
             _LOGGER.debug("На мультиварке уже выбран режим %s, совпадает с интерфейсом", target_program_id)
-            _LOGGER.debug("Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
-            await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature,
-                                                           target_main_hours, target_main_minutes,
-                                                           target_additional_hours, target_additional_minutes,
-                                                           auto_warm_flag)
-            await asyncio.sleep(0.3)
+            current_status = self._status.status if self._status else None
+            if current_status in RESUME_COOKING_STATUSES:
+                _LOGGER.debug(
+                    "Устройство в статусе %s, продолжение программы только через COMMAND_TURN_ON = 0x03",
+                    current_status,
+                )
+                await self.connection_manager.turn_on()
+            else:
+                _LOGGER.debug("Отправка COMMAND_SET_MAIN_MODE = 0x05 с выбранными параметрами")
+                await self.connection_manager.set_main_program(target_program_id, target_subprogram_id, target_temperature,
+                                                               target_main_hours, target_main_minutes,
+                                                               target_additional_hours, target_additional_minutes,
+                                                               auto_warm_flag)
+                await asyncio.sleep(0.3)
 
-            _LOGGER.debug("Отправка COMMAND_TURN_ON = 0x03")
-            await self.connection_manager.turn_on()
+                _LOGGER.debug("Отправка COMMAND_TURN_ON = 0x03")
+                await self.connection_manager.turn_on()
         elif current_program_id != target_program_id:
             _LOGGER.debug(
                 "На мультиварке выбран режим %s, в интерфейсе выбран %s",

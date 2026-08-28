@@ -33,6 +33,14 @@ def test_get_status_text():
     result = get_status_text(mock_hass, 1)
     assert result == "Waiting"
 
+    mock_hass.config.language = "ru"
+    result = get_status_text(mock_hass, 4)
+    assert result == "Ожидание загрузки продуктов"
+
+    mock_hass.config.language = "en"
+    result = get_status_text(mock_hass, 7)
+    assert result == "Error"
+
     # Тест с неизвестным кодом статуса
     mock_hass.config.language = "en"
     result = get_status_text(mock_hass, 999)

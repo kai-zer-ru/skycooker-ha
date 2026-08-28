@@ -404,7 +404,7 @@ PLATFORMS = [
 async def async_setup(hass, config):
     """Настройка компонента SkyCooker."""
     # Проверка минимальной версии HomeAssistant
-    min_ha_version = "2025.12.5"
+    min_ha_version = "2026.6"
     if version.parse(HA_VERSION) < version.parse(min_ha_version):
         _LOGGER.error(
             "Требуется Home Assistant версии %s или выше. У вас установлена версия %s",

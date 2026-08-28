@@ -503,14 +503,21 @@ PROGRAM_NAMES = {
 ######## Константы статусов ########
 
 
-# Коды статусов
+# Коды статусов (протокол r4sGate, общая схема для поддерживаемых мультиварок)
 STATUS_OFF = 0x00
 STATUS_WAIT = 0x01
 STATUS_DELAYED_LAUNCH = 0x02
 STATUS_WARMING = 0x03
+STATUS_WAIT_PRODUCT = 0x04
 STATUS_COOKING = 0x05
 STATUS_AUTO_WARM = 0x06
+STATUS_ERROR = 0x07
+STATUS_WAIT_CONFIRM = 0x08
+STATUS_STOP_POWER_LOSS = 0x09
 STATUS_FULL_OFF = 0x0A
+
+# Статусы, при которых повторный «Старт» продолжает программу (только turn_on, без set_main_mode)
+RESUME_COOKING_STATUSES = (STATUS_WAIT_PRODUCT, STATUS_WAIT_CONFIRM)
 
 # Отображение кодов статусов на ключи переводов
 STATUS_CODE_TO_TRANSLATION_KEY = {
@@ -519,8 +526,12 @@ STATUS_CODE_TO_TRANSLATION_KEY = {
     STATUS_COOKING: "cooking",
     STATUS_WARMING: "warming",
     STATUS_DELAYED_LAUNCH: "delayed_launch",
+    STATUS_WAIT_PRODUCT: "wait_product",
     STATUS_AUTO_WARM: "auto_warm",
-    STATUS_FULL_OFF: "full_off"
+    STATUS_ERROR: "error",
+    STATUS_WAIT_CONFIRM: "wait_confirm",
+    STATUS_STOP_POWER_LOSS: "stop_power_loss",
+    STATUS_FULL_OFF: "full_off",
 }
 
 # Определение структуры статуса

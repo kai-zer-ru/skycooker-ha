@@ -18,7 +18,7 @@
 
 ### 🔧 Требования
 
-- **Home Assistant 2025.12.5 или новее**
+- **Home Assistant 2026.6 или новее**
 - **Bluetooth адаптер**, поддерживаемый Home Assistant (рекомендуется ESP32 с ESPHome Bluetooth Proxy)
 - **Мультиварка Redmond RMC-M40S** с включенным Bluetooth
 

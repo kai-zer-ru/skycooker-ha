@@ -421,6 +421,33 @@ async def test_execute_cooking_sequence_same_program_device_on():
 
 
 @pytest.mark.asyncio
+async def test_execute_cooking_sequence_wait_product_resume():
+    """Тест _execute_cooking_sequence: статус 4 — только turn_on без set_main_program."""
+    mock_connection_manager = MagicMock()
+    mock_connection_manager.model_id = 6
+    mock_connection_manager.hass = MagicMock()
+    mock_connection_manager.select_program = AsyncMock()
+    mock_connection_manager.set_main_program = AsyncMock()
+    mock_connection_manager.turn_on = AsyncMock()
+
+    controller = SkyCookerCookingController(mock_connection_manager)
+    controller._target_program_name = "pasta"
+    mock_status = MagicMock()
+    mock_status.program_id = 6
+    mock_status.is_on = True
+    mock_status.status = 4
+    controller._status = mock_status
+
+    with patch('custom_components.skycooker.skycooker_cooking_controller.get_constant_by_name', return_value="pasta"):
+        with patch('custom_components.skycooker.skycooker_cooking_controller.get_standby_program_name', return_value="standby"):
+            await controller._execute_cooking_sequence(6, 0, 100, 0, 8, 0, 0, 0)
+
+    mock_connection_manager.select_program.assert_not_called()
+    mock_connection_manager.set_main_program.assert_not_called()
+    mock_connection_manager.turn_on.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_execute_cooking_sequence_different_program():
     """Тест _execute_cooking_sequence: ветка current_program_id != target_program_id."""
     mock_connection_manager = MagicMock()

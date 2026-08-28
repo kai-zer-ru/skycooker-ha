@@ -53,6 +53,10 @@ node_modules/
 .hacsignore
 .roo
 other_source
-scripts
 custom_components/skycooker/skycooker_card/frontend/package-lock.json
 alarmo
+
+# CI / act
+.artifacts/
+.release-notes.md
+dist/

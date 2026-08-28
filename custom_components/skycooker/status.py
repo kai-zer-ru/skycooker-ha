@@ -51,8 +51,18 @@ def get_status_text(hass: Any, status_code: Optional[int]) -> str:
                 "wait": get_localized_string(hass, "Waiting", "Ожидание"),
                 "delayed_launch": get_localized_string(hass, "Delayed Launch", "Отложенный старт"),
                 "warming": get_localized_string(hass, "Warming", "Разогрев"),
+                "wait_product": get_localized_string(
+                    hass, "Waiting for ingredients", "Ожидание загрузки продуктов"
+                ),
                 "cooking": get_localized_string(hass, "Cooking", "Готовка"),
                 "auto_warm": get_localized_string(hass, "Auto Warm", "Подогрев"),
+                "error": get_localized_string(hass, "Error", "Ошибка"),
+                "wait_confirm": get_localized_string(
+                    hass, "Waiting for confirmation", "Ожидание подтверждения"
+                ),
+                "stop_power_loss": get_localized_string(
+                    hass, "Stopped (power loss)", "Остановка (потеря питания)"
+                ),
                 "full_off": get_localized_string(hass, "Fully off", "Полностью выключена"),
             }
             return fallback_translations.get(translation_key, translation_key)

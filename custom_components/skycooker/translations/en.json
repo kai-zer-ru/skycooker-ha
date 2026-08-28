@@ -81,8 +81,12 @@
       "wait": "Waiting",
       "delayed_launch": "Delayed launch",
       "warming": "Warming",
+      "wait_product": "Waiting for ingredients",
       "cooking": "Cooking",
       "auto_warm": "Auto warm",
+      "error": "Error",
+      "wait_confirm": "Waiting for confirmation",
+      "stop_power_loss": "Stopped (power loss)",
       "full_off": "Fully off"
     }
   },
@@ -91,8 +95,12 @@
     "wait": "Waiting",
     "delayed_launch": "Delayed Launch",
     "warming": "Warming",
+    "wait_product": "Waiting for ingredients",
     "cooking": "Cooking",
     "auto_warm": "Auto Warm",
+    "error": "Error",
+    "wait_confirm": "Waiting for confirmation",
+    "stop_power_loss": "Stopped (power loss)",
     "full_off": "Fully off"
   },
   "program_names": {
