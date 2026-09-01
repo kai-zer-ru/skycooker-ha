@@ -733,6 +733,26 @@ def test_get_cooking_parameters():
             assert result == [1, 0, 90, 1, 30]
 
 
+def test_get_cooking_parameters_none_subprogram_defaults_to_zero():
+    """Тест _get_cooking_parameters: None подпрограмма трактуется как 0 (RMC-M92S)."""
+    mock_connection_manager = MagicMock()
+    mock_connection_manager.model_id = 6
+    mock_connection_manager.hass = MagicMock()
+
+    controller = SkyCookerCookingController(mock_connection_manager)
+    controller._target_subprogram_id = None
+
+    with patch('custom_components.skycooker.skycooker_cooking_controller.find_program_id', return_value=1):
+        with patch('custom_components.skycooker.skycooker_cooking_controller.PROGRAM_DATA', {6: [{"temperature": 100, "hours": 1, "minutes": 30}]}):
+            controller._target_program_name = "multi_chef"
+            controller._target_temperature = 90
+            controller._target_main_hours = 1
+            controller._target_main_minutes = 30
+
+            result = controller._get_cooking_parameters("multi_chef")
+            assert result == [1, 0, 90, 1, 30]
+
+
 def test_get_program_parameters():
     """Тест получения параметров программы."""
     mock_connection_manager = MagicMock()

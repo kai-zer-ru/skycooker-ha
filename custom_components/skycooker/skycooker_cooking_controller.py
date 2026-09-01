@@ -128,7 +128,7 @@ class SkyCookerCookingController:
         target_main_hours = self._target_main_hours if self._target_main_hours is not None else 0
         target_main_minutes = self._target_main_minutes if self._target_main_minutes is not None else 0
 
-        target_subprogram_id = getattr(self, '_target_subprogram_id', 0)
+        target_subprogram_id = self._target_subprogram_id if self._target_subprogram_id is not None else 0
         _LOGGER.debug("Используется подпрограмма %s", target_subprogram_id)
 
         if target_temperature is None:

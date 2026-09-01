@@ -125,7 +125,7 @@ class SkyCooker(ABC):
         """
         # Для MODEL_3 отправляем только mode (1 байт), для остальных - mode и subprog (2 байта)
         if is_subprogram_supported(self.model_id):
-            data = pack("BB", int(program_id), int(subprog))
+            data = pack("BB", int(program_id), int(subprog or 0))
             _LOGGER.debug("Отправка команды SELECT_MODE (0x09) с данными: %s", data.hex().upper())
             _LOGGER.debug("Параметры: mode=%s, subprog=%s", program_id, subprog)
         else:
@@ -185,7 +185,7 @@ class SkyCooker(ABC):
                 bit_flags = program_data[program_id]["byte_flag"]
             data = pack(
                 "BBBBBBBBB",
-                int(program_id), int(subprogram_id), int(target_temperature), int(target_main_hours),
+                int(program_id), int(subprogram_id or 0), int(target_temperature), int(target_main_hours),
                 int(target_main_minutes), int(target_additional_hours),
                 int(target_additional_minutes), int(auto_warm), int(bit_flags)
             )
