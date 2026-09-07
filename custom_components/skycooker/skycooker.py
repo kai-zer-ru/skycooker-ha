@@ -170,40 +170,37 @@ class SkyCooker(ABC):
             target_additional_hours: Целевые дополнительные часы (по умолчанию 0).
             target_additional_minutes: Целевые дополнительные минуты (по умолчанию 0).
             auto_warm: Настройка автоподогрева (по умолчанию 0).
-            bit_flags: Битовые флаги для настроек программ (по умолчанию 0).
-            
+            bit_flags: Устаревший параметр; в протоколе SET_MAIN_MODE (0x05)
+                битовые флаги из PROGRAM_DATA не передаются (r4sGate/ha_kettler:
+                ровно 8 байт payload).
+
         Raises:
             SkyCookerError: Если установка программы не удалась.
         """
-        # В текущей реализации битовые флаги берутся из MODE_DATA_NEW
-        # Для MODEL_3 битовые флаги не добавляются
-        # В будущем, когда будет понятно, как использовать битовые флаги, этот код будет обновлен
-        # Параметр auto_warm используется для передачи флага автоподогрева
-        if is_subprogram_supported(self.model_id):
-            program_data = PROGRAM_DATA.get(self.model_id, [])
-            if program_id < len(program_data) and bit_flags == 0:
-                bit_flags = program_data[program_id]["byte_flag"]
-            data = pack(
-                "BBBBBBBBB",
-                int(program_id), int(subprogram_id or 0), int(target_temperature), int(target_main_hours),
-                int(target_main_minutes), int(target_additional_hours),
-                int(target_additional_minutes), int(auto_warm), int(bit_flags)
-            )
-        else:
+        # Протокол Ready4Sky для мультиварок (в т.ч. RMC-M92S): команда 0x05
+        # всегда несёт 8 байт — program, subprogram, temp, hours, minutes,
+        # delay_hours, delay_minutes, auto_warm. Лишний 9-й байт bit_flags
+        # устройство игнорирует без ответа → «Таймаут приема».
+        _ = bit_flags  # сохранён в сигнатуре для обратной совместимости вызовов
+        if not is_subprogram_supported(self.model_id):
             subprogram_id = 0
-            # Для MODEL_3 используем auto_warm как флаг автоподогрева
-            data = pack(
-                "BBBBBBBB",
-                int(program_id), int(subprogram_id), int(target_temperature), int(target_main_hours),
-                int(target_main_minutes), int(target_additional_hours),
-                int(target_additional_minutes), int(auto_warm)
-            )
+        data = pack(
+            "BBBBBBBB",
+            int(program_id),
+            int(subprogram_id or 0),
+            int(target_temperature),
+            int(target_main_hours),
+            int(target_main_minutes),
+            int(target_additional_hours),
+            int(target_additional_minutes),
+            int(auto_warm),
+        )
         _LOGGER.debug("Отправка команды SET_MAIN_MODE (0x05) с данными: %s", data.hex().upper())
         _LOGGER.debug(
             "Параметры: mode=%s, subprog=%s, target_temp=%s, target_main_hours=%s, target_main_minutes=%s, "
-            "target_additional_hours=%s, target_additional_minutes=%s, auto_warm=%s, bit_flags=%s",
+            "target_additional_hours=%s, target_additional_minutes=%s, auto_warm=%s",
             program_id, subprogram_id, target_temperature, target_main_hours, target_main_minutes,
-            target_additional_hours, target_additional_minutes, auto_warm, bit_flags
+            target_additional_hours, target_additional_minutes, auto_warm
         )
 
         try:

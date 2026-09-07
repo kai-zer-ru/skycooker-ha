@@ -1,4 +1,4 @@
-VERSION ?= 1.3.4
+VERSION ?= 1.3.5
 PYTHON ?= python3
 VENV ?= .venv
 PIP := $(VENV)/bin/pip

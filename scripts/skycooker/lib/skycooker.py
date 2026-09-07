@@ -24,9 +24,7 @@ from .const import (
     COMMAND_TURN_OFF,
     COMMAND_TURN_ON,
     MODEL_3,
-    MODE_DATA,
     MODELS,
-    PROGRAM_DATA,
 )
 from .logger import skycooker_logger as _LOGGER
 
@@ -100,32 +98,31 @@ class SkyCooker(ABC):
         _LOGGER.debug(f"Turned off")
     
     async def select_mode(self, mode, subprog=0, target_temp=0, hours=0, minutes=0, dhours=0, dminutes=0, heat=0, bit_flags=0):
-            program_data = PROGRAM_DATA.get(self.model_code, [])
-            if mode < len(program_data) and bit_flags == 0:
-                bit_flags = program_data[mode]["byte_flag"]
+            # SELECT_PROGRAM (0x09): mode (+ subprog для моделей с подпрограммами)
+            _ = (target_temp, hours, minutes, dhours, dminutes, heat, bit_flags)
             if is_subprogram_supported(self.model_code):
-                data = pack("BBBBBBBBB", int(mode), int(subprog), int(target_temp), int(hours), int(minutes),
-                            int(dhours), int(dminutes), int(heat), int(bit_flags))
+                data = pack("BB", int(mode), int(subprog or 0))
             else:
-                data = pack("BBBBBBBB", int(mode), int(subprog), int(target_temp), int(hours), int(minutes), int(dhours), int(dminutes), int(heat))
+                data = pack("B", int(mode))
 
             r = await self.command(COMMAND_SELECT_PROGRAM, list(data))
             if r[0] != 1: raise SkyCookerError("can't select mode")
-            _LOGGER.debug(f"Mode selected: mode={mode}, subprog={subprog}, target_temp={target_temp}, hours={hours}, minutes={minutes}, dhours={dhours}, dminutes={dminutes}, heat={heat}, bit_flags={bit_flags}")
+            _LOGGER.debug(f"Mode selected: mode={mode}, subprog={subprog}")
 
     async def set_main_mode(self, mode, subprog=0, target_temp=0, hours=0, minutes=0, dhours=0, dminutes=0, heat=0, bit_flags=0):
-            program_data = PROGRAM_DATA.get(self.model_code, [])
-            if mode < len(program_data) and bit_flags == 0:
-                bit_flags = program_data[mode]["byte_flag"]
-            if is_subprogram_supported(self.model_code):
-                data = pack("BBBBBBBBB", int(mode), int(subprog), int(target_temp), int(hours), int(minutes),
-                            int(dhours), int(dminutes), int(heat), int(bit_flags))
-            else:
-                data = pack("BBBBBBBB", int(mode), int(subprog), int(target_temp), int(hours), int(minutes), int(dhours), int(dminutes), int(heat))
+            # SET_MAIN_MODE (0x05): всегда 8 байт (r4sGate/ha_kettler), без bit_flags
+            _ = bit_flags
+            if not is_subprogram_supported(self.model_code):
+                subprog = 0
+            data = pack(
+                "BBBBBBBB",
+                int(mode), int(subprog or 0), int(target_temp), int(hours), int(minutes),
+                int(dhours), int(dminutes), int(heat),
+            )
 
             r = await self.command(COMMAND_SET_MAIN_MODE, list(data))
             if r[0] != 1: raise SkyCookerError("can't set mode")
-            _LOGGER.debug(f"Mode set: mode={mode}, subprog={subprog}, target_temp={target_temp}, hours={hours}, minutes={minutes}, dhours={dhours}, dminutes={dminutes}, heat={heat}, bit_flags={bit_flags}")
+            _LOGGER.debug(f"Mode set: mode={mode}, subprog={subprog}, target_temp={target_temp}, hours={hours}, minutes={minutes}, dhours={dhours}, dminutes={dminutes}, heat={heat}")
     
     async def get_status(self):
         r = await self.command(COMMAND_GET_STATUS)

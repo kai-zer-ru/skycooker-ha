@@ -268,7 +268,7 @@ async def test_select_program_command_exception():
 
 @pytest.mark.asyncio
 async def test_set_main_program_model_with_subprograms():
-    """Тест set_main_program для модели с поддержкой подпрограмм."""
+    """Тест set_main_program для RMC-M92S: 8 байт payload, subprogram сохраняется."""
     mock_hass = MagicMock()
     skycooker = SkyCookerTestImpl(mock_hass, "RMC-M92S")
 
@@ -279,14 +279,17 @@ async def test_set_main_program_model_with_subprograms():
         target_temperature=100,
         target_main_hours=1,
         target_main_minutes=30,
+        auto_warm=1,
     )
     call_args = skycooker.command.call_args[0]
-    assert len(call_args[1]) == 9  # BBBBBBBBB для модели с подпрограммами
+    assert call_args[0] == 0x05  # COMMAND_SET_MAIN_MODE
+    # r4sGate/ha_kettler: ровно 8 байт (без bit_flags)
+    assert call_args[1] == [1, 2, 100, 1, 30, 0, 0, 1]
 
 
 @pytest.mark.asyncio
 async def test_set_main_program_model3_no_subprogram():
-    """Тест set_main_program для MODEL_3 (без подпрограмм) — 8 байт."""
+    """Тест set_main_program для MODEL_3 (без подпрограмм) — 8 байт, subprogram=0."""
     mock_hass = MagicMock()
     skycooker = SkyCookerTestImpl(mock_hass, "RMC-M40S")
 
@@ -299,7 +302,8 @@ async def test_set_main_program_model3_no_subprogram():
         target_main_minutes=30,
     )
     call_args = skycooker.command.call_args[0]
-    assert len(call_args[1]) == 8  # BBBBBBBB для MODEL_3
+    assert len(call_args[1]) == 8  # BBBBBBBB
+    assert call_args[1][1] == 0  # subprogram принудительно 0
 
 
 @pytest.mark.asyncio
